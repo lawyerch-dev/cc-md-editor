@@ -202,6 +202,40 @@ async function fetchGovPolicy(): Promise<Article[]> {
 /** JSON API 解析器注册表（可扩展） */
 const JSON_PARSERS: Record<string, () => Promise<Article[]>> = {
   'gov-policy': fetchGovPolicy,
+  'cctv-law': fetchCctvLaw,
+}
+
+/** 央视网·法治频道 */
+async function fetchCctvLaw(): Promise<Article[]> {
+  try {
+    const res = await fetchWithProxy('https://news.cctv.com/2019/07/gaiban/cmsdatainterface/page/law_1.jsonp?cb=law')
+    let text = await res.text()
+    text = text.replace(/^law\(/, '').replace(/\);?$/, '')
+    const data: unknown = JSON.parse(text)
+    const dataObj = data && typeof data === 'object' ? data as Record<string, unknown> : null
+    const dataInner = dataObj?.data && typeof dataObj.data === 'object' ? dataObj.data as Record<string, unknown> : null
+    const items = Array.isArray(dataInner?.list) ? dataInner.list : []
+    return items.slice(0, 20).map((item: Record<string, unknown>, i: number) => {
+      const url = typeof item.url === 'string' ? item.url : ''
+      return {
+        id: `cctv-law-${url.match(/ARTI[\w-]+/)?.[0] || i}`,
+        sourceId: 'cctv-law',
+        sourceTitle: '央视网·法治',
+        title: typeof item.title === 'string' ? item.title : '无标题',
+        link: url,
+        content: '',
+        summary: typeof item.brief === 'string' ? item.brief : '',
+        author: '',
+        publishedAt: typeof item.focus_date === 'string' ? new Date(item.focus_date).getTime() : Date.now(),
+        read: false,
+        starred: false,
+      }
+    })
+  }
+  catch (e) {
+    console.warn('[CctvLaw] Fetch failed:', e)
+    return []
+  }
 }
 
 // ── 策略分发 ───────────────────────────────────────────
@@ -249,7 +283,13 @@ export async function fetchSourceArticles(source: Source): Promise<Article[]> {
   const handler = STRATEGIES[source.strategy]
   if (!handler)
     throw new Error(`未知的获取策略: ${source.strategy}`)
-  return handler(source)
+  // 20秒超时，避免单个源卡住整个队列
+  return Promise.race([
+    handler(source),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('获取超时')), 20_000),
+    ),
+  ])
 }
 
 // ── 全文提取 ───────────────────────────────────────────
