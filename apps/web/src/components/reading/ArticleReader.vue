@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
-import { BookOpen, ExternalLink, Languages, Loader2, Sparkles, Star } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { BookOpen, ExternalLink, Languages, Sparkles, Star } from '@lucide/vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
@@ -37,6 +37,7 @@ const needsFullText = computed(() => {
 
 /** 双语对照：将 HTML 拆分成段落块 */
 const fullTextContent = ref('')
+
 const bilingualBlocks = computed(() => {
   const content = fullTextContent.value || props.article.content || props.article.summary || ''
   const parser = new DOMParser()
@@ -60,6 +61,21 @@ const fullTextLoading = ref(false)
 const translating = ref(false)
 const translatedParagraphs = ref<Record<number, string>>({})
 const translationActive = ref(false)
+
+// 切换文章时，如果内容为空，自动提取全文
+watch(() => props.article.id, async (id, oldId) => {
+  if (id === oldId)
+    return
+  fullTextContent.value = ''
+  const content = props.article.content || props.article.summary || ''
+  const textLen = content.replace(/<[^>]*>/g, '').trim().length
+  if (textLen < 200 && props.article.link) {
+    fullTextLoading.value = true
+    try { fullTextContent.value = await readingStore.fetchFullText(props.article.link) }
+    catch (e) { console.warn('自动全文提取失败:', e) }
+    finally { fullTextLoading.value = false }
+  }
+}, { immediate: true })
 
 async function callAIStream(
   systemPrompt: string,
@@ -223,7 +239,7 @@ async function handleFetchFullText() {
               </select>
             </div>
 
-            <Button v-if="needsFullText" variant="outline" size="sm" class="h-7 gap-1 text-xs" :disabled="fullTextLoading" @click="handleFetchFullText">
+            <Button variant="outline" size="sm" class="h-7 gap-1 text-xs" :disabled="fullTextLoading || !article.link" :title="!needsFullText ? t('reading.contentComplete') : ''" @click="handleFetchFullText">
               <BookOpen class="h-3 w-3" />
               {{ fullTextLoading ? t('reading.extracting') : t('reading.fullText') }}
             </Button>
@@ -240,30 +256,6 @@ async function handleFetchFullText() {
               <ExternalLink class="h-4.5 w-4.5" />
             </Button>
           </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- AI 面板（摘要 / 对话） -->
-    <!-- AI 摘要面板 -->
-    <div v-if="aiPanelTab === 'summary'" class="border-b">
-      <div class="px-8 py-2.5">
-        <div class="flex items-center gap-2 mb-1.5">
-          <Sparkles class="h-3.5 w-3.5 text-primary" />
-          <span class="text-xs font-medium">{{ t('reading.aiSummary') }}</span>
-          <button class="ml-auto text-[10px] text-muted-foreground hover:text-foreground" @click="aiPanelTab = null">
-            {{ t('common.close') }}
-          </button>
-        </div>
-        <div v-if="aiLoading" class="flex items-center gap-2 py-2 text-xs text-muted-foreground">
-          <Loader2 class="h-3.5 w-3.5 animate-spin" />
-          {{ t('reading.aiAnalyzing') }}
-        </div>
-        <div v-else-if="aiError" class="text-xs text-destructive">
-          {{ aiError }}
-        </div>
-        <div v-else-if="aiResult" class="text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-          {{ aiResult }}
         </div>
       </div>
     </div>
@@ -287,11 +279,16 @@ async function handleFetchFullText() {
       </div>
     </div>
 
-    <!-- 普通模式：批注系统 -->
+    <!-- 普通模式：批注系统 + AI 摘要侧栏 -->
     <ArticleAnnotator
       v-else
       :article="article"
       :content="fullTextContent || article.content || article.summary"
+      :ai-result="aiResult"
+      :ai-loading="aiLoading"
+      :ai-error="aiError"
+      :ai-panel-tab="aiPanelTab"
+      @close-ai="aiPanelTab = null"
     />
   </div>
 </template>

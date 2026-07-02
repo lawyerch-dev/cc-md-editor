@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
-import { MessageSquarePlus, X } from '@lucide/vue'
+import { Loader2, MessageSquarePlus, Sparkles, X } from '@lucide/vue'
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -15,6 +15,14 @@ interface Annotation {
 const props = defineProps<{
   article: Article
   content: string
+  aiResult?: string
+  aiLoading?: boolean
+  aiError?: string
+  aiPanelTab?: 'summary' | null
+}>()
+
+const emit = defineEmits<{
+  closeAi: []
 }>()
 
 const { t } = useI18n()
@@ -289,86 +297,121 @@ watch([hoveredId, activeId], () => { nextTick(updateLine) })
       </div>
     </div>
 
-    <!-- 右侧：批注侧栏 -->
-    <div class="w-64 border-l flex flex-col overflow-y-auto bg-muted/5 py-2">
-      <div
-        v-for="ann in annotations"
-        :key="ann.id"
-        :data-card-id="ann.id"
-        class="group mx-2 mb-2 rounded-lg transition-all duration-200 cursor-pointer"
-        :class="[
-          hoveredId === ann.id || activeId === ann.id
-            ? 'ring-1 ring-red-400/40 bg-background shadow-sm'
-            : 'hover:bg-background/50',
-        ]"
-        @mouseenter="cancelCollapse(); hoveredId = ann.id; nextTick(updateLine)"
-        @mouseleave="activeId !== ann.id && scheduleCollapse()"
-        @click="handleCardClick(ann)"
-      >
-        <!-- 默认：一行摘要 -->
-        <div class="px-3 py-2">
-          <div class="flex items-start justify-between gap-2">
-            <p class="text-[11px] text-muted-foreground flex-1 line-clamp-1">
-              <span class="text-red-400 mr-1">●</span>
-              {{ ann.comment || t('reading.editAnnotation') }}
-            </p>
-            <button
-              class="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
-              @click.stop="removeAnnotation(ann.id)"
-            >
-              <X class="h-3 w-3" />
-            </button>
-          </div>
-          <p class="text-[10px] text-muted-foreground/50 mt-0.5 truncate italic">
-            "{{ ann.text.slice(0, 50) }}{{ ann.text.length > 50 ? '...' : '' }}"
-          </p>
-        </div>
-
-        <!-- 展开：编辑批注 -->
-        <div
-          v-if="activeId === ann.id"
-          class="px-3 pb-2 border-t"
-          @click.stop
+    <!-- 右侧：批注/AI 摘要侧栏 -->
+    <div class="w-64 border-l flex flex-col bg-muted/5">
+      <!-- 标签切换 -->
+      <div class="flex border-b">
+        <button
+          class="flex-1 py-2 text-[10px] font-medium transition-colors"
+          :class="!props.aiPanelTab ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'"
+          @click="emit('closeAi')"
         >
-          <textarea
-            :value="ann.comment"
-            :placeholder="t('reading.writingAnnotation')"
-            class="w-full min-h-[60px] mt-2 text-xs resize-none rounded-md border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-            @input="handleInput(ann.id, ($event.target as HTMLTextAreaElement).value)"
-          />
-          <p class="text-[9px] text-muted-foreground/30 mt-1">
-            {{ new Date(ann.createdAt).toLocaleString() }}
-          </p>
+          {{ t('reading.annotations') }}
+        </button>
+        <button
+          class="flex-1 py-2 text-[10px] font-medium transition-colors"
+          :class="props.aiPanelTab === 'summary' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'"
+        >
+          <Sparkles class="h-3 w-3 inline mr-0.5" />
+          {{ t('reading.aiSummary') }}
+        </button>
+      </div>
+
+      <!-- AI 摘要面板 -->
+      <div v-if="props.aiPanelTab === 'summary'" class="flex-1 overflow-y-auto p-3">
+        <div v-if="props.aiLoading" class="flex items-center gap-2 py-4 text-xs text-muted-foreground justify-center">
+          <Loader2 class="h-3.5 w-3.5 animate-spin" />
+          {{ t('reading.aiAnalyzing') }}
+        </div>
+        <div v-else-if="props.aiError" class="text-xs text-destructive">
+          {{ props.aiError }}
+        </div>
+        <div v-else-if="props.aiResult" class="text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          {{ props.aiResult }}
         </div>
       </div>
 
-      <!-- 空状态 -->
-      <div
-        v-if="!annotations.length"
-        class="flex flex-col items-center justify-center h-32 text-muted-foreground/30"
-      >
-        <MessageSquarePlus class="h-6 w-6 mb-2" />
-        <span class="text-[10px]">{{ t('reading.noAnnotations') }}</span>
-      </div>
-    </div>
+      <!-- 批注面板 -->
+      <div v-else class="flex-1 overflow-y-auto py-2">
+        <div
+          v-for="ann in annotations"
+          :key="ann.id"
+          :data-card-id="ann.id"
+          class="group mx-2 mb-2 rounded-lg transition-all duration-200 cursor-pointer"
+          :class="[
+            hoveredId === ann.id || activeId === ann.id
+              ? 'ring-1 ring-red-400/40 bg-background shadow-sm'
+              : 'hover:bg-background/50',
+          ]"
+          @mouseenter="cancelCollapse(); hoveredId = ann.id; nextTick(updateLine)"
+          @mouseleave="activeId !== ann.id && scheduleCollapse()"
+          @click="handleCardClick(ann)"
+        >
+          <!-- 默认：一行摘要 -->
+          <div class="px-3 py-2">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-[11px] text-muted-foreground flex-1 line-clamp-1">
+                <span class="text-red-400 mr-1">●</span>
+                {{ ann.comment || t('reading.editAnnotation') }}
+              </p>
+              <button
+                class="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                @click.stop="removeAnnotation(ann.id)"
+              >
+                <X class="h-3 w-3" />
+              </button>
+            </div>
+            <p class="text-[10px] text-muted-foreground/50 mt-0.5 truncate italic">
+              "{{ ann.text.slice(0, 50) }}{{ ann.text.length > 50 ? '...' : '' }}"
+            </p>
+          </div>
 
-    <!-- 连接线 SVG -->
-    <svg
-      v-if="lineCoords"
-      class="absolute inset-0 pointer-events-none overflow-visible"
-      style="z-index: 5;"
-    >
-      <line
-        :x1="lineCoords.x1"
-        :y1="lineCoords.y1"
-        :x2="lineCoords.x2"
-        :y2="lineCoords.y2"
-        stroke="#ef4444"
-        stroke-width="1.5"
-        stroke-dasharray="5 3"
-        stroke-opacity="0.6"
-      />
-    </svg>
+          <!-- 展开：编辑批注 -->
+          <div
+            v-if="activeId === ann.id"
+            class="px-3 pb-2 border-t"
+            @click.stop
+          >
+            <textarea
+              :value="ann.comment"
+              :placeholder="t('reading.writingAnnotation')"
+              class="w-full min-h-[60px] mt-2 text-xs resize-none rounded-md border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+              @input="handleInput(ann.id, ($event.target as HTMLTextAreaElement).value)"
+            />
+            <p class="text-[9px] text-muted-foreground/30 mt-1">
+              {{ new Date(ann.createdAt).toLocaleString() }}
+            </p>
+          </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div
+          v-if="!annotations.length"
+          class="flex flex-col items-center justify-center h-32 text-muted-foreground/30"
+        >
+          <MessageSquarePlus class="h-6 w-6 mb-2" />
+          <span class="text-[10px]">{{ t('reading.noAnnotations') }}</span>
+        </div>
+      </div>
+
+      <!-- 连接线 SVG -->
+      <svg
+        v-if="lineCoords"
+        class="absolute inset-0 pointer-events-none overflow-visible"
+        style="z-index: 5;"
+      >
+        <line
+          :x1="lineCoords.x1"
+          :y1="lineCoords.y1"
+          :x2="lineCoords.x2"
+          :y2="lineCoords.y2"
+          stroke="#ef4444"
+          stroke-width="1.5"
+          stroke-dasharray="5 3"
+          stroke-opacity="0.6"
+        />
+      </svg>
+    </div>
   </div>
 </template>
 

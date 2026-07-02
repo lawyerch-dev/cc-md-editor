@@ -71,8 +71,8 @@ apps/web/src/
 │   │   ├── ReadingView.vue      # 主视图（三栏布局）
 │   │   ├── ArticleReader.vue    # 文章阅读器
 │   │   ├── ArticleAnnotator.vue # 批注系统
-│   │   ├── SourceConfigDialog.vue # 源管理
-│   │   └── CollectorConfigDialog.vue # 采集管理（已合并到 SourceConfigDialog）
+│   │   ├── SourceConfigDialog.vue # 数据源管理（列表）
+│   │   └── AddSourceDialog.vue  # 添加/编辑数据源（统一）
 │   ├── idea-board/              # 想法库工作区
 │   │   ├── IdeaBoard.vue        # 主视图
 │   │   └── ExcalidrawWrapper.vue
@@ -82,7 +82,12 @@ apps/web/src/
 │   └── ui/                      # Shadcn-Vue 基础组件
 ├── stores/                      # Pinia 状态管理
 │   ├── ui.ts                    # 全局 UI 状态（视图切换、暗色模式）
-│   ├── reading.ts               # 资讯阅读数据
+│   ├── reading.ts               # 资讯阅读数据（→ reading/index.ts）
+│   └── reading/                 # 资讯阅读模块
+│       ├── index.ts             # useReadingStore + re-exports
+│       ├── types.ts             # Source, Article, FetchStrategy 等接口
+│       ├── fetch-strategies.ts  # RSS / CSS / JSON API 获取策略
+│       └── persistence.ts       # localStorage + V1→V2 迁移
 │   ├── ideaBoard.ts             # 想法库数据
 │   ├── editor.ts                # 编辑器状态
 │   ├── aiConfig.ts              # AI 模型配置

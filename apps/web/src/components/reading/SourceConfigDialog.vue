@@ -1,24 +1,21 @@
 <script setup lang="ts">
-import { Globe, Loader2, Plus, Radio, Timer, Trash2, X } from '@lucide/vue'
+import type { Source } from '@/stores/reading'
+import { Loader2, Plus, Settings2, Trash2, X } from '@lucide/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useReadingStore } from '@/stores/reading'
+import AddSourceDialog from './AddSourceDialog.vue'
 
 const emit = defineEmits<{
   close: []
 }>()
 
 const { t } = useI18n()
-
 const store = useReadingStore()
 
-const newUrl = ref('')
-const newTitle = ref('')
-const newCategory = ref('')
-const discovering = ref(false)
-const discoveredRoutes = ref<Array<{ name: string, path: string }>>([])
+const showAddDialog = ref(false)
+const editingSource = ref<Source | null>(null)
 
 const REFRESH_OPTIONS = [
   { value: 0, label: () => t('common.close') },
@@ -30,164 +27,145 @@ const REFRESH_OPTIONS = [
   { value: 1440, label: () => t('reading.hours', { n: 24 }) },
 ]
 
-/** 统一源列表：RSS + 采集器 */
-function getAllSources() {
-  return [
-    ...store.sources.map(s => ({ ...s, sourceType: 'rss' as const, url: s.url })),
-    ...store.collectors.map(s => ({ ...s, sourceType: 'collector' as const })),
-  ]
+function updateInterval(src: Source, minutes: number) {
+  store.updateSource(src.id, { refreshInterval: minutes })
 }
 
-function handleAdd() {
-  if (!newUrl.value.trim())
-    return
-  store.addSource(newUrl.value.trim(), newTitle.value.trim() || newUrl.value.trim(), newCategory.value.trim() || t('reading.categoryPlaceholder'))
-  newUrl.value = ''
-  newTitle.value = ''
-  newCategory.value = ''
-  discoveredRoutes.value = []
+function removeSource(src: Source) {
+  store.removeSource(src.id)
 }
 
-async function handleDiscover() {
-  if (!newUrl.value.trim())
-    return
-  discovering.value = true
-  discoveredRoutes.value = []
-  try { discoveredRoutes.value = await store.discoverRSSHubRoutes(newUrl.value.trim()) }
-  catch { /* ignore */ }
-  finally { discovering.value = false }
+function openEdit(src: Source) {
+  editingSource.value = src
 }
 
-function useRoute(route: { name: string, path: string }) {
-  newUrl.value = route.path
-  newTitle.value = route.name.split('/').pop() || route.name
-  newCategory.value = 'RSSHub'
-  discoveredRoutes.value = []
-}
-
-function removeSource(src: { id: string, sourceType: 'rss' | 'collector' }) {
-  if (src.sourceType === 'collector')
-    store.removeCollector(src.id)
-  else
-    store.removeSource(src.id)
-}
-
-function updateInterval(src: { id: string, sourceType: 'rss' | 'collector' }, minutes: number) {
-  if (src.sourceType === 'collector')
-    store.updateCollectorInterval(src.id, minutes)
-  else
-    store.updateSourceInterval(src.id, minutes)
+function openAdd() {
+  showAddDialog.value = true
 }
 </script>
 
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="emit('close')">
-    <div class="flex h-[75vh] w-[680px] max-w-[95vw] flex-col rounded-xl border bg-background shadow-2xl">
+    <div class="flex h-[80vh] w-[700px] max-w-[95vw] flex-col rounded-xl border bg-background shadow-2xl">
       <!-- Header -->
       <div class="flex items-center justify-between border-b px-4 py-3">
         <h2 class="text-base font-semibold">
           {{ t('reading.sourceManageTitle') }}
         </h2>
-        <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
-          <X class="h-4 w-4" />
+        <div class="flex items-center gap-2">
+          <Button size="sm" variant="outline" class="h-7 gap-1" @click="openAdd">
+            <Plus class="h-3.5 w-3.5" />
+            {{ t('reading.addSource') }}
+          </Button>
+          <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
+            <X class="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <!-- 源列表 -->
+      <div class="flex-1 overflow-y-auto">
+        <div v-for="src in store.sources" :key="src.id" class="border-b">
+          <div class="flex items-center justify-between px-4 py-2.5 hover:bg-muted/50 transition-colors">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <!-- 健康状态 -->
+                <span
+                  v-if="src.health?.status === 'error'"
+                  class="h-2 w-2 rounded-full bg-red-500 shrink-0"
+                  :title="src.health.lastError"
+                />
+                <span
+                  v-else-if="src.health?.status === 'pending'"
+                  class="shrink-0"
+                >
+                  <Loader2 class="h-3 w-3 animate-spin text-blue-500" />
+                </span>
+                <span
+                  v-else-if="src.health?.status === 'ok'"
+                  class="h-2 w-2 rounded-full bg-green-500 shrink-0"
+                />
+                <span
+                  v-else
+                  class="h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0"
+                />
+
+                <p class="text-xs font-medium truncate">
+                  {{ src.title }}
+                </p>
+                <!-- 策略标签 -->
+                <span
+                  class="rounded px-1.5 py-0.5 text-[9px]"
+                  :class="{
+                    'bg-green-500/10 text-green-600': src.strategy === 'rss',
+                    'bg-blue-500/10 text-blue-600': src.strategy === 'css-selector',
+                    'bg-purple-500/10 text-purple-600': src.strategy === 'json-api',
+                  }"
+                >
+                  {{ src.strategy === 'rss' ? 'RSS' : src.strategy === 'css-selector' ? 'CSS' : 'API' }}
+                </span>
+              </div>
+              <p class="text-[10px] text-muted-foreground truncate mt-0.5">
+                {{ src.description || src.url }}
+              </p>
+              <p v-if="src.health?.lastError" class="text-[9px] text-destructive truncate mt-0.5">
+                {{ src.health.lastError }}
+              </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 ml-2">
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-6 gap-1 text-[10px]"
+                @click="openEdit(src)"
+              >
+                <Settings2 class="h-3 w-3" />
+                {{ t('reading.editSource') }}
+              </Button>
+              <div class="flex items-center gap-1">
+                <select
+                  class="rounded border bg-background px-1.5 py-0.5 text-[10px]"
+                  :value="src.refreshInterval"
+                  @change="updateInterval(src, Number(($event.target as HTMLSelectElement).value))"
+                >
+                  <option v-for="opt in REFRESH_OPTIONS" :key="opt.value" :value="opt.value">
+                    {{ opt.label() }}
+                  </option>
+                </select>
+              </div>
+              <span class="rounded-full bg-muted px-2 py-0.5 text-[10px]">
+                {{ src.category }}
+              </span>
+              <Button variant="ghost" size="icon" class="h-6 w-6 text-destructive" @click="removeSource(src)">
+                <Trash2 class="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div v-if="!store.sources.length" class="flex h-32 flex-col items-center justify-center gap-2 text-xs text-muted-foreground/50">
+          {{ t('reading.noSources') }}
+          <Button variant="outline" size="sm" class="h-7 gap-1" @click="openAdd">
+            <Plus class="h-3.5 w-3.5" />
+            {{ t('reading.addSource') }}
+          </Button>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-between border-t px-4 py-3">
+        <span class="text-xs text-muted-foreground">
+          {{ store.sources.length }} {{ t('reading.sourcesCount') }}
+        </span>
+        <Button variant="ghost" size="sm" class="h-7 text-xs" @click="store.resetToDefaults()">
+          {{ t('reading.resetDefaults') }}
         </Button>
       </div>
-
-      <!-- 添加源 -->
-      <div class="border-b p-4">
-        <div class="flex gap-2">
-          <Input v-model="newUrl" :placeholder="t('reading.rssPlaceholder')" class="h-8 text-xs flex-1" />
-          <Input v-model="newTitle" :placeholder="t('reading.titlePlaceholder')" class="h-8 text-xs w-28" />
-          <Input v-model="newCategory" :placeholder="t('reading.categoryPlaceholder')" class="h-8 text-xs w-20" />
-          <Button size="sm" variant="outline" class="h-8 gap-1" :disabled="!newUrl.trim() || discovering" @click="handleDiscover">
-            <Loader2 v-if="discovering" class="h-3.5 w-3.5 animate-spin" />
-            <Radio v-else class="h-3.5 w-3.5" />
-            {{ t('reading.discover') }}
-          </Button>
-          <Button size="sm" class="h-8 gap-1" @click="handleAdd">
-            <Plus class="h-3.5 w-3.5" />
-            {{ t('reading.add') }}
-          </Button>
-        </div>
-        <p class="mt-1.5 text-[10px] text-muted-foreground">
-          {{ t('reading.discoverHint') }}
-        </p>
-        <!-- RSSHub 发现结果 -->
-        <div v-if="discoveredRoutes.length" class="mt-2 rounded-md border bg-muted/30 p-2">
-          <p class="text-[10px] text-muted-foreground mb-1.5">
-            {{ t('reading.discoveredRoutes', { count: discoveredRoutes.length }) }}
-          </p>
-          <div class="flex flex-wrap gap-1">
-            <button
-              v-for="route in discoveredRoutes.slice(0, 10)"
-              :key="route.path"
-              class="rounded bg-background border px-2 py-0.5 text-[10px] hover:bg-primary/10 transition-colors"
-              @click="useRoute(route)"
-            >
-              {{ route.name }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 统一源列表 -->
-      <div class="flex-1 overflow-y-auto">
-        <div
-          v-for="src in getAllSources()"
-          :key="src.id"
-          class="flex items-center justify-between border-b px-4 py-2.5 hover:bg-muted/50 transition-colors"
-        >
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5">
-              <p class="text-xs font-medium truncate">
-                {{ src.title }}
-              </p>
-              <span
-                v-if="src.sourceType === 'collector'"
-                class="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] text-blue-500"
-              >
-                {{ t('reading.collector') }}
-              </span>
-              <span
-                v-if="src.url.startsWith('legal://')"
-                class="rounded bg-green-500/10 px-1.5 py-0.5 text-[9px] text-green-500"
-              >
-                API
-              </span>
-            </div>
-            <p class="text-[10px] text-muted-foreground truncate">
-              {{ src.sourceType === 'collector' && src.description ? src.description : src.url }}
-            </p>
-          </div>
-          <div class="flex items-center gap-2 shrink-0 ml-2">
-            <div class="flex items-center gap-1">
-              <Timer class="h-3 w-3 text-muted-foreground" />
-              <select
-                class="rounded border bg-background px-1.5 py-0.5 text-[10px]"
-                :value="src.refreshInterval"
-                @change="updateInterval(src, Number(($event.target as HTMLSelectElement).value))"
-              >
-                <option v-for="opt in REFRESH_OPTIONS" :key="opt.value" :value="opt.value">
-                  {{ opt.label() }}
-                </option>
-              </select>
-            </div>
-            <span class="rounded-full bg-muted px-2 py-0.5 text-[10px]">
-              {{ src.category }}
-            </span>
-            <Button variant="ghost" size="icon" class="h-6 w-6 text-destructive" @click="removeSource(src)">
-              <Trash2 class="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-        <div v-if="!getAllSources().length" class="flex h-32 flex-col items-center justify-center gap-2 text-xs text-muted-foreground/50">
-          <Globe class="h-8 w-8" />
-          <span>{{ t('reading.noSources') }}</span>
-          <Button variant="outline" size="sm" class="h-7 text-xs" @click="store.resetToDefaults()">
-            {{ t('reading.resetDefaults') }}
-          </Button>
-        </div>
-      </div>
     </div>
+
+    <!-- 添加源对话框 -->
+    <AddSourceDialog v-if="showAddDialog" @close="showAddDialog = false" />
+
+    <!-- 编辑源对话框 -->
+    <AddSourceDialog v-if="editingSource" :source="editingSource" @close="editingSource = null" />
   </div>
 </template>
