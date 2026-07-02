@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { FileText, Globe, Lightbulb, Moon, Newspaper, Settings, Sun } from '@lucide/vue'
-import { onMounted } from 'vue'
+import { FileText, Globe, Lightbulb, Moon, Newspaper, Settings, Sun, X } from '@lucide/vue'
+import { onMounted, ref } from 'vue'
+import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
+import { Button } from '@/components/ui/button'
 import { useLocaleStore } from '@/stores/locale'
 import { useUIStore } from '@/stores/ui'
 
 const uiStore = useUIStore()
 const localeStore = useLocaleStore()
+const showAIConfig = ref(false)
 
 onMounted(() => {
   import('@/components/editor/CodemirrorEditor.vue')
@@ -36,13 +39,13 @@ onMounted(() => {
         <Moon v-else class="h-4 w-4" />
       </button>
 
-      <!-- 设置 -->
+      <!-- AI 设置 -->
       <button
         class="flex h-9 items-center gap-1.5 rounded-lg border bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
-        @click="uiStore.toggleShowPreferencesDialog()"
+        @click="showAIConfig = true"
       >
         <Settings class="h-4 w-4" />
-        设置
+        AI 设置
       </button>
     </div>
 
@@ -104,6 +107,21 @@ onMounted(() => {
             </p>
           </div>
         </button>
+      </div>
+    </div>
+
+    <!-- AI 配置对话框 -->
+    <div v-if="showAIConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showAIConfig = false">
+      <div class="flex h-[80vh] w-[620px] max-w-[95vw] flex-col rounded-xl border bg-background shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between border-b px-4 py-3 shrink-0">
+          <span class="text-sm font-semibold">AI 设置</span>
+          <Button variant="ghost" size="icon" class="h-7 w-7" @click="showAIConfig = false">
+            <X class="h-4 w-4" />
+          </Button>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+          <AIConfig />
+        </div>
       </div>
     </div>
   </div>
