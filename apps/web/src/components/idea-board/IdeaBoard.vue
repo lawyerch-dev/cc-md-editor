@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LayoutGrid, Lightbulb, Plus, Search, Sparkles, Trash2 } from '@lucide/vue'
+import { Globe, LayoutGrid, Lightbulb, Moon, Plus, Search, Sparkles, Sun, Trash2 } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import SyncButton from '@/components/shared/SyncButton.vue'
 import ViewNav from '@/components/shared/ViewNav.vue'
@@ -7,11 +7,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useLocaleStore } from '@/stores/locale'
+import { useUIStore } from '@/stores/ui'
 import AIDraftDialog from './AIDraftDialog.vue'
 import ExcalidrawWrapper from './ExcalidrawWrapper.vue'
 import MermaidAIDialog from './MermaidAIDialog.vue'
 
 const STORAGE_KEY = 'idea-board-scenes'
+
+const uiStore = useUIStore()
+const localeStore = useLocaleStore()
 
 interface Scene {
   id: string
@@ -419,6 +424,28 @@ onMounted(() => {
       <div class="flex-1" />
 
       <SyncButton />
+
+      <!-- 语言切换 -->
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 gap-1 text-xs"
+        @click="localeStore.setLocale(localeStore.locale === 'zh-CN' ? 'en-US' : 'zh-CN')"
+      >
+        <Globe class="h-3.5 w-3.5" />
+        {{ localeStore.locale === 'zh-CN' ? '中文' : 'EN' }}
+      </Button>
+
+      <!-- 主题切换 -->
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 w-7 p-0"
+        @click="uiStore.toggleDark()"
+      >
+        <Sun v-if="uiStore.isDark" class="h-4 w-4" />
+        <Moon v-else class="h-4 w-4" />
+      </Button>
     </header>
 
     <!-- 主体 -->
