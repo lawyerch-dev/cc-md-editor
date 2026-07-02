@@ -3,7 +3,6 @@ import type { Article } from '@/stores/reading'
 import { BookOpen, ExternalLink, Languages, Sparkles, Star } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Button } from '@/components/ui/button'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
 import { useReadingStore } from '@/stores/reading'
@@ -28,12 +27,6 @@ function formatDate(ts: number) {
   const d = new Date(ts)
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
-
-/** 文章内容是否较短（可能是摘要），需要全文提取 */
-const needsFullText = computed(() => {
-  const content = props.article.content || props.article.summary || ''
-  return content.replace(/<[^>]*>/g, '').trim().length < 800 && !!props.article.link
-})
 
 /** 双语对照：将 HTML 拆分成段落块 */
 const fullTextContent = ref('')
@@ -186,102 +179,123 @@ async function handleFetchFullText() {
 
 <template>
   <div class="flex flex-1 flex-col overflow-hidden">
-    <!-- 文章头部 -->
-    <div class="border-b px-8 py-4">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0 flex-1">
-          <h1 class="text-xl font-bold leading-tight">
-            {{ article.title }}
-          </h1>
-          <p class="mt-2 text-sm text-muted-foreground">
-            {{ article.sourceTitle }}
-            <template v-if="article.author">
-              · {{ article.author }}
-            </template>
-            · {{ formatDate(article.publishedAt) }}
-          </p>
-        </div>
-        <div class="flex items-center gap-1 shrink-0">
-          <!-- AI 功能按钮 -->
-          <div class="flex items-center gap-0.5 mr-2">
-            <Button variant="outline" size="sm" class="h-7 gap-1 text-xs" :disabled="aiLoading" @click="handleSummarize">
-              <Sparkles class="h-3 w-3" />
-              {{ t('reading.summary') }}
-            </Button>
+    <!-- 文章内容区 -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="mx-auto max-w-3xl px-8 pt-12 pb-32">
+        <!-- 标题 -->
+        <h1 class="select-text break-words text-[1.7rem] font-bold leading-normal text-foreground">
+          {{ article.title }}
+        </h1>
 
-            <!-- 翻译按钮 + 语言选择 -->
-            <div class="flex items-center">
-              <Button
-                variant="outline"
-                size="sm"
-                class="h-7 gap-1 text-xs rounded-r-none border-r-0"
-                :class="translationActive ? 'bg-primary/10 border-primary/30' : ''"
-                :disabled="translating"
-                @click="handleTranslate"
-              >
-                <Languages class="h-3 w-3" />
-                {{ translating ? t('reading.translating') : translationActive ? t('reading.cancelTranslate') : t('reading.translate') }}
-              </Button>
-              <select
-                v-model="translateTarget"
-                class="h-7 rounded-l-none border bg-background px-1.5 text-[10px]"
-                :disabled="translating"
-              >
-                <option value="en">
-                  EN
-                </option>
-                <option value="zh">
-                  中文
-                </option>
-                <option value="ja">
-                  日本語
-                </option>
-              </select>
+        <!-- 元信息 -->
+        <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <div class="flex items-center gap-2">
+            <div class="size-5 rounded bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground">
+              {{ article.sourceTitle.charAt(0) }}
             </div>
+            <span class="text-xs font-medium text-muted-foreground">{{ article.sourceTitle }}</span>
+          </div>
+          <div v-if="article.author" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <i class="i-mgc-user-3-cute-re text-sm" />
+            <span>{{ article.author }}</span>
+          </div>
+          <span class="text-xs text-muted-foreground">{{ formatDate(article.publishedAt) }}</span>
+          <Star
+            v-if="article.starred"
+            class="size-4 text-amber-500 fill-amber-500"
+          />
+        </div>
 
-            <Button variant="outline" size="sm" class="h-7 gap-1 text-xs" :disabled="fullTextLoading || !article.link" :title="!needsFullText ? t('reading.contentComplete') : ''" @click="handleFetchFullText">
-              <BookOpen class="h-3 w-3" />
-              {{ fullTextLoading ? t('reading.extracting') : t('reading.fullText') }}
-            </Button>
+        <!-- 操作栏 -->
+        <div class="mt-6 flex items-center gap-1 border-b pb-4">
+          <button
+            class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            :disabled="aiLoading"
+            @click="handleSummarize"
+          >
+            <Sparkles class="h-3.5 w-3.5" />
+            {{ t('reading.summary') }}
+          </button>
+
+          <div class="flex items-center">
+            <button
+              class="flex items-center gap-1.5 rounded-l-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              :class="translationActive ? 'bg-primary/10 text-primary' : ''"
+              :disabled="translating"
+              @click="handleTranslate"
+            >
+              <Languages class="h-3.5 w-3.5" />
+              {{ translating ? t('reading.translating') : translationActive ? t('reading.cancelTranslate') : t('reading.translate') }}
+            </button>
+            <select
+              v-model="translateTarget"
+              class="h-[30px] rounded-r-md border-l border bg-transparent px-1.5 text-[10px] text-muted-foreground"
+              :disabled="translating"
+            >
+              <option value="en">
+                EN
+              </option>
+              <option value="zh">
+                中文
+              </option>
+              <option value="ja">
+                日本語
+              </option>
+            </select>
           </div>
 
-          <Button variant="ghost" size="icon" class="h-8 w-8" @click="readingStore.toggleStar(article.id)">
+          <button
+            class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            :disabled="fullTextLoading || !article.link"
+            @click="handleFetchFullText"
+          >
+            <BookOpen class="h-3.5 w-3.5" />
+            {{ fullTextLoading ? t('reading.extracting') : t('reading.fullText') }}
+          </button>
+
+          <div class="flex-1" />
+
+          <button
+            class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            @click="readingStore.toggleStar(article.id)"
+          >
             <Star
-              class="h-4.5 w-4.5"
-              :class="article.starred ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground'"
+              class="h-4 w-4"
+              :class="article.starred ? 'text-amber-500 fill-amber-500' : ''"
             />
-          </Button>
-          <a v-if="article.link" :href="article.link" target="_blank">
-            <Button variant="ghost" size="icon" class="h-8 w-8">
-              <ExternalLink class="h-4.5 w-4.5" />
-            </Button>
+          </button>
+          <a
+            v-if="article.link"
+            :href="article.link"
+            target="_blank"
+            class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ExternalLink class="h-4 w-4" />
           </a>
         </div>
-      </div>
-    </div>
 
-    <!-- 文章内容（批注模式 / 翻译模式） -->
-    <div v-if="translationActive" class="flex flex-1 overflow-hidden">
-      <!-- 翻译模式：双语对照 -->
-      <div class="article-content flex-1 overflow-y-auto px-8 py-6">
-        <div
-          v-for="(block, i) in bilingualBlocks"
-          :key="i"
-        >
-          <div v-html="block.html" />
+        <!-- 文章正文 -->
+        <div v-if="translationActive" class="mt-8">
           <div
-            v-if="translatedParagraphs[i] !== undefined"
-            class="my-1 rounded bg-primary/5 px-3 py-1.5 text-xs text-primary/80 italic border-l-2 border-primary/20"
+            v-for="(block, i) in bilingualBlocks"
+            :key="i"
           >
-            {{ translatedParagraphs[i] || '...' }}
+            <div v-html="block.html" />
+            <div
+              v-if="translatedParagraphs[i] !== undefined"
+              class="my-1 rounded bg-primary/5 px-3 py-1.5 text-xs text-primary/80 italic border-l-2 border-primary/20"
+            >
+              {{ translatedParagraphs[i] || '...' }}
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 普通模式：批注系统 + AI 摘要侧栏 -->
+    <!-- 批注/AI 摘要模式 -->
     <ArticleAnnotator
-      v-else
+      v-if="!translationActive"
+      class="flex-1"
       :article="article"
       :content="fullTextContent || article.content || article.summary"
       :ai-result="aiResult"
@@ -295,45 +309,78 @@ async function handleFetchFullText() {
 
 <style scoped>
 .article-content :deep(h1) {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
   margin-bottom: 0.75rem;
+  color: hsl(var(--foreground));
 }
 .article-content :deep(h2) {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  margin-top: 1.25rem;
+  margin-top: 1.75rem;
   margin-bottom: 0.5rem;
+  color: hsl(var(--foreground));
 }
 .article-content :deep(h3) {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   margin-bottom: 0.5rem;
+  color: hsl(var(--foreground));
 }
 .article-content :deep(p) {
-  font-size: 0.9rem;
-  line-height: 1.8;
-  margin-bottom: 0.75rem;
-  color: hsl(var(--foreground) / 0.85);
+  font-size: 0.94rem;
+  line-height: 1.85;
+  margin-bottom: 1rem;
+  color: hsl(var(--foreground) / 0.87);
 }
 .article-content :deep(li) {
-  font-size: 0.9rem;
-  line-height: 1.7;
-  margin-bottom: 0.25rem;
+  font-size: 0.94rem;
+  line-height: 1.75;
+  margin-bottom: 0.35rem;
+  color: hsl(var(--foreground) / 0.87);
 }
 .article-content :deep(a) {
   color: hsl(var(--primary));
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: hsl(var(--primary) / 0.3);
+  transition: text-decoration-color 0.15s;
+}
+.article-content :deep(a:hover) {
+  text-decoration-color: hsl(var(--primary));
 }
 .article-content :deep(img) {
   max-width: 100%;
+  border-radius: 0.75rem;
+  margin: 1.5rem 0;
+}
+.article-content :deep(blockquote) {
+  border-left: 3px solid hsl(var(--primary) / 0.3);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: hsl(var(--foreground) / 0.7);
+  font-style: italic;
+}
+.article-content :deep(code) {
+  font-size: 0.85em;
+  background: hsl(var(--muted));
+  padding: 0.15em 0.4em;
+  border-radius: 0.25rem;
+}
+.article-content :deep(pre) {
+  background: hsl(var(--muted));
+  padding: 1rem;
   border-radius: 0.5rem;
-  margin: 1rem 0;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+.article-content :deep(pre code) {
+  background: none;
+  padding: 0;
 }
 .article-content ::selection {
-  background: hsl(var(--primary) / 0.2);
+  background: hsl(var(--primary) / 0.15);
 }
 </style>

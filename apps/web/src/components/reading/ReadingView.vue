@@ -235,11 +235,11 @@ function cancelAddList() {
     <div class="flex flex-1 overflow-hidden">
       <!-- 左栏：分类 + 源列表 -->
       <div
-        class="border-r flex flex-col transition-all duration-300 ease-in-out overflow-hidden"
+        class="flex flex-col transition-all duration-200 ease-in-out overflow-hidden bg-muted/30"
         :class="sidebarCollapsed ? 'w-0' : 'w-56'"
       >
-        <div class="px-4 py-3 border-b flex items-center">
-          <span class="text-sm font-medium text-muted-foreground">{{ t('reading.categories') }}</span>
+        <div class="px-4 py-3 flex items-center">
+          <span class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{{ t('reading.categories') }}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -351,17 +351,16 @@ function cancelAddList() {
       <!-- 左栏折叠时的展开按钮 -->
       <div
         v-if="sidebarCollapsed"
-        class="flex flex-col items-center justify-start gap-2 py-3 w-10 border-r cursor-pointer hover:bg-muted/50 transition-colors"
+        class="flex flex-col items-center justify-start gap-2 py-3 w-8 cursor-pointer hover:bg-muted/30 transition-colors"
         :title="t('reading.expandSidebar')"
         @click="sidebarCollapsed = false"
       >
-        <PanelLeftOpen class="h-4 w-4 text-muted-foreground" />
-        <span class="text-[10px] text-muted-foreground [writing-mode:vertical-rl]">{{ t('reading.categories') }}</span>
+        <PanelLeftOpen class="h-4 w-4 text-muted-foreground/50" />
       </div>
 
       <!-- 中栏：文章列表 -->
       <div
-        class="border-r flex flex-col transition-all duration-300 ease-in-out overflow-hidden"
+        class="flex flex-col transition-all duration-200 ease-in-out overflow-hidden"
         :class="articleListCollapsed ? 'w-0' : 'w-80'"
       >
         <!-- 批量操作栏 -->
@@ -384,27 +383,27 @@ function cancelAddList() {
           </Button>
         </div>
 
-        <div v-if="!isSelecting" class="px-4 py-2.5 border-b flex items-center justify-between">
-          <span class="text-sm text-muted-foreground">
+        <div v-if="!isSelecting" class="px-4 py-3 flex items-center justify-between">
+          <span class="text-sm font-semibold text-foreground">
             {{ t('reading.articles', { count: displayArticles.length }) }}
           </span>
           <div class="flex items-center gap-1">
-            <span v-if="store.loading" class="text-xs text-muted-foreground">
+            <span v-if="store.loading" class="text-xs text-muted-foreground animate-pulse">
               {{ t('common.loading') }}
             </span>
-            <Button
+            <button
               v-if="store.totalUnread > 0"
-              variant="ghost"
-              size="sm"
-              class="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
-              :title="t('reading.markAllRead')"
+              class="rounded px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               @click="store.markAllRead()"
             >
               {{ t('reading.markAllRead') }}
-            </Button>
-            <Button variant="ghost" size="sm" class="h-6 px-1.5 text-xs text-muted-foreground" @click="selectAll">
-              {{ t('reading.multiSelect') }}
-            </Button>
+            </button>
+            <button
+              class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              @click="selectAll"
+            >
+              <CheckSquare class="h-4 w-4" />
+            </button>
             <Button
               variant="ghost"
               size="sm"
@@ -509,12 +508,11 @@ function cancelAddList() {
       <!-- 中栏折叠时的展开按钮 -->
       <div
         v-if="articleListCollapsed"
-        class="flex flex-col items-center justify-start gap-2 py-3 w-10 border-r cursor-pointer hover:bg-muted/50 transition-colors"
+        class="flex flex-col items-center justify-start gap-2 py-3 w-8 cursor-pointer hover:bg-muted/30 transition-colors"
         :title="t('reading.expandList')"
         @click="articleListCollapsed = false"
       >
-        <PanelRightOpen class="h-4 w-4 text-muted-foreground" />
-        <span class="text-[10px] text-muted-foreground [writing-mode:vertical-rl]">{{ t('reading.lists') }}</span>
+        <PanelRightOpen class="h-4 w-4 text-muted-foreground/50" />
       </div>
 
       <!-- 右栏：文章阅读 -->
