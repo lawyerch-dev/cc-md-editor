@@ -102,6 +102,9 @@ export async function fetchPageHTML(url: string): Promise<string> {
   return res.text()
 }
 
+/** 噪音关键词 — 导航、页脚、通用链接文本 */
+const NOISE_PATTERNS = /^(?:首页|登录|注册|关于|联系我们|网站地图|首页导航|English|中文版|登录邮箱系统|公报|导航|更多|返回|下载|APP|客户端|微信|微博|RSS|订阅)$/i
+
 /** 用 CSS 选择器从 HTML 中提取文章列表 */
 function parseHTMLWithSelectors(html: string, selectors: CollectorSelectors, sourceId: string, sourceTitle: string, baseUrl = ''): Article[] {
   const parser = new DOMParser()
@@ -118,7 +121,12 @@ function parseHTMLWithSelectors(html: string, selectors: CollectorSelectors, sou
     const dateEl = selectors.date ? el.querySelector(selectors.date) : null
 
     const title = titleEl?.textContent?.trim() || el.textContent?.trim() || ''
-    if (!title || title.length < 2)
+    // 过滤噪音：太短的标题、纯数字、导航关键词
+    if (!title || title.length < 4)
+      return
+    if (/^\d+$/.test(title))
+      return
+    if (NOISE_PATTERNS.test(title))
       return
 
     const href = linkEl?.getAttribute('href') || (el as HTMLAnchorElement).getAttribute('href') || ''
