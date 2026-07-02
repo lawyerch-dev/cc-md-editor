@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CheckSquare, Globe, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, RefreshCcw, Search, Settings, Square, Star, Sun, Trash2, X } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
 import SyncButton from '@/components/shared/SyncButton.vue'
 import ViewNav from '@/components/shared/ViewNav.vue'
@@ -12,6 +13,7 @@ import { useUIStore } from '@/stores/ui'
 import ArticleReader from './ArticleReader.vue'
 import SourceConfigDialog from './SourceConfigDialog.vue'
 
+const { t } = useI18n()
 const store = useReadingStore()
 const uiStore = useUIStore()
 const localeStore = useLocaleStore()
@@ -67,12 +69,12 @@ function formatDate(ts: number) {
   if (diff < 86400000) {
     const hours = Math.floor(diff / 3600000)
     if (hours < 1)
-      return '刚刚'
-    return `${hours}小时前`
+      return t('reading.justNow')
+    return t('reading.hoursAgo', { n: hours })
   }
   if (diff < 604800000) {
     const days = Math.floor(diff / 86400000)
-    return `${days}天前`
+    return t('reading.daysAgo', { n: days })
   }
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
@@ -119,23 +121,23 @@ function handleKeydown(e: KeyboardEvent) {
         <Search class="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           v-model="store.searchQuery"
-          placeholder="搜索文章..."
+          :placeholder="t('reading.search')"
           class="h-8 pl-7 text-xs"
         />
       </div>
 
       <Button variant="outline" size="sm" class="gap-1" @click="store.fetchAll()">
         <RefreshCcw class="h-3.5 w-3.5" :class="{ 'animate-spin': store.loading }" />
-        刷新
+        {{ t('reading.refresh') }}
       </Button>
 
       <Button variant="outline" size="sm" @click="showSourceConfig = true">
-        源管理
+        {{ t('reading.sourceManage') }}
       </Button>
 
       <Button variant="outline" size="sm" class="gap-1" @click="showAIConfig = true">
         <Settings class="h-3.5 w-3.5" />
-        AI 配置
+        {{ t('reading.aiConfig') }}
       </Button>
 
       <SyncButton />
@@ -171,12 +173,12 @@ function handleKeydown(e: KeyboardEvent) {
         :class="sidebarCollapsed ? 'w-0' : 'w-56'"
       >
         <div class="px-4 py-3 border-b flex items-center">
-          <span class="text-sm font-medium text-muted-foreground">分类</span>
+          <span class="text-sm font-medium text-muted-foreground">{{ t('reading.categories') }}</span>
           <Button
             variant="ghost"
             size="sm"
             class="ml-auto h-6 w-6 p-0"
-            title="收起侧栏"
+            :title="t('reading.collapseSidebar')"
             @click="sidebarCollapsed = true"
           >
             <PanelLeftClose class="h-3.5 w-3.5" />
@@ -188,7 +190,7 @@ function handleKeydown(e: KeyboardEvent) {
             :class="!store.activeSourceId && !showStarredOnly && !activeListId ? 'bg-muted font-medium' : 'hover:bg-muted/50'"
             @click="store.activeSourceId = null; showStarredOnly = false; activeListId = null"
           >
-            全部文章
+            {{ t('reading.allArticles') }}
             <span v-if="store.totalUnread" class="ml-1.5 text-[10px] text-primary font-medium">{{ store.totalUnread }}</span>
           </button>
           <button
@@ -197,7 +199,7 @@ function handleKeydown(e: KeyboardEvent) {
             @click="showStarredOnly = true; store.activeSourceId = null; activeListId = null"
           >
             <Star class="inline h-3.5 w-3.5 mr-1.5 text-amber-500" />
-            收藏
+            {{ t('reading.starred') }}
           </button>
           <div v-for="cat in store.categories" :key="cat" class="mt-2">
             <div class="px-4 py-1 text-xs font-medium text-muted-foreground uppercase">
@@ -211,7 +213,7 @@ function handleKeydown(e: KeyboardEvent) {
               @click="store.activeSourceId = src.id; showStarredOnly = false; activeListId = null"
             >
               <span class="flex-1 truncate">{{ src.title }}</span>
-              <span v-if="src.sourceType === 'collector'" class="text-[9px] text-muted-foreground/50 mr-1">采集</span>
+              <span v-if="src.sourceType === 'collector'" class="text-[9px] text-muted-foreground/50 mr-1">{{ t('reading.collector') }}</span>
               <span v-if="store.unreadCountMap[src.id]" class="text-[10px] text-primary font-medium">{{ store.unreadCountMap[src.id] }}</span>
             </button>
           </div>
@@ -219,7 +221,7 @@ function handleKeydown(e: KeyboardEvent) {
           <!-- 自定义列表 -->
           <div v-if="store.lists.length" class="mt-3">
             <div class="px-4 py-1 text-xs font-medium text-muted-foreground uppercase">
-              列表
+              {{ t('reading.lists') }}
             </div>
             <button
               v-for="list in store.lists"
@@ -239,11 +241,11 @@ function handleKeydown(e: KeyboardEvent) {
       <div
         v-if="sidebarCollapsed"
         class="flex flex-col items-center justify-start gap-2 py-3 w-10 border-r cursor-pointer hover:bg-muted/50 transition-colors"
-        title="展开侧栏"
+        :title="t('reading.expandSidebar')"
         @click="sidebarCollapsed = false"
       >
         <PanelLeftOpen class="h-4 w-4 text-muted-foreground" />
-        <span class="text-[10px] text-muted-foreground [writing-mode:vertical-rl]">分类</span>
+        <span class="text-[10px] text-muted-foreground [writing-mode:vertical-rl]">{{ t('reading.categories') }}</span>
       </div>
 
       <!-- 中栏：文章列表 -->
@@ -255,38 +257,38 @@ function handleKeydown(e: KeyboardEvent) {
         <div v-if="isSelecting" class="px-4 py-2 border-b flex items-center gap-2 bg-primary/5">
           <Button variant="ghost" size="sm" class="h-7 gap-1 text-xs" @click="clearSelection">
             <X class="h-3 w-3" />
-            {{ selectedIds.size }} 项已选
+            {{ t('reading.selected', { count: selectedIds.size }) }}
           </Button>
           <div class="flex-1" />
           <Button variant="outline" size="sm" class="h-7 gap-1 text-xs" @click="batchStar">
             <Star class="h-3 w-3" />
-            收藏
+            {{ t('reading.batchStar') }}
           </Button>
           <Button variant="outline" size="sm" class="h-7 gap-1 text-xs text-destructive hover:text-destructive" @click="batchDelete">
             <Trash2 class="h-3 w-3" />
-            删除
+            {{ t('reading.batchDelete') }}
           </Button>
           <Button variant="ghost" size="sm" class="h-7 text-xs" @click="selectAll">
-            全选
+            {{ t('reading.selectAll') }}
           </Button>
         </div>
 
         <div v-if="!isSelecting" class="px-4 py-2.5 border-b flex items-center justify-between">
           <span class="text-sm text-muted-foreground">
-            {{ displayArticles.length }} 篇文章
+            {{ t('reading.articles', { count: displayArticles.length }) }}
           </span>
           <div class="flex items-center gap-2">
             <span v-if="store.loading" class="text-xs text-muted-foreground">
-              加载中...
+              {{ t('common.loading') }}
             </span>
             <Button variant="ghost" size="sm" class="h-6 px-1.5 text-xs text-muted-foreground" @click="selectAll">
-              多选
+              {{ t('reading.multiSelect') }}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               class="h-6 w-6 p-0"
-              title="收起列表"
+              :title="t('reading.collapseList')"
               @click="articleListCollapsed = true"
             >
               <PanelRightClose class="h-3.5 w-3.5" />
@@ -342,7 +344,7 @@ function handleKeydown(e: KeyboardEvent) {
             </div>
           </div>
           <div v-if="!displayArticles.length" class="flex h-full items-center justify-center text-xs text-muted-foreground/50">
-            {{ store.loading ? '正在获取...' : '暂无文章' }}
+            {{ store.loading ? t('reading.fetching') : t('reading.noArticles') }}
           </div>
         </div>
       </div>
@@ -351,18 +353,18 @@ function handleKeydown(e: KeyboardEvent) {
       <div
         v-if="articleListCollapsed"
         class="flex flex-col items-center justify-start gap-2 py-3 w-10 border-r cursor-pointer hover:bg-muted/50 transition-colors"
-        title="展开列表"
+        :title="t('reading.expandList')"
         @click="articleListCollapsed = false"
       >
         <PanelRightOpen class="h-4 w-4 text-muted-foreground" />
-        <span class="text-[10px] text-muted-foreground [writing-mode:vertical-rl]">列表</span>
+        <span class="text-[10px] text-muted-foreground [writing-mode:vertical-rl]">{{ t('reading.lists') }}</span>
       </div>
 
       <!-- 右栏：文章阅读 -->
       <div class="flex-1 flex flex-col">
         <ArticleReader v-if="store.activeArticle" :article="store.activeArticle" />
         <div v-else class="flex h-full items-center justify-center text-sm text-muted-foreground/50">
-          选择一篇文章开始阅读
+          {{ t('reading.selectArticle') }}
         </div>
       </div>
     </div>
@@ -374,7 +376,7 @@ function handleKeydown(e: KeyboardEvent) {
     <div v-if="showAIConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showAIConfig = false">
       <div class="flex h-[80vh] w-[620px] max-w-[95vw] flex-col rounded-xl border bg-background shadow-2xl overflow-hidden">
         <div class="flex items-center justify-between border-b px-4 py-3 shrink-0">
-          <span class="text-sm font-semibold">AI 配置</span>
+          <span class="text-sm font-semibold">{{ t('reading.aiConfig') }}</span>
           <Button variant="ghost" size="icon" class="h-7 w-7" @click="showAIConfig = false">
             <X class="h-4 w-4" />
           </Button>

@@ -42,7 +42,78 @@ This repository is a pnpm monorepo containing a Vue 3 web application, a VSCode 
 ### Development Patterns
 - **Direct TypeScript Imports:** The `@md/core` and `@md/shared` packages export TypeScript source files directly (`src/index.ts`). Do not attempt to build these packages separately; they are compiled by the consumer's build tool (Vite).
 - **UI Components:** The project uses Shadcn-Vue style components located in `apps/web/src/components/ui`. Prefer using these over raw HTML/CSS.
-- **Store Structure:** State is divided into domain-specific Pinia stores (e.g., `useEditorStore`, `useThemeStore`, `useUiStore`) located in `apps/web/src/stores`.
+- **Store Structure:** State is divided into domain-specific Pinia stores (e.g., `useEditorStore`, `useThemeStore`, `useUIStore`) located in `apps/web/src/stores`.
+
+### Internationalization (i18n)
+**所有用户可见文本必须使用 i18n，禁止硬编码中文/英文。**
+
+- 翻译文件：`apps/web/src/i18n/messages/{zh-CN,en-US}/`
+- 每个模块一个翻译文件（如 `reading.ts`、`ideaBoard.ts`），并在 `index.ts` 中注册
+- 在组件中使用：`const { t } = useI18n()`，模板中 `{{ t('module.key') }}`
+- 新增模块时必须同时提供 `zh-CN` 和 `en-US` 翻译
+- 翻译 key 命名：`module.feature.label`，如 `reading.sourceManage`、`ideaBoard.newNote`
+- 动态参数：`t('reading.articles', { count: 30 })` → "30 篇文章" / "30 articles"
+- 按钮、标签、占位符、提示文字、错误信息全部需要翻译
+
+### Application Structure (3 Workspaces)
+应用包含 3 个工作区，通过 `useUIStore().currentView` 切换：
+
+```
+apps/web/src/
+├── components/
+│   ├── LandingPage.vue          # 主页（工作区选择）
+│   ├── editor/                  # Markdown 编辑器工作区
+│   │   ├── CodemirrorEditor.vue
+│   │   ├── EditorPanel.vue
+│   │   ├── PreviewPanel.vue
+│   │   └── dialogs/             # 编辑器对话框
+│   ├── reading/                 # 资讯阅读工作区
+│   │   ├── ReadingView.vue      # 主视图（三栏布局）
+│   │   ├── ArticleReader.vue    # 文章阅读器
+│   │   ├── ArticleAnnotator.vue # 批注系统
+│   │   ├── SourceConfigDialog.vue # 源管理
+│   │   └── CollectorConfigDialog.vue # 采集管理（已合并到 SourceConfigDialog）
+│   ├── idea-board/              # 想法库工作区
+│   │   ├── IdeaBoard.vue        # 主视图
+│   │   └── ExcalidrawWrapper.vue
+│   ├── shared/                  # 跨工作区共享组件
+│   │   ├── ViewNav.vue          # 顶部导航栏
+│   │   └── SyncButton.vue       # 同步按钮
+│   └── ui/                      # Shadcn-Vue 基础组件
+├── stores/                      # Pinia 状态管理
+│   ├── ui.ts                    # 全局 UI 状态（视图切换、暗色模式）
+│   ├── reading.ts               # 资讯阅读数据
+│   ├── ideaBoard.ts             # 想法库数据
+│   ├── editor.ts                # 编辑器状态
+│   ├── aiConfig.ts              # AI 模型配置
+│   └── locale.ts                # 语言设置
+├── composables/                 # 组合式函数
+│   ├── useCollectorAI.ts        # 采集器 AI 分析
+│   └── useAIFetch.ts            # AI API 调用
+└── i18n/                        # 国际化
+    ├── messages/
+    │   ├── zh-CN/               # 中文翻译
+    │   │   ├── index.ts         # 注册所有模块
+    │   │   ├── common.ts        # 通用文本
+    │   │   ├── reading.ts       # 资讯阅读
+    │   │   └── ideaBoard.ts     # 想法库
+    │   └── en-US/               # 英文翻译（同结构）
+    └── index.ts
+```
+
+### Adding a New Workspace
+1. 创建组件目录：`apps/web/src/components/your-workspace/`
+2. 创建翻译文件：`i18n/messages/{zh-CN,en-US}/yourWorkspace.ts`
+3. 在 `i18n/messages/*/index.ts` 注册翻译模块
+4. 在 `stores/ui.ts` 的 `currentView` 类型中添加新视图
+5. 在 `LandingPage.vue` 添加入口卡片
+6. 在 `components/shared/ViewNav.vue` 添加导航项
+7. 所有用户可见文本使用 `t('yourWorkspace.key')`
+
+### Adding a New Feature to Existing Workspace
+1. 如需新的翻译 key，在对应的 `i18n/messages/*/xxx.ts` 中添加中英文
+2. 组件中 `const { t } = useI18n()` 后使用 `t('module.key')`
+3. 禁止在模板中硬编码任何用户可见文本
 
 ### Styling & Theming
 - **Theme Injection:** Theming is handled by `@md/core/src/theme`. Themes are applied by injecting CSS variables into the DOM.

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Globe, Loader2, Plus, Radio, Timer, Trash2, X } from '@lucide/vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useReadingStore } from '@/stores/reading'
@@ -8,6 +9,8 @@ import { useReadingStore } from '@/stores/reading'
 const emit = defineEmits<{
   close: []
 }>()
+
+const { t } = useI18n()
 
 const store = useReadingStore()
 
@@ -18,13 +21,13 @@ const discovering = ref(false)
 const discoveredRoutes = ref<Array<{ name: string, path: string }>>([])
 
 const REFRESH_OPTIONS = [
-  { value: 0, label: '关闭' },
-  { value: 15, label: '15分钟' },
-  { value: 30, label: '30分钟' },
-  { value: 60, label: '1小时' },
-  { value: 120, label: '2小时' },
-  { value: 360, label: '6小时' },
-  { value: 1440, label: '24小时' },
+  { value: 0, label: () => t('common.close') },
+  { value: 15, label: () => t('reading.minutes', { n: 15 }) },
+  { value: 30, label: () => t('reading.minutes', { n: 30 }) },
+  { value: 60, label: () => t('reading.hours', { n: 1 }) },
+  { value: 120, label: () => t('reading.hours', { n: 2 }) },
+  { value: 360, label: () => t('reading.hours', { n: 6 }) },
+  { value: 1440, label: () => t('reading.hours', { n: 24 }) },
 ]
 
 /** 统一源列表：RSS + 采集器 */
@@ -38,7 +41,7 @@ function getAllSources() {
 function handleAdd() {
   if (!newUrl.value.trim())
     return
-  store.addSource(newUrl.value.trim(), newTitle.value.trim() || newUrl.value.trim(), newCategory.value.trim() || '未分类')
+  store.addSource(newUrl.value.trim(), newTitle.value.trim() || newUrl.value.trim(), newCategory.value.trim() || t('reading.categoryPlaceholder'))
   newUrl.value = ''
   newTitle.value = ''
   newCategory.value = ''
@@ -83,7 +86,7 @@ function updateInterval(src: { id: string, sourceType: 'rss' | 'collector' }, mi
       <!-- Header -->
       <div class="flex items-center justify-between border-b px-4 py-3">
         <h2 class="text-base font-semibold">
-          源管理
+          {{ t('reading.sourceManageTitle') }}
         </h2>
         <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
           <X class="h-4 w-4" />
@@ -93,26 +96,26 @@ function updateInterval(src: { id: string, sourceType: 'rss' | 'collector' }, mi
       <!-- 添加源 -->
       <div class="border-b p-4">
         <div class="flex gap-2">
-          <Input v-model="newUrl" placeholder="RSS 地址或任意网站 URL" class="h-8 text-xs flex-1" />
-          <Input v-model="newTitle" placeholder="标题（可选）" class="h-8 text-xs w-28" />
-          <Input v-model="newCategory" placeholder="分类" class="h-8 text-xs w-20" />
+          <Input v-model="newUrl" :placeholder="t('reading.rssPlaceholder')" class="h-8 text-xs flex-1" />
+          <Input v-model="newTitle" :placeholder="t('reading.titlePlaceholder')" class="h-8 text-xs w-28" />
+          <Input v-model="newCategory" :placeholder="t('reading.categoryPlaceholder')" class="h-8 text-xs w-20" />
           <Button size="sm" variant="outline" class="h-8 gap-1" :disabled="!newUrl.trim() || discovering" @click="handleDiscover">
             <Loader2 v-if="discovering" class="h-3.5 w-3.5 animate-spin" />
             <Radio v-else class="h-3.5 w-3.5" />
-            发现
+            {{ t('reading.discover') }}
           </Button>
           <Button size="sm" class="h-8 gap-1" @click="handleAdd">
             <Plus class="h-3.5 w-3.5" />
-            添加
+            {{ t('reading.add') }}
           </Button>
         </div>
         <p class="mt-1.5 text-[10px] text-muted-foreground">
-          支持 RSS/Atom 格式，输入任意网站 URL 可通过 RSSHub 自动发现 RSS 源。采集管理请使用「采集管理」入口。
+          {{ t('reading.discoverHint') }}
         </p>
         <!-- RSSHub 发现结果 -->
         <div v-if="discoveredRoutes.length" class="mt-2 rounded-md border bg-muted/30 p-2">
           <p class="text-[10px] text-muted-foreground mb-1.5">
-            发现 {{ discoveredRoutes.length }} 个可用路由：
+            {{ t('reading.discoveredRoutes', { count: discoveredRoutes.length }) }}
           </p>
           <div class="flex flex-wrap gap-1">
             <button
@@ -143,7 +146,7 @@ function updateInterval(src: { id: string, sourceType: 'rss' | 'collector' }, mi
                 v-if="src.sourceType === 'collector'"
                 class="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] text-blue-500"
               >
-                采集
+                {{ t('reading.collector') }}
               </span>
               <span
                 v-if="src.url.startsWith('legal://')"
@@ -165,7 +168,7 @@ function updateInterval(src: { id: string, sourceType: 'rss' | 'collector' }, mi
                 @change="updateInterval(src, Number(($event.target as HTMLSelectElement).value))"
               >
                 <option v-for="opt in REFRESH_OPTIONS" :key="opt.value" :value="opt.value">
-                  {{ opt.label }}
+                  {{ opt.label() }}
                 </option>
               </select>
             </div>
@@ -179,9 +182,9 @@ function updateInterval(src: { id: string, sourceType: 'rss' | 'collector' }, mi
         </div>
         <div v-if="!getAllSources().length" class="flex h-32 flex-col items-center justify-center gap-2 text-xs text-muted-foreground/50">
           <Globe class="h-8 w-8" />
-          <span>暂无数据源</span>
+          <span>{{ t('reading.noSources') }}</span>
           <Button variant="outline" size="sm" class="h-7 text-xs" @click="store.resetToDefaults()">
-            恢复默认源
+            {{ t('reading.resetDefaults') }}
           </Button>
         </div>
       </div>

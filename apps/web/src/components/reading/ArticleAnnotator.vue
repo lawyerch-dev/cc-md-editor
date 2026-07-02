@@ -2,6 +2,7 @@
 import type { Article } from '@/stores/reading'
 import { MessageSquarePlus, X } from '@lucide/vue'
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface Annotation {
   id: string
@@ -15,6 +16,8 @@ const props = defineProps<{
   article: Article
   content: string
 }>()
+
+const { t } = useI18n()
 
 const STORAGE_KEY = 'reading_annotations'
 
@@ -281,7 +284,7 @@ watch([hoveredId, activeId], () => { nextTick(updateLine) })
           @click="createAnnotation"
         >
           <MessageSquarePlus class="h-3.5 w-3.5" />
-          批注
+          {{ t('reading.addAnnotation') }}
         </button>
       </div>
     </div>
@@ -307,7 +310,7 @@ watch([hoveredId, activeId], () => { nextTick(updateLine) })
           <div class="flex items-start justify-between gap-2">
             <p class="text-[11px] text-muted-foreground flex-1 line-clamp-1">
               <span class="text-red-400 mr-1">●</span>
-              {{ ann.comment || '点击编辑批注...' }}
+              {{ ann.comment || t('reading.editAnnotation') }}
             </p>
             <button
               class="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
@@ -329,7 +332,7 @@ watch([hoveredId, activeId], () => { nextTick(updateLine) })
         >
           <textarea
             :value="ann.comment"
-            placeholder="写下你的批注..."
+            :placeholder="t('reading.writingAnnotation')"
             class="w-full min-h-[60px] mt-2 text-xs resize-none rounded-md border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
             @input="handleInput(ann.id, ($event.target as HTMLTextAreaElement).value)"
           />
@@ -345,7 +348,7 @@ watch([hoveredId, activeId], () => { nextTick(updateLine) })
         class="flex flex-col items-center justify-center h-32 text-muted-foreground/30"
       >
         <MessageSquarePlus class="h-6 w-6 mb-2" />
-        <span class="text-[10px]">划词添加批注</span>
+        <span class="text-[10px]">{{ t('reading.noAnnotations') }}</span>
       </div>
     </div>
 

@@ -2,6 +2,7 @@
 import type { Article } from '@/stores/reading'
 import { BookOpen, ExternalLink, Languages, Loader2, Sparkles, Star } from '@lucide/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
@@ -14,15 +15,16 @@ const props = defineProps<{
 
 const readingStore = useReadingStore()
 const aiConfig = useAIConfigStore()
+const { t } = useI18n()
 
 function formatDate(ts: number) {
   const diff = Date.now() - ts
   if (diff < 3600000)
-    return '刚刚'
+    return t('reading.justNow')
   if (diff < 86400000)
-    return `${Math.floor(diff / 3600000)}小时前`
+    return t('reading.hoursAgo', { n: Math.floor(diff / 3600000) })
   if (diff < 604800000)
-    return `${Math.floor(diff / 86400000)}天前`
+    return t('reading.daysAgo', { n: Math.floor(diff / 86400000) })
   const d = new Date(ts)
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
@@ -82,10 +84,10 @@ async function callAIStream(
   }
   const res = await window.fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) })
   if (!res.ok)
-    throw new Error(`AI 请求失败: ${res.status}`)
+    throw new Error(t('reading.aiRequestFailed', { status: res.status }))
   const reader = res.body?.getReader()
   if (!reader)
-    throw new Error('无法读取流')
+    throw new Error(t('reading.streamReadFailed'))
   const decoder = new TextDecoder()
   let full = ''
   let buffer = ''
@@ -123,7 +125,7 @@ async function handleSummarize() {
       (delta) => { aiResult.value += delta },
     )
   }
-  catch (e) { aiError.value = e instanceof Error ? e.message : '摘要失败' }
+  catch (e) { aiError.value = e instanceof Error ? e.message : t('reading.summaryFailed') }
   finally { aiLoading.value = false }
 }
 
@@ -188,7 +190,7 @@ async function handleFetchFullText() {
           <div class="flex items-center gap-0.5 mr-2">
             <Button variant="outline" size="sm" class="h-7 gap-1 text-xs" :disabled="aiLoading" @click="handleSummarize">
               <Sparkles class="h-3 w-3" />
-              摘要
+              {{ t('reading.summary') }}
             </Button>
 
             <!-- 翻译按钮 + 语言选择 -->
@@ -202,7 +204,7 @@ async function handleFetchFullText() {
                 @click="handleTranslate"
               >
                 <Languages class="h-3 w-3" />
-                {{ translating ? '翻译中...' : translationActive ? '取消翻译' : '翻译' }}
+                {{ translating ? t('reading.translating') : translationActive ? t('reading.cancelTranslate') : t('reading.translate') }}
               </Button>
               <select
                 v-model="translateTarget"
@@ -223,7 +225,7 @@ async function handleFetchFullText() {
 
             <Button v-if="needsFullText" variant="outline" size="sm" class="h-7 gap-1 text-xs" :disabled="fullTextLoading" @click="handleFetchFullText">
               <BookOpen class="h-3 w-3" />
-              {{ fullTextLoading ? '提取中...' : '全文' }}
+              {{ fullTextLoading ? t('reading.extracting') : t('reading.fullText') }}
             </Button>
           </div>
 
@@ -248,14 +250,14 @@ async function handleFetchFullText() {
       <div class="px-8 py-2.5">
         <div class="flex items-center gap-2 mb-1.5">
           <Sparkles class="h-3.5 w-3.5 text-primary" />
-          <span class="text-xs font-medium">AI 摘要</span>
+          <span class="text-xs font-medium">{{ t('reading.aiSummary') }}</span>
           <button class="ml-auto text-[10px] text-muted-foreground hover:text-foreground" @click="aiPanelTab = null">
-            关闭
+            {{ t('common.close') }}
           </button>
         </div>
         <div v-if="aiLoading" class="flex items-center gap-2 py-2 text-xs text-muted-foreground">
           <Loader2 class="h-3.5 w-3.5 animate-spin" />
-          AI 分析中...
+          {{ t('reading.aiAnalyzing') }}
         </div>
         <div v-else-if="aiError" class="text-xs text-destructive">
           {{ aiError }}
