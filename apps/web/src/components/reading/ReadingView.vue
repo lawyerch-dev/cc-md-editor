@@ -23,7 +23,7 @@ const showSourceConfig = ref(false)
 const showAIConfig = ref(false)
 const activeFilter = ref<'all' | 'starred'>('all')
 const searchQuery = ref('')
-const sidebarWidth = ref(220)
+const sidebarWidth = ref(300)
 const listWidth = ref(320)
 const sidebarCollapsed = ref(false)
 const listCollapsed = ref(false)
@@ -225,23 +225,31 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
             :key="src.id"
             class="group flex items-center justify-between px-2.5 py-1 rounded-lg cursor-pointer transition-colors text-sm"
             :class="store.activeSourceId === src.id ? 'bg-neutral-200/60 dark:bg-neutral-700/60 font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/30 dark:hover:bg-neutral-700/30'"
-            @click="store.activeSourceId = src.id; activeFilter = 'all'"
+            @click="store.activeSourceId = src.id; activeFilter = 'all'; store.fetchSingleSource(src.id)"
           >
             <div class="flex items-center gap-2 min-w-0">
+              <!-- 状态圆点：绿色=正常，红色=错误，黄色=加载中 -->
+              <span
+                class="size-2 shrink-0 rounded-full"
+                :class="{
+                  'bg-green-500': src.health?.status === 'ok',
+                  'bg-red-500': src.health?.status === 'error',
+                  'bg-yellow-400 animate-pulse': src.health?.status === 'pending' || store.fetchingSourceIds[src.id],
+                  'bg-neutral-400': !src.health?.status && !store.fetchingSourceIds[src.id],
+                }"
+                :title="src.health?.status === 'error' ? src.health.lastError : undefined"
+              />
               <div class="size-5 shrink-0 rounded-md bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[9px] font-bold text-neutral-500 dark:text-neutral-400 overflow-hidden">
                 {{ src.title.charAt(0) }}
               </div>
               <span class="truncate">{{ src.title }}</span>
-              <span v-if="src.health?.status === 'error'" class="size-1.5 rounded-full bg-red-500 shrink-0" :title="`${src.health.lastError}（点击刷新重试）`" />
-              <span v-else-if="src.health?.status === 'pending'" class="size-1.5 rounded-full bg-blue-400 shrink-0 animate-pulse" />
-              <span v-else-if="src.health?.status === 'ok' && (src.health.articleCount ?? 0) === 0" class="size-1.5 rounded-full bg-amber-400 shrink-0" title="最近获取返回了 0 篇文章" />
             </div>
             <div class="flex items-center gap-1 shrink-0">
-              <button v-if="!store.fetchingSourceIds[src.id]" class="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity rounded p-0.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50" :disabled="!!store.fetchingSourceIds[src.id]" @click.stop="store.fetchSingleSource(src.id)">
+              <span v-if="store.unreadCountMap[src.id]" class="text-xs tabular-nums font-medium text-neutral-500 dark:text-neutral-400">{{ store.unreadCountMap[src.id] }}</span>
+              <Loader2 v-if="store.fetchingSourceIds[src.id]" class="h-3 w-3 animate-spin text-orange-500" />
+              <button v-else class="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity rounded p-0.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50" @click.stop="store.fetchSingleSource(src.id)">
                 <RefreshCcw class="h-3 w-3 text-neutral-400" />
               </button>
-              <Loader2 v-else class="h-3 w-3 animate-spin text-orange-500" />
-              <span v-if="store.unreadCountMap[src.id]" class="text-xs tabular-nums font-medium text-neutral-500 dark:text-neutral-400">{{ store.unreadCountMap[src.id] }}</span>
             </div>
           </div>
         </div>

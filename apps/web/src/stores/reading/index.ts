@@ -100,13 +100,16 @@ export const useReadingStore = defineStore('reading', () => {
   // ── 源 CRUD ──────────────────────────────────────────
 
   function addSource(data: Omit<Source, 'id' | 'addedAt' | 'health'>) {
+    const newId = `src-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     sources.value.push({
       ...data,
-      id: `src-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: newId,
       addedAt: Date.now(),
       view: data.view ?? 0,
     })
     saveSources(sources.value)
+    // 添加后自动获取文章
+    void fetchSingleSource(newId)
   }
 
   function updateSource(id: string, updates: Partial<Pick<Source, 'title' | 'refreshInterval' | 'selectors' | 'description' | 'url' | 'view' | 'rsshubPath'>>) {
