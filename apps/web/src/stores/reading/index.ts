@@ -270,7 +270,8 @@ export const useReadingStore = defineStore('reading', () => {
     const src = sources.value.find(s => s.id === sourceId)
     if (!src)
       return
-    await fetchSourcesParallel([src])
+    // 不经过互斥锁，单源刷新不影响其他源的获取状态
+    await doFetchSourcesParallel([src], false)
   }
 
   // ── 自动刷新 ─────────────────────────────────────────
