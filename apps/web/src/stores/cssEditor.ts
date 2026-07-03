@@ -1,6 +1,4 @@
 import type { EditorView } from '@codemirror/view'
-import { Compartment, EditorState } from '@codemirror/state'
-import { EditorView as CMEditorView } from '@codemirror/view'
 import { cssSetup, DEFAULT_CUSTOM_THEME, theme as editorTheme } from '@md/shared'
 import { sanitizeTitle } from '@md/shared/utils/basicHelpers'
 import { downloadFile } from '@md/shared/utils/fileHelpers'
@@ -196,7 +194,10 @@ export const useCssEditorStore = defineStore(`cssEditor`, () => {
   }
 
   // 初始化 CSS 编辑器
-  const initCssEditor = (onUpdate: (content: string) => void) => {
+  const initCssEditor = async (onUpdate: (content: string) => void) => {
+    const { Compartment, EditorState } = await import('@codemirror/state')
+    const { EditorView: CMEditorView } = await import('@codemirror/view')
+
     const cssEditorDom = document.querySelector<HTMLTextAreaElement>(`#cssEditor`)
     if (!cssEditorDom)
       return

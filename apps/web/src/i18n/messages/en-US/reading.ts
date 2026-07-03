@@ -66,6 +66,7 @@ export default {
     viewVideos: 'Videos',
     viewAudios: 'Audio',
     viewSocialMedia: 'Social Media',
+    noContent: 'No content yet, stay tuned',
     // Import
     import: 'Import',
     importTitle: 'Import Data',

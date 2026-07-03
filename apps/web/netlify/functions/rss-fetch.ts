@@ -48,12 +48,12 @@ export default async (req: Request, _context: Context) => {
   }
 
   // 带重试的获取逻辑：最多重试 1 次，使用不同 UA
-  // 注意：Netlify 免费版 Function 超时 10s，8s + 8s 重试 + 编码处理刚好能跑完
+  // Netlify 免费版 Function 超时 10s，单次 fetch 用 6s 留余量给编码处理
   let lastError: Error | null = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(url, {
-        signal: AbortSignal.timeout(8_000),
+        signal: AbortSignal.timeout(attempt === 0 ? 6_000 : 3_000),
         headers: {
           'User-Agent': getRandomUA(),
           'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, text/html, */*',

@@ -4,9 +4,19 @@ import type { Context } from '@netlify/functions'
 const NOISE_TAGS = ['script', 'style', 'noscript', 'nav', 'footer', 'header', 'aside', 'iframe']
 
 /** 噪音 class/id 关键词 */
-const NOISE_SELECTORS = [
-  '.ad', '.advertisement', '.sidebar', '.comment', '.nav', '.menu',
-  '.header', '.footer', '.sidebar', '.related', '.recommend', '.toolbar',
+const _NOISE_SELECTORS = [
+  '.ad',
+  '.advertisement',
+  '.sidebar',
+  '.comment',
+  '.nav',
+  '.menu',
+  '.header',
+  '.footer',
+  '.sidebar',
+  '.related',
+  '.recommend',
+  '.toolbar',
 ]
 
 /** 正文候选选择器（按优先级） */
@@ -131,7 +141,7 @@ export default async (req: Request, _context: Context) => {
 
   try {
     const res = await fetch(url, {
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(7_000),
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; md-editor/1.0)',
         'Accept': 'text/html, */*',

@@ -1,9 +1,20 @@
 import type { ComponentRegistry, CreateComponentParams, CustomComponentDef, UpdateComponentParams } from '@md/shared'
-import { BUILT_IN_COMPONENTS, getBuiltInRegistry } from '@md/core'
 import { v4 as uuidv4 } from 'uuid'
 import { t } from '@/i18n/translate'
 import { store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
+
+// Lazy-loaded to avoid pulling @md/core/extensions (mermaid/katex) into the entry chunk
+let _builtInComponents: CustomComponentDef[] | null = null
+let _getBuiltInRegistry: ((builtIn: CustomComponentDef[], user: CustomComponentDef[]) => ComponentRegistry) | null = null
+
+async function ensureExtensionsLoaded() {
+  if (!_builtInComponents) {
+    const { BUILT_IN_COMPONENTS, getBuiltInRegistry } = await import('@md/core/extensions')
+    _builtInComponents = BUILT_IN_COMPONENTS
+    _getBuiltInRegistry = getBuiltInRegistry
+  }
+}
 
 /**
  * 自定义组件管理 Store
@@ -22,12 +33,12 @@ export const useCustomComponentStore = defineStore(`customComponent`, () => {
 
   // ==================== 计算属性 ====================
 
-  /** 内置组件列表（只读） */
-  const builtInComponents = computed(() => BUILT_IN_COMPONENTS)
+  /** 内置组件列表（只读）——懒加载避免 entry 拉入 mermaid/katex */
+  const builtInComponents = computed(() => _builtInComponents ?? [])
 
   /** 所有组件（内置 + 用户，用户组件可覆盖内置组件名） */
   const allComponents = computed<CustomComponentDef[]>(() => {
-    const builtInMap = new Map(BUILT_IN_COMPONENTS.map(c => [c.name, c]))
+    const builtInMap = new Map((_builtInComponents ?? []).map(c => [c.name, c]))
     // 用户组件覆盖同名内置组件
     for (const c of userComponents.value) {
       builtInMap.set(c.name, c)
@@ -35,9 +46,11 @@ export const useCustomComponentStore = defineStore(`customComponent`, () => {
     return [...builtInMap.values()]
   })
 
-  /** 渲染器使用的注册表 */
+  /** 渲染器使用的注册表——懒加载 */
   const registry = computed<ComponentRegistry>(() => {
-    const base = getBuiltInRegistry()
+    if (!_getBuiltInRegistry)
+      return {}
+    const base = _getBuiltInRegistry()
     for (const c of userComponents.value) {
       base[c.name] = c
     }
@@ -144,5 +157,6 @@ export const useCustomComponentStore = defineStore(`customComponent`, () => {
     deleteComponent,
     getComponentById,
     buildSnippet,
+    ensureExtensionsLoaded,
   }
 })

@@ -1,5 +1,4 @@
-import { initRenderer } from '@md/core'
-import { postProcessHtml, renderMarkdown } from '@md/core/utils'
+import type { RendererAPI } from '@md/shared/types'
 import { t } from '@/i18n/translate'
 import { useCustomComponentStore } from './customComponent'
 import { useThemeStore } from './theme'
@@ -28,16 +27,17 @@ export const useRenderStore = defineStore(`render`, () => {
   }[]>([])
 
   // 渲染器实例（延迟初始化）
-  let renderer: ReturnType<typeof initRenderer> | null = null
+  let renderer: RendererAPI | null = null
 
   /**
    * 初始化渲染器（新主题系统）
    * 主题样式通过 useThemeStore().applyCurrentTheme() 注入到 <style> 标签
    */
-  const initRendererInstance = (options?: {
+  const initRendererInstance = async (options?: {
     isMacCodeBlock?: boolean
     isShowLineNumber?: boolean
   }) => {
+    const { initRenderer } = await import('@md/core/renderer')
     renderer = initRenderer(options || {})
     return renderer
   }
@@ -75,7 +75,7 @@ export const useRenderStore = defineStore(`render`, () => {
   }
 
   // 渲染内容
-  const render = (content: string, options?: { themeMode?: 'light' | 'dark' }) => {
+  const render = async (content: string, options?: { themeMode?: 'light' | 'dark' }) => {
     if (!renderer) {
       throw new Error(`Renderer not initialized. Call initRendererInstance first.`)
     }
@@ -83,6 +83,7 @@ export const useRenderStore = defineStore(`render`, () => {
     const themeStore = useThemeStore()
     const uiStore = useUIStore()
     const componentStore = useCustomComponentStore()
+    await componentStore.ensureExtensionsLoaded()
     const themeMode = options?.themeMode ?? (uiStore.isDark ? `dark` : `light`)
 
     // 重置渲染器配置
@@ -99,6 +100,7 @@ export const useRenderStore = defineStore(`render`, () => {
     })
 
     // 渲染 Markdown
+    const { renderMarkdown, postProcessHtml } = await import('@md/core/utils')
     const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(content, renderer)
 
     // 更新统计信息

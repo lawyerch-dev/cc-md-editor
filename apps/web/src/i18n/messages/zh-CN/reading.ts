@@ -66,6 +66,7 @@ export default {
     viewVideos: '视频',
     viewAudios: '音频',
     viewSocialMedia: '社交',
+    noContent: '暂无内容，敬请期待',
     // 导入
     import: '导入',
     importTitle: '导入数据',

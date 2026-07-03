@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { DiagramDownloadOverlay } from '@/lib/preview/diagram-download'
-import { highlightPendingBlocks, hljs, hydratePendingInfographicDiagrams } from '@md/core'
+import { hydratePendingInfographicDiagrams } from '@md/core/extensions'
+import { hljs } from '@md/core/renderer'
+import { highlightPendingBlocks } from '@md/core/utils'
 import { setupDiagramDownloadOverlay } from '@/lib/preview/diagram-download'
 import { useRenderStore } from '@/stores/render'
 import { useThemeStore } from '@/stores/theme'

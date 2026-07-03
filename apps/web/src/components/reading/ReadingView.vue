@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { FeedViewType } from '@/stores/reading'
 import { Globe, Loader2, Moon, Plus, RefreshCcw, Search, Square, Star, Sun, X } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,10 +13,6 @@ import { useUIStore } from '@/stores/ui'
 import ArticleReader from './ArticleReader.vue'
 import SourceConfigDialog from './SourceConfigDialog.vue'
 import ArticleListView from './views/ArticleListView.vue'
-import AudioPlayerView from './views/AudioPlayerView.vue'
-import PictureGridView from './views/PictureGridView.vue'
-import SocialMediaView from './views/SocialMediaView.vue'
-import VideoGridView from './views/VideoGridView.vue'
 
 const { t } = useI18n()
 const store = useReadingStore()
@@ -55,12 +50,17 @@ function selectAll() {
   selectedIds.value = new Set(displayArticles.value.map(a => a.id))
 }
 
-/** 当前激活源的内容视图类型 */
-const activeView = computed<FeedViewType>(() => {
-  if (!store.activeSourceId)
-    return 0
-  const src = store.sources.find(s => s.id === store.activeSourceId)
-  return src?.view ?? 0
+/** 当前激活源的内容视图类型（-1 = 全部，0 = 文章，1 = 图片，2 = 视频，3 = 音频，4 = 社交媒体） */
+const activeView = ref<number>(-1)
+
+/** 选中源时自动切换视图 */
+watch(() => store.activeSourceId, (id) => {
+  if (!id) {
+    activeView.value = -1
+    return
+  }
+  const src = store.sources.find(s => s.id === id)
+  activeView.value = src?.view ?? 0
 })
 
 /** 各视图类型的未读数（用于显示视图图标计数） */
@@ -90,6 +90,45 @@ function handleKeydown(e: KeyboardEvent) {
     case 's': { if (store.activeArticleId)
       store.toggleStar(store.activeArticleId); break }
   }
+}
+
+// ── 拖拽调整宽度 ──────────────────────────────────
+const MIN_SIDEBAR = 160
+const MAX_SIDEBAR = 400
+const MIN_LIST = 240
+const MAX_LIST = 600
+
+function startResize(e: MouseEvent, target: 'sidebar' | 'list') {
+  e.preventDefault()
+  const startX = e.clientX
+  const startWidth = target === 'sidebar' ? sidebarWidth.value : listWidth.value
+  const min = target === 'sidebar' ? MIN_SIDEBAR : MIN_LIST
+  const max = target === 'sidebar' ? MAX_SIDEBAR : MAX_LIST
+
+  function onMove(ev: MouseEvent) {
+    const delta = ev.clientX - startX
+    const newWidth = Math.min(max, Math.max(min, startWidth + delta))
+    if (target === 'sidebar') {
+      sidebarWidth.value = newWidth
+      sidebarCollapsed.value = newWidth < min + 20
+    }
+    else {
+      listWidth.value = newWidth
+      listCollapsed.value = newWidth < min + 20
+    }
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
 }
 
 watch(searchQuery, (v) => { store.searchQuery = v })
@@ -135,28 +174,28 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
       <!-- ═══ 左栏 ═══ -->
       <aside
         class="flex flex-col bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-100 dark:border-neutral-800 overflow-hidden shrink-0"
-        :style="{ width: sidebarCollapsed ? '0px' : `${sidebarWidth}px`, transition: 'width 0.2s' }"
+        :style="{ width: sidebarCollapsed ? '0px' : `${sidebarWidth}px` }"
       >
         <div v-show="!sidebarCollapsed" class="flex-1 overflow-y-auto px-2 pt-3 space-y-0.5">
           <!-- 视图图标（根据源自动切换） -->
           <div class="flex items-center justify-between px-1 pb-3">
-            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeFilter === 'all' && !store.activeSourceId ? 'text-orange-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.allArticles')" @click="activeFilter = 'all'; store.activeSourceId = null">
+            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === -1 && !store.activeSourceId ? 'text-orange-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.allArticles')" @click="activeView = -1; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
               <span class="text-[9px] font-semibold tabular-nums">{{ store.totalUnread }}</span>
             </button>
-            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 0 && !store.activeSourceId ? 'text-orange-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewArticles')" @click="activeFilter = 'all'; store.activeSourceId = null">
+            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 0 && !store.activeSourceId ? 'text-orange-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewArticles')" @click="activeView = 0; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
               <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[0] }}</span>
             </button>
-            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 4 && !store.activeSourceId ? 'text-blue-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewSocialMedia')" @click="activeFilter = 'all'; store.activeSourceId = null">
+            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 4 && !store.activeSourceId ? 'text-blue-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewSocialMedia')" @click="activeView = 4; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
               <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[4] }}</span>
             </button>
-            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 1 && !store.activeSourceId ? 'text-green-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewPictures')" @click="activeFilter = 'all'; store.activeSourceId = null">
+            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 1 && !store.activeSourceId ? 'text-green-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewPictures')" @click="activeView = 1; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
               <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[1] }}</span>
             </button>
-            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 2 && !store.activeSourceId ? 'text-red-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewVideos')" @click="activeFilter = 'all'; store.activeSourceId = null">
+            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 2 && !store.activeSourceId ? 'text-red-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewVideos')" @click="activeView = 2; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>
               <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[2] }}</span>
             </button>
@@ -164,7 +203,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           <button
             class="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-sm transition-colors"
             :class="activeFilter === 'all' && !store.activeSourceId ? 'bg-neutral-200/60 dark:bg-neutral-700/60 font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/30 dark:hover:bg-neutral-700/30'"
-            @click="activeFilter = 'all'; store.activeSourceId = null"
+            @click="activeView = -1; activeFilter = 'all'; store.activeSourceId = null"
           >
             <svg class="size-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
             <span class="flex-1 text-left">{{ t('reading.allArticles') }}</span>
@@ -205,11 +244,6 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               <span v-if="store.unreadCountMap[src.id]" class="text-xs tabular-nums font-medium text-neutral-500 dark:text-neutral-400">{{ store.unreadCountMap[src.id] }}</span>
             </div>
           </div>
-
-          <button class="flex items-center gap-2 w-full px-2.5 py-1 rounded-lg text-sm text-neutral-500 hover:bg-neutral-200/30 dark:hover:bg-neutral-700/30 transition-colors" @click="showSourceConfig = true">
-            <Plus class="size-4" />
-            <span>{{ t('reading.addSource') }}</span>
-          </button>
         </div>
 
         <!-- 固定底部的添加源按钮 -->
@@ -221,29 +255,44 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         </div>
       </aside>
 
-      <!-- 左栏折叠按钮 -->
-      <div class="flex flex-col items-center justify-start gap-1 w-6 shrink-0 bg-neutral-100/50 dark:bg-neutral-800/50 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer relative group" @click="sidebarCollapsed = !sidebarCollapsed">
-        <div class="flex flex-col items-center pt-3 gap-1">
-          <template v-if="!sidebarCollapsed">
-            <svg class="size-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18l6-6-6-6" /></svg>
-            <span class="text-[8px] text-neutral-400 [writing-mode:vertical-rl]">收起</span>
-          </template>
-          <template v-else>
-            <svg class="size-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 18l-6-6 6-6" /></svg>
-            <span class="text-[8px] text-neutral-400 [writing-mode:vertical-rl]">源</span>
-          </template>
-        </div>
+      <!-- 左栏分隔线 + 折叠按钮 -->
+      <div
+        class="relative flex items-center justify-center w-1.5 shrink-0 bg-neutral-200/60 dark:bg-neutral-700/60 cursor-col-resize"
+        @mousedown.left="startResize($event, 'sidebar')"
+      >
+        <!-- 收起按钮（展开时显示在分隔线左侧） -->
+        <button
+          v-if="!sidebarCollapsed"
+          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-l-md bg-orange-200 dark:bg-orange-900/50 hover:bg-orange-300 dark:hover:bg-orange-800/60 transition-colors left-0 translate-x-[-100%] top-1/2 -translate-y-1/2"
+          title="收起源列表"
+          @dblclick.stop
+          @mousedown.stop="sidebarCollapsed = true"
+        >
+          <svg class="size-3.5 text-orange-700 dark:text-orange-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M15 18l-6-6 6-6" /></svg>
+          <span class="text-[10px] text-orange-700 dark:text-orange-300 font-semibold select-none leading-tight">源</span>
+        </button>
+        <!-- 展开按钮（收起时显示在分隔线右侧，顶部） -->
+        <button
+          v-if="sidebarCollapsed"
+          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-r-md bg-orange-200 dark:bg-orange-900/50 hover:bg-orange-300 dark:hover:bg-orange-800/60 transition-colors right-0 translate-x-[100%] top-4"
+          title="展开源列表"
+          @dblclick.stop
+          @mousedown.stop="sidebarCollapsed = false"
+        >
+          <span class="text-[10px] text-orange-700 dark:text-orange-300 font-semibold select-none leading-tight">源</span>
+          <svg class="size-3.5 text-orange-700 dark:text-orange-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
       </div>
 
       <!-- ═══ 中栏 ═══ -->
       <section
-        class="flex flex-col bg-white dark:bg-neutral-950 overflow-hidden shrink-0 transition-all duration-200"
+        class="flex flex-col bg-white dark:bg-neutral-950 overflow-hidden shrink-0"
         :style="{ width: listCollapsed ? '0px' : `${listWidth}px` }"
       >
         <div v-show="!listCollapsed" class="flex flex-col h-full">
           <div class="flex items-center justify-between px-4 h-11 shrink-0 border-b border-neutral-100 dark:border-neutral-800">
             <span class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-              {{ activeFilter === 'starred' ? t('reading.starred') : store.activeSourceId ? store.sources.find(s => s.id === store.activeSourceId)?.title : t('reading.allArticles') }}
+              {{ activeFilter === 'starred' ? t('reading.starred') : store.activeSourceId ? store.sources.find(s => s.id === store.activeSourceId)?.title : activeView === -1 ? t('reading.allArticles') : activeView === 0 ? t('reading.viewArticles') : activeView === 1 ? t('reading.viewPictures') : activeView === 2 ? t('reading.viewVideos') : activeView === 3 ? t('reading.viewAudios') : activeView === 4 ? t('reading.viewSocialMedia') : t('reading.allArticles') }}
             </span>
             <div class="flex items-center gap-0.5">
               <button
@@ -292,22 +341,26 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               :selected-ids="selectedIds"
               @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
             />
-            <PictureGridView
-              v-else-if="activeView === 1"
-              :articles="displayArticles"
-            />
-            <VideoGridView
-              v-else-if="activeView === 2"
-              :articles="displayArticles"
-            />
-            <AudioPlayerView
-              v-else-if="activeView === 3"
-              :articles="displayArticles"
-            />
-            <SocialMediaView
-              v-else-if="activeView === 4"
-              :articles="displayArticles"
-            />
+            <div v-else-if="activeView === 1" class="flex flex-col items-center justify-center h-full gap-2 text-neutral-400">
+              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+              <span class="text-sm">{{ t('reading.viewPictures') }}</span>
+              <span class="text-xs text-neutral-500">{{ t('reading.noContent') }}</span>
+            </div>
+            <div v-else-if="activeView === 2" class="flex flex-col items-center justify-center h-full gap-2 text-neutral-400">
+              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+              <span class="text-sm">{{ t('reading.viewVideos') }}</span>
+              <span class="text-xs text-neutral-500">{{ t('reading.noContent') }}</span>
+            </div>
+            <div v-else-if="activeView === 3" class="flex flex-col items-center justify-center h-full gap-2 text-neutral-400">
+              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+              <span class="text-sm">{{ t('reading.viewAudios') }}</span>
+              <span class="text-xs text-neutral-500">{{ t('reading.noContent') }}</span>
+            </div>
+            <div v-else-if="activeView === 4" class="flex flex-col items-center justify-center h-full gap-2 text-neutral-400">
+              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+              <span class="text-sm">{{ t('reading.viewSocialMedia') }}</span>
+              <span class="text-xs text-neutral-500">{{ t('reading.noContent') }}</span>
+            </div>
             <ArticleListView
               v-else
               :articles="displayArticles"
@@ -323,18 +376,33 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         </div>
       </section>
 
-      <!-- 中栏折叠按钮 -->
-      <div class="flex flex-col items-center justify-start gap-1 w-6 shrink-0 bg-neutral-100/50 dark:bg-neutral-800/50 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer relative group" @click="listCollapsed = !listCollapsed">
-        <div class="flex flex-col items-center pt-3 gap-1">
-          <template v-if="!listCollapsed">
-            <svg class="size-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 18l-6-6 6-6" /></svg>
-            <span class="text-[8px] text-neutral-400 [writing-mode:vertical-rl]">收起</span>
-          </template>
-          <template v-else>
-            <svg class="size-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18l6-6-6-6" /></svg>
-            <span class="text-[8px] text-neutral-400 [writing-mode:vertical-rl]">列表</span>
-          </template>
-        </div>
+      <!-- 中栏分隔线 + 折叠按钮 -->
+      <div
+        class="relative flex items-center justify-center w-1.5 shrink-0 bg-neutral-200/60 dark:bg-neutral-700/60 cursor-col-resize"
+        @mousedown.left="startResize($event, 'list')"
+      >
+        <!-- 收起按钮（展开时显示在分隔线左侧） -->
+        <button
+          v-if="!listCollapsed"
+          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-l-md bg-blue-200 dark:bg-blue-900/50 hover:bg-blue-300 dark:hover:bg-blue-800/60 transition-colors left-0 translate-x-[-100%] top-1/2 -translate-y-1/2"
+          title="收起文章列表"
+          @dblclick.stop
+          @mousedown.stop="listCollapsed = true"
+        >
+          <svg class="size-3.5 text-blue-700 dark:text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M15 18l-6-6 6-6" /></svg>
+          <span class="text-[10px] text-blue-700 dark:text-blue-300 font-semibold select-none leading-tight">列</span>
+        </button>
+        <!-- 展开按钮（收起时显示在分隔线右侧，偏下） -->
+        <button
+          v-if="listCollapsed"
+          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-r-md bg-blue-200 dark:bg-blue-900/50 hover:bg-blue-300 dark:hover:bg-blue-800/60 transition-colors right-0 translate-x-[100%] top-20"
+          title="展开文章列表"
+          @dblclick.stop
+          @mousedown.stop="listCollapsed = false"
+        >
+          <span class="text-[10px] text-blue-700 dark:text-blue-300 font-semibold select-none leading-tight">列</span>
+          <svg class="size-3.5 text-blue-700 dark:text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
       </div>
 
       <!-- ═══ 右栏 ═══ -->

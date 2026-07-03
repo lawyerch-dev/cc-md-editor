@@ -1,4 +1,4 @@
-import { hydratePendingInfographicDiagrams } from '@md/core'
+import { hydratePendingInfographicDiagrams } from '@md/core/extensions'
 
 /** 获取 HTML 内容 */
 export function getHtmlContent(options?: { themeMode?: `light` | `dark` }): string {

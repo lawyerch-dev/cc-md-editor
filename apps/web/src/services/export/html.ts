@@ -1,4 +1,4 @@
-import { markedAlert, MDKatex } from '@md/core'
+import { markedAlert, MDKatex } from '@md/core/extensions'
 import { sanitizeTitle } from '@md/shared/utils/basicHelpers'
 import { downloadFile } from '@md/shared/utils/fileHelpers'
 import { Marked } from 'marked'

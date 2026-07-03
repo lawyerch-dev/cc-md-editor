@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ThemeName } from '@md/shared/configs'
 import { Check, CheckSquare, Download, Edit3, Ellipsis, Eye, Plus, X } from '@lucide/vue'
-import { exportMergedTheme } from '@md/core'
+import { exportMergedTheme } from '@md/core/theme'
 import { themeMap } from '@md/shared'
 import { getThemeLabel } from '@/composables/useLocalizedStyleOptions'
 import { copyPlain } from '@/lib/browser/clipboard'

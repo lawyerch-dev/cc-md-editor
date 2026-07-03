@@ -1,20 +1,15 @@
 <script setup lang="ts">
 import { FileText, Globe, Lightbulb, Moon, Newspaper, Settings, Sun, X } from '@lucide/vue'
-import { onMounted, ref } from 'vue'
-import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
+import { defineAsyncComponent, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { useLocaleStore } from '@/stores/locale'
 import { useUIStore } from '@/stores/ui'
 
+const AIConfig = defineAsyncComponent(() => import('@/components/ai/chat-box/AIConfig.vue'))
+
 const uiStore = useUIStore()
 const localeStore = useLocaleStore()
 const showAIConfig = ref(false)
-
-onMounted(() => {
-  import('@/components/editor/CodemirrorEditor.vue')
-  import('@/components/idea-board/IdeaBoard.vue')
-  import('@/components/reading/ReadingView.vue')
-})
 </script>
 
 <template>

@@ -64,6 +64,18 @@ export default defineConfig(({ mode }) => {
         resolvers: [],
       }),
       isUTools && utoolsLocalAssetsPlugin(),
+      // Strip modulepreload for large vendor chunks — they'll load on demand via dynamic import
+      {
+        name: `strip-large-modulepreload`,
+        transformIndexHtml(html) {
+          const LARGE_CHUNKS = [`vendor_excalidraw`, `vendor_mermaid`, `codemirror-N`, `prettier`, `highlight-D`, `vendor_viz`, `vendor_aws`, `katex-DPk`, `vendor_cytoscape`, `vendor_d3-`, `vendor_dagre`, `vendor_lodash-`, `vendor_measury`, `vendor_culori`]
+          return html.replace(/<link[^>]*rel="modulepreload"[^>]*href="([^"]+)"[^>]*>/g, (tag, href) => {
+            if (LARGE_CHUNKS.some(chunk => href.includes(chunk)))
+              return `<!-- stripped: ${href} -->`
+            return tag
+          })
+        },
+      } as Plugin,
     ],
     resolve: {
       alias: { '@': path.resolve(__dirname, `./src`) },
@@ -92,8 +104,7 @@ export default defineConfig(({ mode }) => {
     },
     css: { devSourcemap: true },
     build: {
-      // 不预加载所有 chunk，仅在进入对应视图时按需加载（减少首屏 70+ 请求）
-      modulePreload: false,
+      cssCodeSplit: false,
       rolldownOptions: {
         onwarn(warning, warn) {
           // @vueuse/core 中的 /* #__PURE__ */ 注释位置不符合 Rolldown 要求，忽略该警告
@@ -106,52 +117,89 @@ export default defineConfig(({ mode }) => {
           entryFileNames: `static/js/md-[name]-[hash].js`,
           assetFileNames: `static/[ext]/md-[name]-[hash].[ext]`,
           manualChunks(id) {
-            if (id.includes(`node_modules`)) {
-              // @lezer/* are CodeMirror's parser primitives, keep together
-              if (id.includes(`codemirror`) || id.includes(`@lezer`))
+            if (!id.includes(`node_modules`))
+              return
+
+            // Only match actual npm packages, not @md/core source files (e.g. extensions/mermaid.ts)
+            const isPnpm = id.includes(`/.pnpm/`)
+            const afterNodeModules = (idx: string) => {
+              const nm = idx.lastIndexOf(`/node_modules/`)
+              return nm !== -1 ? idx.slice(nm + `/node_modules/`.length) : ``
+            }
+
+            // For .pnpm paths, extract the real package name
+            if (isPnpm) {
+              const after = afterNodeModules(id)
+              const pkgSegment = after.startsWith(`@`) ? `${after.split(`/`)[0]}/${after.split(`/`)[1]}` : after.split(`/`)[0]
+
+              // Heavy vendor chunks — match real package names only
+              if (pkgSegment === `mermaid` || pkgSegment.startsWith(`mermaid`))
+                return `vendor_mermaid`
+              if (pkgSegment.startsWith(`@codemirror`) || pkgSegment.startsWith(`@lezer`))
                 return `codemirror`
-              if (id.includes(`katex`))
+              if (pkgSegment === `katex`)
                 return `katex`
-              if (id.includes(`prettier`))
+              if (pkgSegment === `prettier` || pkgSegment.startsWith(`prettier/`))
                 return `prettier`
-              if (id.includes(`highlight.js`))
+              if (pkgSegment === `highlight.js`)
                 return `highlight`
+              if (pkgSegment === `@excalidraw` || pkgSegment.startsWith(`@excalidraw/`))
+                return `vendor_excalidraw`
 
-              // Handle pnpm virtual store (symlink-resolved paths contain /.pnpm/)
-              if (id.includes(`/.pnpm/`)) {
-                // Group Vue core ecosystem together to avoid circular chunk dependencies
-                if (
-                  id.includes(`/@vue/`)
-                  || id.includes(`/@vue+`)
-                  || id.includes(`/node_modules/vue/`)
-                  || id.includes(`/node_modules/pinia/`)
-                ) {
-                  return `vendor_vue`
-                }
-                if (id.includes(`/@vueuse+`) || id.includes(`/@vueuse/`))
-                  return `vendor_vueuse`
-
-                // Extract actual package name from the real package path within .pnpm store
-                // Format: .pnpm/<outer>@version/node_modules/<actual-pkg>/...
-                const nmIndex = id.lastIndexOf(`/node_modules/`)
-                if (nmIndex !== -1) {
-                  const afterNm = id.slice(nmIndex + `/node_modules/`.length)
-                  const parts = afterNm.split(`/`)
-                  const pkgName = afterNm.startsWith(`@`)
-                    ? `${parts[0].slice(1)}_${parts[1]}`
-                    : parts[0]
-                  return `vendor_${pkgName.replace(PKG_NAME_SPECIAL_CHARS, `_`)}`
-                }
-                return
+              // d3/antv/cytoscape/dagre — many tiny packages → one chunk
+              if (pkgSegment.startsWith(`d3-`) || pkgSegment.startsWith(`d3/`)
+                || pkgSegment.startsWith(`@antv`) || pkgSegment === `cytoscape` || pkgSegment === `cose-base`
+                || pkgSegment === `dagre` || pkgSegment === `graphlib` || pkgSegment === `khroma`) {
+                return `vendor_viz`
               }
 
-              // Handle regular (non-pnpm) node_modules paths
-              const pkg = id
-                .split(`node_modules/`)[1]
-                .split(`/`)[0]
-                .replace(`@`, `npm_`)
-              return `vendor_${pkg}`
+              // AWS SDK — one chunk
+              if (pkgSegment.startsWith(`@aws-sdk`) || pkgSegment.startsWith(`@aws-crypto`))
+                return `vendor_aws`
+
+              // Vue core
+              if (pkgSegment === `vue` || pkgSegment === `@vue/runtime-dom` || pkgSegment === `@vue/runtime-core`
+                || pkgSegment === `@vue/reactivity` || pkgSegment === `@vue/shared` || pkgSegment === `@vue/compiler-core`
+                || pkgSegment === `@vue/compiler-dom` || pkgSegment === `@vue/compiler-sfc` || pkgSegment === `@vue/compiler-ssr`) {
+                return `vendor_vue`
+              }
+              if (pkgSegment === `pinia` || pkgSegment.startsWith(`@pinia/`))
+                return `vendor_vue`
+              if (pkgSegment === `@vueuse` || pkgSegment.startsWith(`@vueuse/`))
+                return `vendor_vueuse`
+
+              const np = pkgSegment.replace(/^@/, `npm_`).replace(PKG_NAME_SPECIAL_CHARS, `_`)
+              return `vendor_${np}`
             }
+
+            // Non-.pnpm node_modules (rare in pnpm monorepos)
+            if (id.includes(`codemirror`) || id.includes(`@lezer`))
+              return `codemirror`
+            if (id.includes(`katex`))
+              return `katex`
+            if (id.includes(`prettier`))
+              return `prettier`
+            if (id.includes(`highlight.js`))
+              return `highlight`
+            if (id.includes(`excalidraw`))
+              return `vendor_excalidraw`
+            if (id.includes(`mermaid`))
+              return `vendor_mermaid`
+
+            // d3/antv/cytoscape/dagre — many tiny packages → one chunk
+            if (id.includes(`d3-`) || id.includes(`d3/`) || id.includes(`antv/`)
+              || id.includes(`@antv`) || id.includes(`cytoscape`) || id.includes(`cose-base`)
+              || id.includes(`dagre`) || id.includes(`graphlib`) || id.includes(`khroma`)) {
+              return `vendor_viz`
+            }
+
+            // AWS SDK — one chunk
+            if (id.includes(`@aws-sdk`) || id.includes(`@aws-crypto`))
+              return `vendor_aws`
+
+            const pkg = id.split(`node_modules/`)[1].split(`/`)[0].replace(`@`, `npm_`)
+            const np = pkg.replace(PKG_NAME_SPECIAL_CHARS, `_`)
+            return `vendor_${np}`
           },
         },
       },

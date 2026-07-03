@@ -1,5 +1,4 @@
 import type { HeadingLevel, HeadingStyles, HeadingStyleType, PerThemeSettings, PerThemeSettingsMap, ThemeName } from '@md/shared/configs'
-import { applyTheme } from '@md/core'
 import { defaultPerThemeSettings, defaultStyleConfig, widthOptions } from '@md/shared/configs'
 import { store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
@@ -137,6 +136,7 @@ export const useThemeStore = defineStore(`theme`, () => {
 
   const applyCurrentTheme = async () => {
     try {
+      const { applyTheme } = await import('@md/core/theme')
       const cssEditorStore = useCssEditorStore()
       const customCSS = cssEditorStore.getCurrentTabContent()
 

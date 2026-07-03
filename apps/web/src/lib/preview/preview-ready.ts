@@ -1,9 +1,11 @@
 import {
   hydratePendingInfographicDiagrams,
+} from '@md/core/extensions'
+import {
   isAsyncDiagramPending,
   MD_DIAGRAM_STATE,
   MD_DIAGRAM_STATE_ATTR,
-} from '@md/core'
+} from '@md/core/utils'
 import { nextTick } from 'vue'
 
 const PREVIEW_READY_TIMEOUT_MS = 20_000
