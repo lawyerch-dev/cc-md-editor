@@ -191,6 +191,13 @@ export class GitHubSyncClient {
 
   /** 创建或更新文件，返回新 SHA */
   async writeFile(repo: string, path: string, content: string, message: string, sha?: string): Promise<{ sha: string }> {
+    // 如果没传 SHA，先检查文件是否已存在（避免 422）
+    if (!sha) {
+      const existing = await this.readFile(repo, path)
+      if (existing)
+        sha = existing.sha
+    }
+
     const body: Record<string, string> = {
       message,
       content: encodeBase64Utf8(content),
