@@ -1,5 +1,5 @@
 [build]
-command = "pnpm web build:h5-netlify"
+command = "pnpm web build:h5-netlify:only"
 publish = "apps/web/dist"
 functions = "apps/web/netlify/functions"
 
