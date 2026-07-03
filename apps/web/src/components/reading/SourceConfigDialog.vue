@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { useReadingStore } from '@/stores/reading'
 import AddSourceDialog from './AddSourceDialog.vue'
+import ImportFoloDialog from './ImportFoloDialog.vue'
 
 const emit = defineEmits<{
   close: []
@@ -15,6 +16,7 @@ const { t } = useI18n()
 const store = useReadingStore()
 
 const showAddDialog = ref(false)
+const showImportDialog = ref(false)
 const editingSource = ref<Source | null>(null)
 
 const REFRESH_OPTIONS = [
@@ -56,6 +58,10 @@ function openAdd() {
           <Button size="sm" variant="outline" class="h-7 gap-1" @click="openAdd">
             <Plus class="h-3.5 w-3.5" />
             {{ t('reading.addSource') }}
+          </Button>
+          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" @click="showImportDialog = true">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            {{ t('reading.import') }}
           </Button>
           <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
             <X class="h-4 w-4" />
@@ -103,6 +109,19 @@ function openAdd() {
                   }"
                 >
                   {{ src.strategy === 'rss' ? 'RSS' : src.strategy === 'css-selector' ? 'CSS' : 'API' }}
+                </span>
+                <!-- 视图类型标签 -->
+                <span
+                  class="rounded px-1.5 py-0.5 text-[9px]"
+                  :class="{
+                    'bg-neutral-500/10 text-neutral-600': src.view === 0,
+                    'bg-green-500/10 text-green-600': src.view === 1,
+                    'bg-red-500/10 text-red-600': src.view === 2,
+                    'bg-purple-500/10 text-purple-600': src.view === 3,
+                    'bg-blue-500/10 text-blue-600': src.view === 4,
+                  }"
+                >
+                  {{ ['文章', '图片', '视频', '音频', '社交'][src.view] || '文章' }}
                 </span>
               </div>
               <p class="text-[10px] text-muted-foreground truncate mt-0.5">
@@ -167,5 +186,8 @@ function openAdd() {
 
     <!-- 编辑源对话框 -->
     <AddSourceDialog v-if="editingSource" :source="editingSource" @close="editingSource = null" />
+
+    <!-- 导入 folo 数据 -->
+    <ImportFoloDialog v-if="showImportDialog" @close="showImportDialog = false" @imported="showImportDialog = false" />
   </div>
 </template>

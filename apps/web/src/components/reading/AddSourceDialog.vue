@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CollectorSelectors, FetchStrategy, Source } from '@/stores/reading'
+import type { CollectorSelectors, FeedViewType, FetchStrategy, Source } from '@/stores/reading'
 import { Loader2, Plus, Search, Settings2, X } from '@lucide/vue'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -30,6 +30,7 @@ const title = ref(props.source?.title || '')
 const category = ref(props.source?.category || '')
 const refreshInterval = ref(props.source?.refreshInterval ?? 30)
 const strategy = ref<FetchStrategy>(props.source?.strategy || 'rss')
+const view = ref<FeedViewType>(props.source?.view ?? 0)
 const selectors = ref<CollectorSelectors>(
   props.source?.selectors || { item: '', title: '', link: '', content: '', summary: '', author: '', date: '' },
 )
@@ -234,6 +235,7 @@ function handleSave() {
     category: category.value.trim() || t('reading.categoryPlaceholder'),
     refreshInterval: refreshInterval.value,
     strategy: strategy.value,
+    view: view.value,
     selectors: strategy.value === 'css-selector' ? selectors.value : undefined,
     description: description.value.trim() || undefined,
   }
@@ -349,7 +351,7 @@ watch(url, () => {
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-3 gap-3">
           <div class="space-y-1.5">
             <Label class="text-xs">{{ t('reading.strategyLabel') }}</Label>
             <select
@@ -358,6 +360,29 @@ watch(url, () => {
             >
               <option v-for="opt in STRATEGY_OPTIONS" :key="opt.value" :value="opt.value">
                 {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <Label class="text-xs">{{ t('reading.viewType') }}</Label>
+            <select
+              v-model="view"
+              class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option :value="0">
+                {{ t('reading.viewArticles') }}
+              </option>
+              <option :value="1">
+                {{ t('reading.viewPictures') }}
+              </option>
+              <option :value="2">
+                {{ t('reading.viewVideos') }}
+              </option>
+              <option :value="3">
+                {{ t('reading.viewAudios') }}
+              </option>
+              <option :value="4">
+                {{ t('reading.viewSocialMedia') }}
               </option>
             </select>
           </div>

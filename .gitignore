@@ -64,5 +64,8 @@ apps/utools/dist
 apps/utools/release
 .netlify/
 
-
 folo
+
+# Reading audit & test data
+AUDIT_READING_MODULE.md
+test/

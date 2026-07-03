@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { BookOpen, ExternalLink, Languages, Sparkles, Star } from '@lucide/vue'
+import DOMPurify from 'dompurify'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
 import { useReadingStore } from '@/stores/reading'
-import ArticleAnnotator from './ArticleAnnotator.vue'
 
 const props = defineProps<{
   article: Article
@@ -15,6 +15,8 @@ const props = defineProps<{
 const readingStore = useReadingStore()
 const aiConfig = useAIConfigStore()
 const { t } = useI18n()
+
+const sanitize = (html: string) => DOMPurify.sanitize(html, { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling'] })
 
 function formatDate(ts: number) {
   const diff = Date.now() - ts
@@ -55,11 +57,20 @@ const translating = ref(false)
 const translatedParagraphs = ref<Record<number, string>>({})
 const translationActive = ref(false)
 
+let currentAIAbort: AbortController | null = null
+
 // 切换文章时，如果内容为空，自动提取全文
 watch(() => props.article.id, async (id, oldId) => {
   if (id === oldId)
     return
+  if (currentAIAbort) { currentAIAbort.abort(); currentAIAbort = null }
   fullTextContent.value = ''
+  aiResult.value = ''
+  aiError.value = ''
+  aiPanelTab.value = null
+  translatedParagraphs.value = {}
+  translationActive.value = false
+  translating.value = false
   const content = props.article.content || props.article.summary || ''
   const textLen = content.replace(/<[^>]*>/g, '').trim().length
   if (textLen < 200 && props.article.link) {
@@ -75,6 +86,9 @@ async function callAIStream(
   userContent: string,
   onDelta: (text: string) => void,
 ): Promise<string> {
+  if (currentAIAbort) currentAIAbort.abort()
+  currentAIAbort = new AbortController()
+  const signal = currentAIAbort.signal
   const endpoint = aiConfig.textEndpoint || aiConfig.endpoint
   const apiKey = aiConfig.textApiKey || aiConfig.apiKey
   const model = aiConfig.textModel || aiConfig.model
@@ -91,7 +105,7 @@ async function callAIStream(
     max_tokens: 2000,
     stream: true,
   }
-  const res = await window.fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) })
+  const res = await window.fetch(url, { method: 'POST', headers, body: JSON.stringify(payload), signal })
   if (!res.ok)
     throw new Error(t('reading.aiRequestFailed', { status: res.status }))
   const reader = res.body?.getReader()
@@ -134,8 +148,8 @@ async function handleSummarize() {
       (delta) => { aiResult.value += delta },
     )
   }
-  catch (e) { aiError.value = e instanceof Error ? e.message : t('reading.summaryFailed') }
-  finally { aiLoading.value = false }
+  catch (e) { if (!currentAIAbort?.signal.aborted) aiError.value = e instanceof Error ? e.message : t('reading.summaryFailed') }
+  finally { aiLoading.value = false; currentAIAbort = null }
 }
 
 async function handleTranslate() {
@@ -163,8 +177,8 @@ async function handleTranslate() {
       )
     }
   }
-  catch (e) { console.warn('翻译失败:', e) }
-  finally { translating.value = false }
+  catch (e) { if (!currentAIAbort?.signal.aborted) console.warn('翻译失败:', e) }
+  finally { translating.value = false; currentAIAbort = null }
 }
 
 async function handleFetchFullText() {
@@ -179,131 +193,85 @@ async function handleFetchFullText() {
 
 <template>
   <div class="flex flex-1 flex-col overflow-hidden">
-    <!-- 文章内容区 -->
+    <!-- 顶部固定栏（标题 + 操作按钮同栏） -->
+    <div class="flex items-center gap-3 px-6 py-2.5 border-b border-neutral-100 dark:border-neutral-800 shrink-0 bg-white dark:bg-neutral-950">
+      <h1 class="flex-1 min-w-0 truncate text-base font-semibold text-neutral-900 dark:text-neutral-100">
+        {{ article.title }}
+      </h1>
+
+      <div class="flex items-center gap-1 shrink-0" style="flex: none;">
+        <button class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :disabled="aiLoading" @click="handleSummarize">
+          <Sparkles class="h-3.5 w-3.5" />
+          {{ t('reading.summary') }}
+        </button>
+
+        <div class="flex items-center">
+          <button class="flex items-center gap-1 rounded-l-md px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :class="translationActive ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400' : 'hover:text-neutral-700 dark:hover:text-neutral-300'" :disabled="translating" @click="handleTranslate">
+            <Languages class="h-3.5 w-3.5" />
+            {{ translationActive ? t('reading.cancelTranslate') : t('reading.translate') }}
+          </button>
+          <select v-model="translateTarget" class="h-7 rounded-r-md border border-l-0 border-neutral-200 dark:border-neutral-700 bg-transparent px-1 text-[10px] text-neutral-500" :disabled="translating">
+            <option value="en">
+              EN
+            </option>
+            <option value="zh">
+              中文
+            </option>
+            <option value="ja">
+              日本語
+            </option>
+          </select>
+        </div>
+
+        <button class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :disabled="fullTextLoading || !article.link" @click="handleFetchFullText">
+          <BookOpen class="h-3.5 w-3.5" />
+          {{ t('reading.fullText') }}
+        </button>
+
+        <div class="w-px h-4 bg-neutral-200 dark:bg-neutral-700" />
+
+        <button class="rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" @click="readingStore.toggleStar(article.id)">
+          <Star class="h-4 w-4" :class="article.starred ? 'text-amber-500 fill-amber-500' : ''" />
+        </button>
+        <a v-if="article.link" :href="article.link" target="_blank" class="rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
+          <ExternalLink class="h-4 w-4" />
+        </a>
+      </div>
+    </div>
+
+    <!-- 可滚动文章内容 -->
     <div class="flex-1 overflow-y-auto">
-      <div class="mx-auto max-w-3xl px-8 pt-12 pb-32">
-        <!-- 标题 -->
-        <h1 class="select-text break-words text-[1.7rem] font-bold leading-normal text-foreground">
+      <div class="mx-auto max-w-3xl px-8 pb-32">
+        <!-- 完整标题 -->
+        <h1 class="pt-8 pb-3 text-[1.7rem] font-bold leading-snug text-neutral-900 dark:text-neutral-100 select-text">
           {{ article.title }}
         </h1>
-
         <!-- 元信息 -->
-        <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-          <div class="flex items-center gap-2">
-            <div class="size-5 rounded bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground">
-              {{ article.sourceTitle.charAt(0) }}
-            </div>
-            <span class="text-xs font-medium text-muted-foreground">{{ article.sourceTitle }}</span>
+        <div class="pb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
+          <div class="flex items-center gap-1.5">
+            <span class="size-4 rounded bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[7px] font-bold text-neutral-500 shrink-0">{{ article.sourceTitle.charAt(0) }}</span>
+            <span>{{ article.sourceTitle }}</span>
           </div>
-          <div v-if="article.author" class="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <i class="i-mgc-user-3-cute-re text-sm" />
-            <span>{{ article.author }}</span>
-          </div>
-          <span class="text-xs text-muted-foreground">{{ formatDate(article.publishedAt) }}</span>
-          <Star
-            v-if="article.starred"
-            class="size-4 text-amber-500 fill-amber-500"
-          />
+          <span v-if="article.author">{{ article.author }}</span>
+          <span>{{ formatDate(article.publishedAt) }}</span>
         </div>
 
-        <!-- 操作栏 -->
-        <div class="mt-6 flex items-center gap-1 border-b pb-4">
-          <button
-            class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            :disabled="aiLoading"
-            @click="handleSummarize"
-          >
-            <Sparkles class="h-3.5 w-3.5" />
-            {{ t('reading.summary') }}
-          </button>
-
-          <div class="flex items-center">
-            <button
-              class="flex items-center gap-1.5 rounded-l-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              :class="translationActive ? 'bg-primary/10 text-primary' : ''"
-              :disabled="translating"
-              @click="handleTranslate"
-            >
-              <Languages class="h-3.5 w-3.5" />
-              {{ translating ? t('reading.translating') : translationActive ? t('reading.cancelTranslate') : t('reading.translate') }}
-            </button>
-            <select
-              v-model="translateTarget"
-              class="h-[30px] rounded-r-md border-l border bg-transparent px-1.5 text-[10px] text-muted-foreground"
-              :disabled="translating"
-            >
-              <option value="en">
-                EN
-              </option>
-              <option value="zh">
-                中文
-              </option>
-              <option value="ja">
-                日本語
-              </option>
-            </select>
-          </div>
-
-          <button
-            class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            :disabled="fullTextLoading || !article.link"
-            @click="handleFetchFullText"
-          >
-            <BookOpen class="h-3.5 w-3.5" />
-            {{ fullTextLoading ? t('reading.extracting') : t('reading.fullText') }}
-          </button>
-
-          <div class="flex-1" />
-
-          <button
-            class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            @click="readingStore.toggleStar(article.id)"
-          >
-            <Star
-              class="h-4 w-4"
-              :class="article.starred ? 'text-amber-500 fill-amber-500' : ''"
-            />
-          </button>
-          <a
-            v-if="article.link"
-            :href="article.link"
-            target="_blank"
-            class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <ExternalLink class="h-4 w-4" />
-          </a>
-        </div>
-
-        <!-- 文章正文 -->
-        <div v-if="translationActive" class="mt-8">
-          <div
-            v-for="(block, i) in bilingualBlocks"
-            :key="i"
-          >
-            <div v-html="block.html" />
-            <div
-              v-if="translatedParagraphs[i] !== undefined"
-              class="my-1 rounded bg-primary/5 px-3 py-1.5 text-xs text-primary/80 italic border-l-2 border-primary/20"
-            >
-              {{ translatedParagraphs[i] || '...' }}
+        <!-- 正文 -->
+        <div class="mt-4">
+          <div v-if="translationActive">
+            <div v-for="(block, i) in bilingualBlocks" :key="i">
+              <div v-html="sanitize(block.html)" />
+              <div v-if="translatedParagraphs[i] !== undefined" class="my-2 rounded bg-orange-50 dark:bg-orange-950/30 px-4 py-2 text-sm text-orange-800 dark:text-orange-200 italic border-l-2 border-orange-300">
+                {{ translatedParagraphs[i] || '...' }}
+              </div>
             </div>
+          </div>
+          <div v-else class="prose prose-neutral dark:prose-invert max-w-none text-[15px] leading-relaxed text-neutral-700 dark:text-neutral-300">
+            <div v-html="sanitize(fullTextContent || article.content || article.summary)" />
           </div>
         </div>
       </div>
     </div>
-
-    <!-- 批注/AI 摘要模式 -->
-    <ArticleAnnotator
-      v-if="!translationActive"
-      class="flex-1"
-      :article="article"
-      :content="fullTextContent || article.content || article.summary"
-      :ai-result="aiResult"
-      :ai-loading="aiLoading"
-      :ai-error="aiError"
-      :ai-panel-tab="aiPanelTab"
-      @close-ai="aiPanelTab = null"
-    />
   </div>
 </template>
 

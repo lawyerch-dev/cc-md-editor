@@ -1,6 +1,36 @@
 /** 获取策略类型 */
 export type FetchStrategy = 'rss' | 'css-selector' | 'json-api'
 
+/** 内容视图类型 — 决定如何渲染条目 */
+export enum FeedViewType {
+  Articles = 0,
+  Pictures = 1,
+  Videos = 2,
+  Audios = 3,
+  SocialMedia = 4,
+}
+
+/** 多媒体条目 */
+export interface MediaItem {
+  url: string
+  type: 'photo' | 'video' | 'audio'
+  previewImageUrl?: string
+  width?: number
+  height?: number
+  durationInSeconds?: number
+  mimeType?: string
+  blurhash?: string
+}
+
+/** 附件 */
+export interface Attachment {
+  url: string
+  durationInSeconds?: number
+  mimeType?: string
+  sizeInBytes?: number
+  title?: string
+}
+
 /** 统一数据源 */
 export interface Source {
   id: string
@@ -14,6 +44,8 @@ export interface Source {
   strategy: FetchStrategy
   /** CSS 选择器（仅 css-selector 策略需要） */
   selectors?: CollectorSelectors
+  /** 内容视图类型 */
+  view: FeedViewType
   /** 描述 */
   description?: string
   /** 运行时健康状态（不持久化） */
@@ -54,6 +86,10 @@ export interface Article {
   publishedAt: number
   read: boolean
   starred: boolean
+  /** 结构化多媒体（图片/视频/音频） */
+  media: MediaItem[]
+  /** 附件 */
+  attachments: Attachment[]
 }
 
 /** 阅读列表 */
