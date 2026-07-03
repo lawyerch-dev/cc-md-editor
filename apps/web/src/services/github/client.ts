@@ -180,7 +180,7 @@ export class GitHubSyncClient {
     try {
       const file = await this.request<GitHubFile>(`GET`, `/repos/${repo}/contents/${path}`)
       if (!file.content)
-        return null
+        return file.sha ? { content: '', sha: file.sha } : null
       const content = decodeBase64Utf8(file.content.replace(/\n/g, ''))
       return { content, sha: file.sha }
     }
@@ -193,9 +193,12 @@ export class GitHubSyncClient {
   async writeFile(repo: string, path: string, content: string, message: string, sha?: string): Promise<{ sha: string }> {
     // 如果没传 SHA，先检查文件是否已存在（避免 422）
     if (!sha) {
-      const existing = await this.readFile(repo, path)
-      if (existing)
-        sha = existing.sha
+      try {
+        const existing = await this.request<GitHubFile>(`GET`, `/repos/${repo}/contents/${path}`)
+        if (existing.sha)
+          sha = existing.sha
+      }
+      catch { /* 文件不存在，正常创建 */ }
     }
 
     const body: Record<string, string> = {
@@ -205,8 +208,20 @@ export class GitHubSyncClient {
     if (sha)
       body.sha = sha
 
-    const result = await this.request<{ content: { sha: string } }>(`PUT`, `/repos/${repo}/contents/${path}`, body)
-    return { sha: result.content.sha }
+    try {
+      const result = await this.request<{ content: { sha: string } }>(`PUT`, `/repos/${repo}/contents/${path}`, body)
+      return { sha: result.content.sha }
+    }
+    catch (e) {
+      // 422 且没 SHA → 重试一次（可能并发写入导致）
+      if (!sha && e instanceof Error && e.message.includes('422')) {
+        const existing = await this.request<GitHubFile>(`GET`, `/repos/${repo}/contents/${path}`)
+        body.sha = existing.sha
+        const result = await this.request<{ content: { sha: string } }>(`PUT`, `/repos/${repo}/contents/${path}`, body)
+        return { sha: result.content.sha }
+      }
+      throw e
+    }
   }
 
   /** 删除文件 */
