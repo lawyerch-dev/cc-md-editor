@@ -20,17 +20,22 @@ async function fetchViaNetlifyFunction(url: string): Promise<Response | null> {
       body: JSON.stringify({ url }),
       signal: AbortSignal.timeout(12_000),
     })
-    if (!res.ok)
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '')
+      console.warn(`[RssFetch] Netlify function returned ${res.status}: ${errBody.slice(0, 200)}`)
       return null
+    }
     const data = await res.json() as { ok?: boolean, body?: string, contentType?: string, error?: string }
     if (data.ok && typeof data.body === 'string') {
       return new Response(data.body, {
         headers: { 'Content-Type': data.contentType ?? 'text/plain' },
       })
     }
+    console.warn(`[RssFetch] Netlify function returned bad data:`, data)
     return null
   }
-  catch {
+  catch (e) {
+    console.warn(`[RssFetch] Netlify function error:`, e)
     return null
   }
 }
