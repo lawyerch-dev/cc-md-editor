@@ -44,15 +44,18 @@ async function fetchViaNetlifyFunction(url: string): Promise<Response | null> {
  * 带 CORS 代理回退的 fetch：先尝试直接请求，再并行尝试所有代理（取最快成功的）。
  */
 export async function fetchWithProxy(url: string, init?: RequestInit): Promise<Response> {
-  // 1) 直接请求（同源或允许 CORS 的资源）
-  try {
-    const res = await window.fetch(url, { ...init, signal: AbortSignal.timeout(8_000) })
-    if (res.ok)
-      return res
+  // 1) 直接请求：HTTPS 页面拉 HTTP 源会被 Mixed Content 拦截，直接跳过
+  const isMixedContent = typeof location !== 'undefined' && location.protocol === 'https:' && url.startsWith('http:')
+  if (!isMixedContent) {
+    try {
+      const res = await window.fetch(url, { ...init, signal: AbortSignal.timeout(6_000) })
+      if (res.ok)
+        return res
+    }
+    catch { /* CORS 拦截或超时，走服务端代理 */ }
   }
-  catch { /* CORS 拦截或超时，走服务端代理 */ }
 
-  // 2) 优先使用自有服务端代理（更可靠，不受 CORS 限制）
+  // 2) 优先使用自有 Netlify Function（无 CORS 限制）
   const serverResult = await fetchViaNetlifyFunction(url)
   if (serverResult)
     return serverResult
