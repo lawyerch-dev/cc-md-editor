@@ -96,7 +96,8 @@ watch(searchQuery, (v) => { store.searchQuery = v })
 onMounted(async () => {
   await store.hydrate()
   store.setupBeforeUnload()
-  void store.fetchAll(false, true)
+  // 首次加载用渐进式刷新，避免大量并发请求阻塞
+  void store.fetchAllGradual(300)
   store.startAutoRefresh()
   window.addEventListener('keydown', handleKeydown)
 })
@@ -183,7 +184,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           <div
             v-for="src in store.sources"
             :key="src.id"
-            class="flex items-center justify-between px-2.5 py-1 rounded-lg cursor-pointer transition-colors text-sm"
+            class="group flex items-center justify-between px-2.5 py-1 rounded-lg cursor-pointer transition-colors text-sm"
             :class="store.activeSourceId === src.id ? 'bg-neutral-200/60 dark:bg-neutral-700/60 font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/30 dark:hover:bg-neutral-700/30'"
             @click="store.activeSourceId = src.id; activeFilter = 'all'"
           >
@@ -192,11 +193,12 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
                 {{ src.title.charAt(0) }}
               </div>
               <span class="truncate">{{ src.title }}</span>
-              <span v-if="src.health?.status === 'error'" class="size-1.5 rounded-full bg-red-500 shrink-0" :title="src.health.lastError" />
-              <span v-else-if="src.health?.status === 'ok' && (src.health.articleCount ?? 0) === 0" class="size-1.5 rounded-full bg-amber-400 shrink-0" :title="'最近获取返回了 0 篇文章'" />
+              <span v-if="src.health?.status === 'error'" class="size-1.5 rounded-full bg-red-500 shrink-0" :title="`${src.health.lastError}（点击刷新重试）`" />
+              <span v-else-if="src.health?.status === 'pending'" class="size-1.5 rounded-full bg-blue-400 shrink-0 animate-pulse" />
+              <span v-else-if="src.health?.status === 'ok' && (src.health.articleCount ?? 0) === 0" class="size-1.5 rounded-full bg-amber-400 shrink-0" title="最近获取返回了 0 篇文章" />
             </div>
             <div class="flex items-center gap-1 shrink-0">
-              <button v-if="!store.fetchingSourceIds[src.id]" class="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50" @click.stop="store.fetchSingleSource(src.id)">
+              <button v-if="!store.fetchingSourceIds[src.id]" class="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity rounded p-0.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50" :disabled="!!store.fetchingSourceIds[src.id]" @click.stop="store.fetchSingleSource(src.id)">
                 <RefreshCcw class="h-3 w-3 text-neutral-400" />
               </button>
               <Loader2 v-else class="h-3 w-3 animate-spin text-orange-500" />
@@ -244,8 +246,18 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               {{ activeFilter === 'starred' ? t('reading.starred') : store.activeSourceId ? store.sources.find(s => s.id === store.activeSourceId)?.title : t('reading.allArticles') }}
             </span>
             <div class="flex items-center gap-0.5">
-              <button class="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" @click="store.activeSourceId ? store.fetchSingleSource(store.activeSourceId) : store.fetchAll(true)">
-                <RefreshCcw class="h-4 w-4" :class="{ 'animate-spin text-orange-500': store.loading, 'animate-spin text-neutral-400': store.backgroundRefreshing && !store.loading }" />
+              <button
+                class="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                :disabled="store.activeSourceId ? store.fetchingSourceIds[store.activeSourceId] : store.loading"
+                @click="store.activeSourceId ? store.fetchSingleSource(store.activeSourceId) : store.fetchAll(true)"
+              >
+                <RefreshCcw
+                  class="h-4 w-4"
+                  :class="{
+                    'animate-spin text-orange-500': store.activeSourceId ? store.fetchingSourceIds[store.activeSourceId] : store.loading,
+                    'animate-spin text-neutral-400': store.backgroundRefreshing && !store.loading && !store.activeSourceId,
+                  }"
+                />
               </button>
               <button class="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" @click="isSelecting = !isSelecting">
                 <Square class="h-4 w-4" />

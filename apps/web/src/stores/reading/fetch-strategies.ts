@@ -3,12 +3,46 @@ import type { Article, CollectorSelectors, FeedViewType, MediaItem, Source } fro
 // ── 服务端代理（Netlify Function，类似 Folo 的 api.folo.is）──────────
 
 /**
- * 所有 RSS/XML 获取只通过 Netlify Function 服务端代理，
- * 不再使用不可靠的免费 CORS 代理或 rss2json。
- * 类似 Folo 的 @follow-app/client-sdk → api.folo.is 模式。
+ * 判断 Netlify Functions 是否可用
+ *  部署环境：basepath=/，函数路径正确
+ *  本地 dev 无 Functions：base=/md/，函数路径 404
+ *  本地 dev + proxy：base=/（SERVER_ENV=NETLIFY），无 <base> 标签
  */
-async function fetchViaServer(url: string, timeoutMs = 12_000): Promise<Response> {
-  const fnUrl = `${window.location.origin}/.netlify/functions/rss-fetch`
+function netlifyFunctionsAvailable(): boolean {
+  if (typeof window === 'undefined')
+    return false
+  const host = window.location.hostname
+  // 非 localhost → 已部署
+  if (!host.includes('localhost') && !host.includes('127.0.0.1'))
+    return true
+  // localhost：有 <base> 且不是 /md/，或无 <base>（默认 /）= proxy 模式
+  const base = document.querySelector('base')
+  if (!base)
+    return true // 无 base 标签 = path 从根开始
+  const href = base.getAttribute('href')
+  return href !== '/md/'
+}
+
+/** 获取 Netlify Function 完整 URL（考虑 base path） */
+function netlifyFunctionPath(name: string): string {
+  let base = '/'
+  const baseEl = document.querySelector('base')
+  if (baseEl?.href) {
+    try { base = new URL(baseEl.href).pathname }
+    catch { /* ignore */ }
+  }
+  base = base.replace(/\/$/, '') || ''
+  return `${window.location.origin}${base}/.netlify/functions/${name}`
+}
+
+/**
+ * 通过 Netlify Function 服务端代理获取 RSS/HTML
+ * 服务端无 CORS 限制，可设置任意 UA，是首选方案
+ */
+async function fetchViaNetlify(url: string, timeoutMs = 15_000): Promise<Response> {
+  if (!netlifyFunctionsAvailable())
+    throw new Error('本地环境：Netlify Function 不可用')
+  const fnUrl = netlifyFunctionPath('rss-fetch')
   const res = await window.fetch(fnUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -25,6 +59,128 @@ async function fetchViaServer(url: string, timeoutMs = 12_000): Promise<Response
   return new Response(data.body, {
     headers: { 'Content-Type': data.contentType ?? 'text/plain' },
   })
+}
+
+/**
+ * 专门用于 RSS 采集的 Netlify Function 代理
+ * 服务端完成 XML 抓取 + 解析，直接返回结构化 Article[]，浏览器端无需解析 XML
+ * 无 CORS 问题，支持编码检测，支持 retry
+ * @returns 解析后的文章数组（不含 sourceId / sourceTitle，由调用方补充）
+ */
+async function fetchFeedViaProxy(url: string): Promise<{
+  feedTitle: string
+  articles: Array<{
+    id: string
+    title: string
+    link: string
+    content: string
+    summary: string
+    author: string
+    publishedAt: number
+    media: Array<{ url: string, type: string, previewImageUrl?: string, mimeType?: string, width?: number, height?: number }>
+  }>
+}> {
+  if (!netlifyFunctionsAvailable())
+    throw new Error('本地环境：Netlify Function 不可用')
+  const fnUrl = netlifyFunctionPath('rss-feed-proxy')
+  const res = await window.fetch(fnUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '')
+    throw new Error(`Feed 代理返回 ${res.status}: ${errBody.slice(0, 200)}`)
+  }
+  const data = await res.json()
+  if (!data.ok || !Array.isArray(data.articles)) {
+    throw new Error(`Feed 代理返回异常: ${data.error || '数据格式错误'}`)
+  }
+  return { feedTitle: data.feedTitle || '', articles: data.articles }
+}
+
+/**
+ * 直接浏览器请求（仅在同源或目标允许 CORS 时有效）
+ * 浏览器不允许修改 User-Agent，但 Accept header 可设置
+ * 作为 Netlify 代理失败后的回退方案
+ */
+async function fetchDirect(url: string, timeoutMs = 10_000): Promise<Response> {
+  const isMixedContent = typeof location !== 'undefined' && location.protocol === 'https:' && url.startsWith('http:')
+  if (isMixedContent)
+    throw new Error('混合内容限制，无法直接请求 HTTP')
+  const res = await window.fetch(url, {
+    signal: AbortSignal.timeout(timeoutMs),
+    mode: 'cors',
+    headers: {
+      Accept: 'application/rss+xml, application/xml, text/xml, application/atom+xml, text/html, */*',
+    },
+  })
+  if (!res.ok)
+    throw new Error(`直接请求返回 ${res.status}`)
+  return res
+}
+
+/**
+ * CORS 代理列表（按优先级尝试）
+ * 已验证可用的服务：proxy.cors.sh（返回 200 + CORS headers + RSS XML）
+ */
+const CORS_PROXIES = [
+  { name: 'proxy.cors.sh', build: (u: string) => `https://proxy.cors.sh/${u}` },
+  { name: 'allorigins', build: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+  { name: 'corsproxy.io', build: (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
+]
+
+/**
+ * 逐级尝试公共 CORS 代理
+ */
+async function fetchViaCorsProxy(url: string): Promise<Response> {
+  let lastError: Error | null = null
+  for (const { name, build } of CORS_PROXIES) {
+    try {
+      const res = await window.fetch(build(url), {
+        signal: AbortSignal.timeout(6_000),
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
+      if (!res.ok) {
+        lastError = new Error(`${name} 返回 ${res.status}`)
+        continue
+      }
+      return res
+    }
+    catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e))
+      console.warn(`[Reading] CORS proxy ${name} failed:`, lastError.message)
+    }
+  }
+  throw lastError || new Error('所有 CORS 代理均失败')
+}
+
+/**
+ * 多层代理策略：优先使用 Netlify Function，失败则回退到其他方案
+ * 类似 Folo 的 @follow-app/client-sdk → api.folo.is 模式，但增加了回退机制
+ *
+ * 优先级：Netlify（服务端代理，无 CORS 限制）→ 直接请求（CORS 友好源）→ CORS 代理
+ */
+async function fetchViaServer(url: string, timeoutMs = 15_000): Promise<Response> {
+  const strategies = [
+    { name: 'netlify', fn: () => fetchViaNetlify(url, timeoutMs) },
+    { name: 'direct', fn: () => fetchDirect(url, timeoutMs) },
+    { name: 'cors-proxy', fn: () => fetchViaCorsProxy(url) },
+  ]
+
+  let lastError: Error | null = null
+  for (const { name, fn } of strategies) {
+    try {
+      const res = await fn()
+      return res
+    }
+    catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e))
+      console.warn(`[Reading] Proxy ${name} failed for ${url}:`, lastError.message)
+    }
+  }
+  throw lastError || new Error('所有代理方案均失败')
 }
 
 /** 通过 CORS 代理获取网页 HTML（仅 CSS 选择器采集源使用） */
@@ -197,25 +353,30 @@ async function fetchFeed(url: string): Promise<{ title: string, items: FeedItem[
 
 /** 探测 URL 是否为 RSS 源 */
 export async function probeRSS(url: string): Promise<{ isRSS: boolean, title?: string, itemCount?: number }> {
+  // 优先走服务端 RSS 代理（无 CORS 限制，支持编码检测）
   try {
-    const feed = await fetchFeed(url)
-    if (feed.items.length > 0) {
-      return { isRSS: true, title: feed.title, itemCount: feed.items.length }
+    const result = await fetchFeedViaProxy(url)
+    if (result.articles.length > 0) {
+      return { isRSS: true, title: result.feedTitle, itemCount: result.articles.length }
     }
     return { isRSS: false }
   }
   catch {
-    return { isRSS: false }
+    // 代理失败时降级为浏览器端解析
+    try {
+      const feed = await fetchFeed(url)
+      if (feed.items.length > 0) {
+        return { isRSS: true, title: feed.title, itemCount: feed.items.length }
+      }
+      return { isRSS: false }
+    }
+    catch {
+      return { isRSS: false }
+    }
   }
 }
 
 // ── HTML 采集 ──────────────────────────────────────────
-
-/** 通过 CORS 代理获取网页 HTML */
-export async function fetchPageHTML(url: string): Promise<string> {
-  const res = await fetchWithProxy(url)
-  return res.text()
-}
 
 /** 噪音关键词 — 导航、页脚、通用链接文本 */
 const NOISE_PATTERNS = /^(?:首页|登录|注册|关于|联系我们|网站地图|首页导航|English|中文版|登录邮箱系统|公报|导航|更多|返回|下载|APP|客户端|微信|微博|RSS|订阅)$/i
@@ -230,7 +391,6 @@ function parseHTMLWithSelectors(html: string, selectors: CollectorSelectors, sou
   items.forEach((el, i) => {
     const titleEl = selectors.title ? el.querySelector(selectors.title) : null
     const linkEl = selectors.link ? el.querySelector(selectors.link) : null
-    const contentEl = selectors.content ? el.querySelector(selectors.content) : null
     const summaryEl = selectors.summary ? el.querySelector(selectors.summary) : null
     const authorEl = selectors.author ? el.querySelector(selectors.author) : null
     const dateEl = selectors.date ? el.querySelector(selectors.date) : null
@@ -253,8 +413,10 @@ function parseHTMLWithSelectors(html: string, selectors: CollectorSelectors, sou
       try { link = new URL(href, baseUrl).href }
       catch { /* ignore */ }
     }
-    const content = contentEl?.innerHTML || ''
-    const summary = summaryEl?.textContent?.trim() || content.replace(/<[^>]*>/g, '').slice(0, 200)
+    // CSS 采集只提取标题和链接，不存全文
+    // 用户点击文章后由 ArticleReader 通过 fetchFullText 懒加载
+    const content = ''
+    const summary = summaryEl?.textContent?.trim() || ''
     const author = authorEl?.textContent?.trim() || ''
     const dateStr = dateEl?.getAttribute('datetime') || dateEl?.textContent?.trim() || ''
     const publishedAt = dateStr ? new Date(dateStr).getTime() || Date.now() - i * 60000 : Date.now() - i * 60000
@@ -283,80 +445,6 @@ function parseHTMLWithSelectors(html: string, selectors: CollectorSelectors, sou
 export async function previewSelectors(url: string, selectors: CollectorSelectors): Promise<Article[]> {
   const html = await fetchPageHTML(url)
   return parseHTMLWithSelectors(html, selectors, 'preview', '', url)
-}
-
-// ── JSON API 源 ────────────────────────────────────────
-
-/** 中国政府网·最新政策 */
-async function fetchGovPolicy(): Promise<Article[]> {
-  try {
-    const res = await fetchWithProxy('https://www.gov.cn/zhengce/zuixin/ZUIXINZHENGCE.json')
-    const data: unknown = await res.json()
-    const items = Array.isArray(data) ? data : []
-    return items.slice(0, 20).map((item: Record<string, unknown>, i: number) => {
-      const url = typeof item.URL === 'string' ? item.URL : ''
-      return {
-        id: `gov-policy-${url.match(/content_(\d+)\.htm/)?.[1] || i}`,
-        sourceId: 'gov-policy',
-        sourceTitle: '中国政府网',
-        title: typeof item.TITLE === 'string' ? item.TITLE : '无标题',
-        link: url,
-        content: '',
-        summary: typeof item.SUB_TITLE === 'string' ? item.SUB_TITLE : '',
-        author: '',
-        publishedAt: typeof item.DOCRELPUBTIME === 'string' ? new Date(item.DOCRELPUBTIME).getTime() : Date.now(),
-        read: false,
-        starred: false,
-        media: [],
-        attachments: [],
-      }
-    })
-  }
-  catch (e) {
-    console.warn('[GovPolicy] Fetch failed:', e)
-    return []
-  }
-}
-
-/** JSON API 解析器注册表（可扩展） */
-const JSON_PARSERS: Record<string, () => Promise<Article[]>> = {
-  'gov-policy': fetchGovPolicy,
-  'cctv-law': fetchCctvLaw,
-}
-
-/** 央视网·法治频道 */
-async function fetchCctvLaw(): Promise<Article[]> {
-  try {
-    const res = await fetchWithProxy('https://news.cctv.com/2019/07/gaiban/cmsdatainterface/page/law_1.jsonp?cb=law')
-    let text = await res.text()
-    text = text.replace(/^law\(/, '').replace(/\);?$/, '')
-    const data: unknown = JSON.parse(text)
-    const dataObj = data && typeof data === 'object' ? data as Record<string, unknown> : null
-    const dataInner = dataObj?.data && typeof dataObj.data === 'object' ? dataObj.data as Record<string, unknown> : null
-    const items = Array.isArray(dataInner?.list) ? dataInner.list : []
-    return items.slice(0, 20).map((item: Record<string, unknown>, i: number) => {
-      const url = typeof item.url === 'string' ? item.url : ''
-      return {
-        id: `cctv-law-${url.match(/ARTI[\w-]+/)?.[0] || i}`,
-        sourceId: 'cctv-law',
-        sourceTitle: '央视网·法治',
-        title: typeof item.title === 'string' ? item.title : '无标题',
-        link: url,
-        content: '',
-        summary: typeof item.brief === 'string' ? item.brief : '',
-        author: '',
-        publishedAt: typeof item.focus_date === 'string' ? new Date(item.focus_date).getTime() : Date.now(),
-        read: false,
-        starred: false,
-        media: [],
-        attachments: [],
-      }
-    })
-  }
-  catch (e) {
-    console.warn('[CctvLaw] Fetch failed:', e)
-    return []
-  }
 }
 
 // ── 策略分发 ───────────────────────────────────────────
@@ -409,21 +497,67 @@ function extractMediaFromItem(item: FeedItem): MediaItem[] {
 }
 
 async function fetchRSSSource(source: Source): Promise<Article[]> {
-  const feed = await fetchFeed(source.url)
-  const srcTitle = feed.title || source.title
-  return feed.items.map((item, i) => ({
-    id: `art-${source.id}-${item.guid || item.link || `item-${i}`}`,
+  // 优先走服务端 RSS 代理（Netlify Function），稳定且无 CORS 问题
+  interface ProxyArticle {
+    id: string
+    title: string
+    link: string
+    content: string
+    summary: string
+    author: string
+    publishedAt: number
+    media: Array<{ url: string, type: string, previewImageUrl?: string, mimeType?: string, width?: number, height?: number }>
+  }
+  let items: ProxyArticle[] = []
+  let srcTitle = source.title
+
+  // 如果配置了 RSSHub 路由路径，优先使用 RSSHub（社区维护，更稳定）
+  const fetchUrl = source.rsshubPath
+    ? `https://rsshub.app${source.rsshubPath.startsWith('/') ? '' : '/'}${source.rsshubPath}`
+    : source.url
+
+  try {
+    const result = await fetchFeedViaProxy(fetchUrl)
+    items = result.articles
+    if (result.feedTitle)
+      srcTitle = result.feedTitle
+  }
+  catch (proxyErr) {
+    // 代理失败时降级为浏览器端 RSS 解析（走 CORS fallback 链）
+    console.warn(`[RSS] 服务端代理失败，降级为浏览器端解析 ${source.title}:`, proxyErr)
+    try {
+      const feed = await fetchFeed(source.url)
+      srcTitle = feed.title || source.title
+      const mapItem = (item: FeedItem, i: number) => ({
+        id: `art-${source.id}-${item.guid || item.link || `item-${i}`}`,
+        sourceId: source.id,
+        sourceTitle: srcTitle,
+        title: item.title || '无标题',
+        link: item.link || '',
+        content: item.content || item.contentSnippet || '',
+        summary: item.contentSnippet?.slice(0, 200) || item.content?.replace(/<[^>]*>/g, '').slice(0, 200) || '',
+        author: item.creator || item.author || '',
+        publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
+        read: false,
+        starred: false,
+        media: extractMediaFromItem(item),
+        attachments: [],
+      })
+      return feed.items.map(mapItem)
+    }
+    catch {
+      // 两层都失败，把原始代理错误抛出去（信息更完整）
+      throw proxyErr instanceof Error ? proxyErr : new Error(String(proxyErr))
+    }
+  }
+
+  return items.map(item => ({
+    ...item,
+    id: `art-${source.id}-${item.id.slice(5)}`,
     sourceId: source.id,
     sourceTitle: srcTitle,
-    title: item.title || '无标题',
-    link: item.link || '',
-    content: item.content || item.contentSnippet || '',
-    summary: item.contentSnippet?.slice(0, 200) || item.content?.replace(/<[^>]*>/g, '').slice(0, 200) || '',
-    author: item.creator || item.author || '',
-    publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
     read: false,
     starred: false,
-    media: extractMediaFromItem(item),
     attachments: [],
   }))
 }
@@ -435,32 +569,32 @@ async function fetchCSSSource(source: Source): Promise<Article[]> {
   return parseHTMLWithSelectors(html, source.selectors, source.id, source.title, source.url)
 }
 
-async function fetchJSONSource(source: Source): Promise<Article[]> {
-  const parser = JSON_PARSERS[source.id]
-  if (!parser)
-    throw new Error(`未知的 JSON API 源: ${source.id}`)
-  return parser()
-}
-
 const STRATEGIES: Record<string, (source: Source) => Promise<Article[]>> = {
   'rss': fetchRSSSource,
   'css-selector': fetchCSSSource,
-  'json-api': fetchJSONSource,
 }
 
-/** 根据源的策略获取文章 */
+/**
+ * 根据源的策略获取文章
+ * 注意：fetchRSSSource 内部已有服务端 proxy → 浏览器端 fallback 两级重试
+ * 此处只处理最外层超时保护
+ */
 export async function fetchSourceArticles(source: Source): Promise<Article[]> {
   const handler = STRATEGIES[source.strategy]
   if (!handler)
     throw new Error(`未知的获取策略: ${source.strategy}`)
-  // 15秒超时，避免单个源卡住整个队列
-  let timer: number
-  return Promise.race([
-    handler(source),
-    new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error('获取超时')), 15_000)
-    }),
-  ]).finally(() => clearTimeout(timer!))
+
+  const timeoutMs = source.strategy === 'rss' ? 25_000 : 15_000
+
+  const { promise: timeoutPromise, reject } = Promise.withResolvers<never>()
+  const timer = window.setTimeout(() => reject(new Error(`获取超时（${timeoutMs}ms）`)), timeoutMs)
+
+  try {
+    return await Promise.race([handler(source), timeoutPromise])
+  }
+  finally {
+    clearTimeout(timer)
+  }
 }
 
 // ── 全文提取 ───────────────────────────────────────────
@@ -487,13 +621,17 @@ export async function fetchFullText(url: string): Promise<string> {
     '.rich_media_content', // 微信
     '.article-detail',
     '.detail-content',
+    '.detail_txt', // 中国法院网
+    '.detail-text',
     '.news-content',
+    '.news_txt',
     '[class*="article"]',
     '[class*="content"]',
     '[class*="detail"]',
     '.main-content',
     '#main-content',
     '.page-content',
+    '.text-content',
   ]
   for (const sel of selectors) {
     const el = doc.querySelector(sel)

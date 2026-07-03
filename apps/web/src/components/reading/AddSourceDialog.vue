@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CollectorSelectors, FeedViewType, FetchStrategy, Source } from '@/stores/reading'
 import { Loader2, Plus, Search, Settings2, X } from '@lucide/vue'
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,8 @@ import { useReadingStore } from '@/stores/reading'
 const props = defineProps<{
   /** 编辑模式：传入已有源 */
   source?: Source
+  /** 预设策略：传入后跳转到对应模式（不进行自动检测） */
+  strategy?: FetchStrategy
 }>()
 
 const emit = defineEmits<{
@@ -27,14 +29,15 @@ const { analyzePage } = useCollectorAI()
 
 const url = ref(props.source?.url || '')
 const title = ref(props.source?.title || '')
-const category = ref(props.source?.category || '')
 const refreshInterval = ref(props.source?.refreshInterval ?? 30)
-const strategy = ref<FetchStrategy>(props.source?.strategy || 'rss')
+const rsshubPath = ref(props.source?.rsshubPath || '')
+const strategy = ref<FetchStrategy>(props.source?.strategy || props.strategy || 'rss')
 const view = ref<FeedViewType>(props.source?.view ?? 0)
 const selectors = ref<CollectorSelectors>(
   props.source?.selectors || { item: '', title: '', link: '', content: '', summary: '', author: '', date: '' },
 )
 const description = ref(props.source?.description || '')
+const autoSelectedRoute = ref(false)
 
 // ── 检测状态 ──────────────────────────────────────────
 
@@ -63,7 +66,6 @@ const REFRESH_OPTIONS = [
 const STRATEGY_OPTIONS: Array<{ value: FetchStrategy, label: string }> = [
   { value: 'rss', label: t('reading.strategyRss') },
   { value: 'css-selector', label: t('reading.strategyCssSelector') },
-  { value: 'json-api', label: t('reading.strategyJsonApi') },
 ]
 
 // ── 采集脚本模板 ──────────────────────────────────────
@@ -148,7 +150,13 @@ async function handleDetect() {
   discoveredRoutes.value = []
 
   try {
-    // 1. 先尝试 RSS
+    // 预设 CSS 策略：跳过 RSS 探测，直接 AI 分析
+    if (props.strategy === 'css-selector') {
+      await runCSSAI()
+      return
+    }
+
+    // 1. 先尝试 RSS 探测
     const probe = await store.probeRSS(url.value.trim())
     if (probe.isRSS) {
       strategy.value = 'rss'
@@ -164,26 +172,15 @@ async function handleDetect() {
     const routes = await store.discoverRSSHubRoutes(url.value.trim())
     if (routes.length > 0) {
       discoveredRoutes.value = routes
-      // 不自动切换到 config，让用户选择路由
+      if (!autoSelectedRoute.value) {
+        useRoute(routes[0])
+        autoSelectedRoute.value = true
+      }
+      return
     }
 
-    // 3. 尝试 AI 分析生成 CSS 选择器
-    const html = await store.fetchPageHTML(url.value.trim())
-    const analyzed = await analyzePage(
-      url.value.trim(),
-      html,
-      description.value.trim() || t('reading.autoDetectDesc'),
-    )
-    strategy.value = 'css-selector'
-    selectors.value = analyzed
-    if (!title.value)
-      title.value = new URL(url.value.trim()).hostname
-
-    // 自动预览
-    const articles = await store.previewSelectors(url.value.trim(), analyzed)
-    previewArticles.value = articles.slice(0, 5).map(a => ({ title: a.title, link: a.link }))
-
-    step.value = 'config'
+    // 3. 兜底：AI 分析 HTML
+    await runCSSAI()
   }
   catch (e) {
     detectError.value = e instanceof Error ? e.message : t('reading.detectFailed')
@@ -193,10 +190,29 @@ async function handleDetect() {
   }
 }
 
+/** AI 分析页面结构，生成 CSS 选择器 */
+async function runCSSAI() {
+  strategy.value = 'css-selector'
+  const html = await store.fetchPageHTML(url.value.trim())
+  const analyzed = await analyzePage(
+    url.value.trim(),
+    html,
+    description.value.trim() || t('reading.autoDetectDesc'),
+  )
+  selectors.value = analyzed
+  if (!title.value)
+    title.value = new URL(url.value.trim()).hostname
+
+  const articles = await store.previewSelectors(url.value.trim(), analyzed)
+  previewArticles.value = articles.slice(0, 8).map(a => ({ title: a.title, link: a.link }))
+  step.value = 'config'
+}
+
 function useRoute(route: { name: string, path: string }) {
+  const pathOnly = route.path.replace(/^https?:\/\/[^/]+/, '')
+  rsshubPath.value = pathOnly
   url.value = route.path
   title.value = route.name.split('/').pop() || route.name
-  category.value = 'RSSHub'
   strategy.value = 'rss'
   discoveredRoutes.value = []
   step.value = 'config'
@@ -232,12 +248,12 @@ function handleSave() {
   const data = {
     url: url.value.trim(),
     title: title.value.trim() || url.value.trim(),
-    category: category.value.trim() || t('reading.categoryPlaceholder'),
     refreshInterval: refreshInterval.value,
     strategy: strategy.value,
     view: view.value,
     selectors: strategy.value === 'css-selector' ? selectors.value : undefined,
     description: description.value.trim() || undefined,
+    rsshubPath: rsshubPath.value || undefined,
   }
 
   if (isEdit && props.source) {
@@ -259,6 +275,20 @@ function updateSelector(key: keyof CollectorSelectors, value: string) {
 function applyTemplate(template: ScriptTemplate) {
   selectors.value = { ...template.selectors }
 }
+
+// 预设策略时自动开始检测
+onMounted(() => {
+  if (props.strategy && url.value.trim()) {
+    // 如果已传入 URL（编辑模式），直接检测
+    if (isEdit) {
+      void handleDetect()
+    }
+    else if (props.strategy === 'css-selector') {
+      // 网页采集模式：挂载后自动触发
+      void handleDetect()
+    }
+  }
+})
 
 // 监听 URL 变化，重置到输入步骤
 watch(url, () => {
@@ -344,10 +374,6 @@ watch(url, () => {
           <div class="space-y-1.5">
             <Label class="text-xs">{{ t('reading.titlePlaceholder') }}</Label>
             <Input v-model="title" class="h-8 text-xs" :placeholder="t('reading.titlePlaceholder')" />
-          </div>
-          <div class="space-y-1.5">
-            <Label class="text-xs">{{ t('reading.categoryPlaceholder') }}</Label>
-            <Input v-model="category" class="h-8 text-xs" :placeholder="t('reading.categoryPlaceholder')" />
           </div>
         </div>
 
@@ -495,7 +521,6 @@ watch(url, () => {
             :class="{
               'bg-green-500/10 text-green-600': strategy === 'rss',
               'bg-blue-500/10 text-blue-600': strategy === 'css-selector',
-              'bg-purple-500/10 text-purple-600': strategy === 'json-api',
             }"
           >
             {{ STRATEGY_OPTIONS.find(o => o.value === strategy)?.label }}

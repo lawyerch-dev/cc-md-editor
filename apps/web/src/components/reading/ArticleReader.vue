@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
-import { BookOpen, ExternalLink, Languages, Sparkles, Star } from '@lucide/vue'
+import { ExternalLink, Languages, Sparkles, Star } from '@lucide/vue'
 import DOMPurify from 'dompurify'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -53,6 +53,7 @@ const aiResult = ref('')
 const aiError = ref('')
 const translateTarget = ref<'zh' | 'en' | 'ja'>('en')
 const fullTextLoading = ref(false)
+const fullTextError = ref('')
 const translating = ref(false)
 const translatedParagraphs = ref<Record<number, string>>({})
 const translationActive = ref(false)
@@ -65,6 +66,7 @@ watch(() => props.article.id, async (id, oldId) => {
     return
   if (currentAIAbort) { currentAIAbort.abort(); currentAIAbort = null }
   fullTextContent.value = ''
+  fullTextError.value = ''
   aiResult.value = ''
   aiError.value = ''
   aiPanelTab.value = null
@@ -75,8 +77,23 @@ watch(() => props.article.id, async (id, oldId) => {
   const textLen = content.replace(/<[^>]*>/g, '').trim().length
   if (textLen < 200 && props.article.link) {
     fullTextLoading.value = true
-    try { fullTextContent.value = await readingStore.fetchFullText(props.article.link) }
-    catch (e) { console.warn('自动全文提取失败:', e) }
+    fullTextError.value = ''
+    try {
+      fullTextContent.value = await readingStore.fetchFullText(props.article.link)
+      if (!fullTextContent.value || fullTextContent.value.replace(/<[^>]*>/g, '').trim().length < 50) {
+        fullTextError.value = t('reading.contentExtractFailed')
+      }
+      else {
+        // 缓存到 store，同会话内切换回来不再重复抓取
+        const stored = readingStore.articles.find(a => a.id === props.article.id)
+        if (stored)
+          stored.content = fullTextContent.value
+      }
+    }
+    catch (e) {
+      console.warn('自动全文提取失败:', e)
+      fullTextError.value = t('reading.contentLoadFailed') + (e instanceof Error ? `: ${e.message.slice(0, 80)}` : '')
+    }
     finally { fullTextLoading.value = false }
   }
 }, { immediate: true })
@@ -86,7 +103,8 @@ async function callAIStream(
   userContent: string,
   onDelta: (text: string) => void,
 ): Promise<string> {
-  if (currentAIAbort) currentAIAbort.abort()
+  if (currentAIAbort)
+    currentAIAbort.abort()
   currentAIAbort = new AbortController()
   const signal = currentAIAbort.signal
   const endpoint = aiConfig.textEndpoint || aiConfig.endpoint
@@ -148,7 +166,10 @@ async function handleSummarize() {
       (delta) => { aiResult.value += delta },
     )
   }
-  catch (e) { if (!currentAIAbort?.signal.aborted) aiError.value = e instanceof Error ? e.message : t('reading.summaryFailed') }
+  catch (e) {
+    if (!currentAIAbort?.signal.aborted)
+      aiError.value = e instanceof Error ? e.message : t('reading.summaryFailed')
+  }
   finally { aiLoading.value = false; currentAIAbort = null }
 }
 
@@ -177,17 +198,11 @@ async function handleTranslate() {
       )
     }
   }
-  catch (e) { if (!currentAIAbort?.signal.aborted) console.warn('翻译失败:', e) }
+  catch (e) {
+    if (!currentAIAbort?.signal.aborted)
+      console.warn('翻译失败:', e)
+  }
   finally { translating.value = false; currentAIAbort = null }
-}
-
-async function handleFetchFullText() {
-  if (!props.article.link || fullTextLoading.value)
-    return
-  fullTextLoading.value = true
-  try { fullTextContent.value = await readingStore.fetchFullText(props.article.link) }
-  catch (e) { console.warn('全文提取失败:', e) }
-  finally { fullTextLoading.value = false }
 }
 </script>
 
@@ -199,18 +214,20 @@ async function handleFetchFullText() {
         {{ article.title }}
       </h1>
 
-      <div class="flex items-center gap-1 shrink-0" style="flex: none;">
-        <button class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :disabled="aiLoading" @click="handleSummarize">
+      <div class="flex items-center gap-1.5 shrink-0" style="flex: none;">
+        <!-- 摘要 -->
+        <button class="flex items-center gap-1 rounded-md border border-neutral-200 dark:border-neutral-700 px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :disabled="aiLoading" @click="handleSummarize">
           <Sparkles class="h-3.5 w-3.5" />
           {{ t('reading.summary') }}
         </button>
 
-        <div class="flex items-center">
-          <button class="flex items-center gap-1 rounded-l-md px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :class="translationActive ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400' : 'hover:text-neutral-700 dark:hover:text-neutral-300'" :disabled="translating" @click="handleTranslate">
+        <!-- 翻译（整体带边框） -->
+        <div class="flex items-center rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <button class="flex items-center gap-1 px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :class="translationActive ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400' : ''" :disabled="translating" @click="handleTranslate">
             <Languages class="h-3.5 w-3.5" />
             {{ translationActive ? t('reading.cancelTranslate') : t('reading.translate') }}
           </button>
-          <select v-model="translateTarget" class="h-7 rounded-r-md border border-l-0 border-neutral-200 dark:border-neutral-700 bg-transparent px-1 text-[10px] text-neutral-500" :disabled="translating">
+          <select v-model="translateTarget" class="h-full border-0 border-l border-neutral-200 dark:border-neutral-700 bg-transparent pr-1 pl-0.5 text-[10px] text-neutral-500 outline-none cursor-pointer" :disabled="translating">
             <option value="en">
               EN
             </option>
@@ -223,19 +240,16 @@ async function handleFetchFullText() {
           </select>
         </div>
 
-        <button class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :disabled="fullTextLoading || !article.link" @click="handleFetchFullText">
-          <BookOpen class="h-3.5 w-3.5" />
-          {{ t('reading.fullText') }}
-        </button>
-
-        <div class="w-px h-4 bg-neutral-200 dark:bg-neutral-700" />
-
-        <button class="rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" @click="readingStore.toggleStar(article.id)">
-          <Star class="h-4 w-4" :class="article.starred ? 'text-amber-500 fill-amber-500' : ''" />
-        </button>
-        <a v-if="article.link" :href="article.link" target="_blank" class="rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
-          <ExternalLink class="h-4 w-4" />
+        <!-- 原文 -->
+        <a v-if="article.link" :href="article.link" target="_blank" class="flex items-center gap-1 rounded-md border border-neutral-200 dark:border-neutral-700 px-2 py-1 text-[11px] text-neutral-500 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
+          <ExternalLink class="h-3.5 w-3.5" />
+          {{ t('reading.openOriginal') }}
         </a>
+
+        <button class="flex items-center gap-1 rounded-md border border-neutral-200 dark:border-neutral-700 px-2 py-1 text-[11px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :class="article.starred ? 'text-amber-600 border-amber-300 dark:border-amber-700' : 'text-neutral-500'" @click="readingStore.toggleStar(article.id)">
+          <Star class="h-3.5 w-3.5" :class="article.starred ? 'fill-amber-500' : ''" />
+          {{ article.starred ? t('reading.unstar') : t('reading.star') }}
+        </button>
       </div>
     </div>
 
@@ -266,7 +280,16 @@ async function handleFetchFullText() {
               </div>
             </div>
           </div>
-          <div v-else class="prose prose-neutral dark:prose-invert max-w-none text-[15px] leading-relaxed text-neutral-700 dark:text-neutral-300">
+          <div v-else-if="fullTextError" class="flex flex-col items-center justify-center py-16 gap-3 text-neutral-500">
+            <BookOpen class="h-8 w-8 opacity-30" />
+            <p class="text-xs">
+              {{ fullTextError }}
+            </p>
+            <a :href="article.link" target="_blank" class="text-xs text-primary hover:underline">
+              {{ t('reading.openInBrowser') }}
+            </a>
+          </div>
+          <div v-else class="article-content prose prose-neutral dark:prose-invert max-w-none">
             <div v-html="sanitize(fullTextContent || article.content || article.summary)" />
           </div>
         </div>
@@ -279,34 +302,34 @@ async function handleFetchFullText() {
 .article-content :deep(h1) {
   font-size: 1.5rem;
   font-weight: 700;
-  margin-top: 2rem;
-  margin-bottom: 0.75rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
   color: hsl(var(--foreground));
 }
 .article-content :deep(h2) {
   font-size: 1.25rem;
   font-weight: 600;
-  margin-top: 1.75rem;
-  margin-bottom: 0.5rem;
+  margin-top: 2.25rem;
+  margin-bottom: 0.75rem;
   color: hsl(var(--foreground));
 }
 .article-content :deep(h3) {
   font-size: 1.1rem;
   font-weight: 600;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
   color: hsl(var(--foreground));
 }
 .article-content :deep(p) {
-  font-size: 0.94rem;
-  line-height: 1.85;
-  margin-bottom: 1rem;
+  font-size: 1rem;
+  line-height: 2;
+  margin-bottom: 1.25rem;
   color: hsl(var(--foreground) / 0.87);
 }
 .article-content :deep(li) {
   font-size: 0.94rem;
-  line-height: 1.75;
-  margin-bottom: 0.35rem;
+  line-height: 2;
+  margin-bottom: 0.5rem;
   color: hsl(var(--foreground) / 0.87);
 }
 .article-content :deep(a) {

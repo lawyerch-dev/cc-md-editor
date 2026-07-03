@@ -1,5 +1,5 @@
 /** 获取策略类型 */
-export type FetchStrategy = 'rss' | 'css-selector' | 'json-api'
+export type FetchStrategy = 'rss' | 'css-selector'
 
 /** 内容视图类型 — 决定如何渲染条目 */
 export enum FeedViewType {
@@ -36,7 +36,6 @@ export interface Source {
   id: string
   url: string
   title: string
-  category: string
   addedAt: number
   /** 自动刷新间隔（分钟），0 = 关闭 */
   refreshInterval: number
@@ -50,6 +49,8 @@ export interface Source {
   description?: string
   /** 运行时健康状态（不持久化） */
   health?: SourceHealth
+  /** RSSHub 路由路径（如 /weibo/user/123），优先于直接 RSS 获取 */
+  rsshubPath?: string
 }
 
 /** 源健康状态 */

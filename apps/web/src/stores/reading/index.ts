@@ -2,6 +2,7 @@ import type { Article, ReadingList, Source } from './types'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { discoverRSSHubRoutes, fetchFullText, fetchPageHTML, fetchSourceArticles, previewSelectors, probeRSS } from './fetch-strategies'
+import { clearAll as clearAllIDB } from './indexeddb-persistence'
 import {
   loadArticles,
   loadArticlesAsync,
@@ -15,7 +16,6 @@ import {
   saveLists,
   saveSources,
 } from './persistence'
-import { clearAll as clearAllIDB } from './indexeddb-persistence'
 
 export type { Article, CollectorSelectors, FeedViewType, FetchStrategy, ReadingList, Source, SourceHealth } from './types'
 
@@ -27,8 +27,6 @@ const ARTICLE_CAP = 2000
 const PER_SOURCE_ARTICLE_CAP = 100
 /** lastFetchMap 持久化防抖 */
 let persistFetchMapTimer: number | null = null
-/** 获取互斥锁，防止并发 fetch 冲突 */
-let fetchMutex: Promise<void> | null = null
 
 export const useReadingStore = defineStore('reading', () => {
   // ── 状态 ─────────────────────────────────────────────
@@ -39,7 +37,6 @@ export const useReadingStore = defineStore('reading', () => {
   const backgroundRefreshing = ref(false)
   const error = ref('')
   const activeSourceId = ref<string | null>(null)
-  const activeCategory = ref<string | null>(null)
   const activeArticleId = ref<string | null>(null)
   const searchQuery = ref('')
   const fetchingSourceIds = ref<Record<string, boolean>>({})
@@ -49,11 +46,6 @@ export const useReadingStore = defineStore('reading', () => {
   let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
 
   // ── 计算属性 ─────────────────────────────────────────
-
-  const categories = computed(() => {
-    const cats = new Set(sources.value.map(s => s.category).filter(Boolean))
-    return Array.from(cats).sort()
-  })
 
   const unreadCountMap = computed(() => {
     const map: Record<string, number> = {}
@@ -70,8 +62,6 @@ export const useReadingStore = defineStore('reading', () => {
     let result = articles.value
     if (activeSourceId.value)
       result = result.filter(a => a.sourceId === activeSourceId.value)
-    else if (activeCategory.value)
-      result = result.filter(a => sources.value.some(s => s.id === a.sourceId && s.category === activeCategory.value))
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.trim().toLowerCase()
       result = result.filter(a =>
@@ -119,7 +109,7 @@ export const useReadingStore = defineStore('reading', () => {
     saveSources(sources.value)
   }
 
-  function updateSource(id: string, updates: Partial<Pick<Source, 'title' | 'category' | 'refreshInterval' | 'selectors' | 'description' | 'url' | 'view'>>) {
+  function updateSource(id: string, updates: Partial<Pick<Source, 'title' | 'refreshInterval' | 'selectors' | 'description' | 'url' | 'view' | 'rsshubPath'>>) {
     const src = sources.value.find(s => s.id === id)
     if (src) {
       Object.assign(src, updates)
@@ -183,7 +173,7 @@ export const useReadingStore = defineStore('reading', () => {
     }, 2000)
   }
 
-  /** 内部获取逻辑（带互斥锁） */
+  /** 内部获取逻辑 */
   async function doFetchSourcesParallel(targets: Source[], background: boolean) {
     if (!background)
       loading.value = true
@@ -196,13 +186,14 @@ export const useReadingStore = defineStore('reading', () => {
       const batch = targets.slice(i, i + FETCH_CONCURRENCY)
       const results = await Promise.allSettled(
         batch.map(async (src) => {
+          if (fetchingSourceIds.value[src.id])
+            return
           fetchingSourceIds.value[src.id] = true
           src.health = { ...src.health, status: 'pending' }
           try {
             const newArticles = await fetchSourceArticles(src)
             mergeNewArticles(newArticles)
             src.health = { status: 'ok', lastFetchAt: Date.now(), articleCount: newArticles.length }
-            // 返回 0 篇文章时不更新 lastFetchMap，下次自动刷新会重试
             if (newArticles.length > 0)
               lastFetchMap.value[src.id] = Date.now()
           }
@@ -221,29 +212,21 @@ export const useReadingStore = defineStore('reading', () => {
     }
 
     persistFetchMapDebounced()
-    if (failed > 0 && !background)
-      error.value = `${failed} 个源获取失败`
+    if (failed > 0) {
+      const msg = `${failed} 个源获取失败`
+      if (!background)
+        error.value = msg
+      toast.error(msg)
+    }
     loading.value = false
     backgroundRefreshing.value = false
   }
 
-  /** 并发获取一组源（带互斥锁，防止并发冲突） */
+  /** 并发获取一组源 */
   async function fetchSourcesParallel(targets: Source[], background = false) {
     if (!targets.length)
       return
-    // 等待上一次获取完成，避免并发写入冲突
-    const prev = fetchMutex
-    let release: (() => void) | undefined
-    const newMutex = new Promise<void>((r) => { release = r })
-    fetchMutex = newMutex
-    if (prev)
-      await prev
-    try {
-      await doFetchSourcesParallel(targets, background)
-    }
-    finally {
-      release?.()
-    }
+    await doFetchSourcesParallel(targets, background)
   }
 
   /**
@@ -261,7 +244,29 @@ export const useReadingStore = defineStore('reading', () => {
           const lastFetch = lastFetchMap.value[src.id] || 0
           return now - lastFetch >= src.refreshInterval * 60 * 1000
         })
-    await fetchSourcesParallel(targets, background)
+    // 过滤正在获取中的源，避免重复请求
+    const pendingTargets = targets.filter(src => !fetchingSourceIds.value[src.id])
+    await fetchSourcesParallel(pendingTargets, background)
+  }
+
+  /**
+   * 渐进式刷新：逐个刷新源，每批之间有延迟，适合导入后大量源的首次刷新。
+   * 不会阻塞 UI，返回后所有源完成或超时。
+   */
+  async function fetchAllGradual(delayMs = 500) {
+    const targets = sources.value.filter(src =>
+      src.refreshInterval > 0 && !fetchingSourceIds.value[src.id],
+    )
+    if (!targets.length)
+      return
+
+    backgroundRefreshing.value = true
+    for (const src of targets) {
+      await fetchSingleSource(src.id)
+      if (delayMs > 0)
+        await new Promise(r => setTimeout(r, delayMs))
+    }
+    backgroundRefreshing.value = false
   }
 
   async function fetchSingleSource(sourceId: string) {
@@ -373,22 +378,14 @@ export const useReadingStore = defineStore('reading', () => {
 
   // ── 筛选 ─────────────────────────────────────────────
 
-  function filterCategory(cat: string) {
-    activeCategory.value = cat
-    activeSourceId.value = null
-  }
-
   function clearFilter() {
-    activeCategory.value = null
     activeSourceId.value = null
   }
 
   function markAllRead() {
     const ids = activeSourceId.value
       ? new Set(articles.value.filter(a => a.sourceId === activeSourceId.value && !a.read).map(a => a.id))
-      : activeCategory.value
-        ? new Set(articles.value.filter(a => !a.read && sources.value.some(s => s.id === a.sourceId && s.category === activeCategory.value)).map(a => a.id))
-        : new Set(articles.value.filter(a => !a.read).map(a => a.id))
+      : new Set(articles.value.filter(a => !a.read).map(a => a.id))
     for (const article of articles.value) {
       if (ids.has(article.id))
         article.read = true
@@ -475,13 +472,11 @@ export const useReadingStore = defineStore('reading', () => {
     backgroundRefreshing,
     error,
     activeSourceId,
-    activeCategory,
     activeArticleId,
     searchQuery,
     fetchingSourceIds,
     hydrated,
     // 计算属性
-    categories,
     unreadCountMap,
     totalUnread,
     filteredArticles,
@@ -494,6 +489,7 @@ export const useReadingStore = defineStore('reading', () => {
     // 获取
     hydrate,
     fetchAll,
+    fetchAllGradual,
     fetchSingleSource,
     startAutoRefresh,
     stopAutoRefresh,
@@ -505,7 +501,6 @@ export const useReadingStore = defineStore('reading', () => {
     deleteArticles,
     starArticles,
     unstarArticles,
-    filterCategory,
     clearFilter,
     markAllRead,
     // 列表

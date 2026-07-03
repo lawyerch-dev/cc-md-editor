@@ -28,6 +28,14 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
+    server: {
+      proxy: {
+        '/.netlify/functions': {
+          target: 'http://localhost:9999',
+          changeOrigin: true,
+        },
+      },
+    },
     envPrefix: [`VITE_`, `CF_`],
     plugins: [
       vue({

@@ -10,7 +10,6 @@ interface OpmlEntry {
   xmlUrl: string
   title: string
   view: FeedViewType
-  category: string
 }
 
 /** Follow app 的 view 编号 → 本应用 FeedViewType */
@@ -100,7 +99,6 @@ export function importFromOpml(xml: string): OpmlImportResult {
       id: `import-opml-${Date.now()}-${sources.length}`,
       url: entry.xmlUrl,
       title: entry.title || entry.xmlUrl,
-      category: entry.category || 'Articles',
       addedAt: Date.now(),
       refreshInterval: 30,
       strategy: 'rss',
@@ -261,7 +259,6 @@ export async function importFoloClientSide(
     const opmlMatch = feedUrl ? opmlByUrl.get(feedUrl) : undefined
 
     const title = sub.title || feed?.title || feedUrl || feedId
-    const category = sub.category || opmlMatch?.category || 'Articles'
     const view = FOLLOW_VIEW_MAP[sub.view] ?? opmlMatch?.view ?? FeedViewType.Articles
     const url = feedUrl || feed?.url || ''
 
@@ -274,7 +271,6 @@ export async function importFoloClientSide(
       id: srcId,
       url,
       title,
-      category,
       addedAt: Date.now(),
       refreshInterval: 30,
       strategy: 'rss',
