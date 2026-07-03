@@ -208,12 +208,15 @@ export const useGitHubSyncStore = defineStore('githubSync', () => {
   const storedRepoName = store.reactive(REPO_NAME_KEY, '')
 
   watch(token, async (t) => {
-    if (!t || storedRepoName.value)
+    if (!t)
       return
     try {
       const c = new GitHubSyncClient(() => t)
-      const username = await c.getUsername()
-      storedRepoName.value = `${username}/cc-md-editor-data`
+      const userInfo = await c.getUserInfo()
+      if (!storedRepoName.value)
+        storedRepoName.value = `${userInfo.login}/cc-md-editor-data`
+      // 自动设置代理管理员密钥（基于 GitHub 用户 ID）
+      localStorage.setItem('proxy_admin_key', `ccmd-gh-${userInfo.id}`)
     }
     catch { /* ignore */ }
   }, { immediate: true })

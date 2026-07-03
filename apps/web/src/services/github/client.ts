@@ -138,6 +138,11 @@ export class GitHubSyncClient {
     return user.login
   }
 
+  /** 获取当前用户信息（login + id） */
+  async getUserInfo(): Promise<{ login: string, id: number }> {
+    return this.request<{ login: string, id: number }>(`GET`, `/user`)
+  }
+
   /** 确保专属仓库存在，不存在则创建 */
   async ensureRepo(): Promise<string> {
     const username = await this.getUsername()

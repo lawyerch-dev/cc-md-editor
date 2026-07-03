@@ -140,13 +140,26 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(7_000),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; md-editor/1.0)',
-        'Accept': 'text/html, */*',
-      },
-    })
+    // 先尝试国内代理
+    const PROXY_URL = 'https://proxy.new-ai.cn'
+    const PROXY_TOKEN = 'ccmd2024proxy'
+    let res: Response
+    try {
+      res = await fetch(`${PROXY_URL}/${encodeURIComponent(url)}`, {
+        signal: AbortSignal.timeout(7_000),
+        headers: { 'X-Proxy-Token': PROXY_TOKEN },
+      })
+    }
+    catch {
+      // 降级到直连
+      res = await fetch(url, {
+        signal: AbortSignal.timeout(7_000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; md-editor/1.0)',
+          'Accept': 'text/html, */*',
+        },
+      })
+    }
 
     if (!res.ok) {
       return Response.json({ ok: false, error: `Upstream returned ${res.status}` }, { status: 502 })

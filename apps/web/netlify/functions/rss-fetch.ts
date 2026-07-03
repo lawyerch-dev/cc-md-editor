@@ -36,31 +36,55 @@ export default async (req: Request, _context: Context) => {
   }
 
   let url: string
+  let adminKey: string | undefined
   try {
     const body = await req.json() as Record<string, unknown>
     if (typeof body.url !== 'string' || !body.url) {
       return Response.json({ ok: false, error: 'Missing or invalid url' }, { status: 400 })
     }
     url = body.url
+    if (typeof body.adminKey === 'string')
+      adminKey = body.adminKey
   }
   catch {
     return Response.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  // 带重试的获取逻辑：最多重试 1 次，使用不同 UA
+  // 带重试的获取逻辑：优先用国内代理，失败则直连
   // Netlify 免费版 Function 超时 10s，单次 fetch 用 6s 留余量给编码处理
+  const PROXY_URL = 'https://proxy.new-ai.cn'
+  const PROXY_TOKEN = 'ccmd2024proxy'
+
+  async function tryFetch(targetUrl: string, timeoutMs: number): Promise<Response> {
+    // 先尝试国内代理
+    try {
+      const proxyRes = await fetch(`${PROXY_URL}/${encodeURIComponent(targetUrl)}`, {
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: {
+          'X-Proxy-Token': PROXY_TOKEN,
+          ...(adminKey ? { 'X-Admin-Key': adminKey } : {}),
+        },
+      })
+      if (proxyRes.ok)
+        return proxyRes
+    }
+    catch { /* 代理不可用时降级 */ }
+    // 降级到直连
+    return fetch(targetUrl, {
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        'User-Agent': getRandomUA(),
+        'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, text/html, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      },
+      redirect: 'follow',
+    })
+  }
+
   let lastError: Error | null = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await fetch(url, {
-        signal: AbortSignal.timeout(attempt === 0 ? 6_000 : 3_000),
-        headers: {
-          'User-Agent': getRandomUA(),
-          'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, text/html, */*',
-          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        },
-        redirect: 'follow',
-      })
+      const res = await tryFetch(url, attempt === 0 ? 6_000 : 3_000)
 
       if (!res.ok) {
         lastError = new Error(`Upstream returned ${res.status}`)

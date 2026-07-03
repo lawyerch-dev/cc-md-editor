@@ -28,6 +28,8 @@ const opmlImporting = ref(false)
 const opmlFileInput = ref<HTMLInputElement | null>(null)
 const showCSSImport = ref(false)
 const editingSource = ref<Source | null>(null)
+const rsshubRoutes = ref<Array<{ name: string, path: string }>>([])
+const rsshubChecking = ref(false)
 
 const REFRESH_OPTIONS = [
   { value: 0, label: () => t('common.close') },
@@ -67,19 +69,41 @@ async function handleInlineAdd() {
   try {
     if (activeTab.value === 'rss') {
       const probe = await store.probeRSS(url)
-      if (!probe.isRSS) {
-        toast.error(t('reading.rssNotFound'))
-        return
+      if (probe.isRSS) {
+        store.addSource({
+          url,
+          title: probe.title || url,
+          strategy: 'rss',
+          view: 0,
+          refreshInterval: 30,
+          rsshubPath: undefined,
+        })
+        toast.success(t('reading.added', { title: probe.title || url }))
       }
-      store.addSource({
-        url,
-        title: probe.title || url,
-        strategy: 'rss',
-        view: 0,
-        refreshInterval: 30,
-        rsshubPath: undefined,
-      })
-      toast.success(t('reading.added', { title: probe.title || url }))
+      else {
+        // 直接不是 RSS，尝试 RSSHub 发现
+        rsshubRoutes.value = []
+        rsshubChecking.value = true
+        try {
+          const hostname = new URL(url).hostname
+          const fnBase = window.location.origin
+          const res = await window.fetch(`${fnBase}/.netlify/functions/rsshub-discover`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domain: hostname }),
+            signal: AbortSignal.timeout(8_000),
+          })
+          const data = await res.json() as { ok: boolean, routes?: Array<{ name: string, path: string }> }
+          if (data.ok && data.routes?.length) {
+            rsshubRoutes.value = data.routes
+            rsshubChecking.value = false
+            return // 显示路由列表让用户选择
+          }
+        }
+        catch { /* RSSHub 不可用 */ }
+        rsshubChecking.value = false
+        toast.error(t('reading.rssNotFound'))
+      }
     }
     else {
       progressMsg.value = '正在获取页面 HTML...'
@@ -113,7 +137,38 @@ async function handleInlineAdd() {
     newUrl.value = ''
   }
   catch (e) {
-    toast.error(e instanceof Error ? e.message : t('reading.addFailed'))
+    const msg = e instanceof Error ? e.message : t('reading.addFailed')
+    toast.error(`${msg}。可尝试切换到「订阅源」标签用 RSS 添加`)
+  }
+  finally {
+    addingSource.value = false
+  }
+}
+
+/** 添加指定的 RSSHub 路由 */
+async function addRsshubRoute(route: { name: string, path: string }) {
+  addingSource.value = true
+  try {
+    const probe = await store.probeRSS(route.path)
+    if (probe.isRSS) {
+      store.addSource({
+        url: route.path,
+        title: probe.title || route.name,
+        strategy: 'rss',
+        view: 0,
+        refreshInterval: 30,
+        rsshubPath: route.name,
+      })
+      toast.success(t('reading.added', { title: probe.title || route.name }))
+      newUrl.value = ''
+      rsshubRoutes.value = []
+    }
+    else {
+      toast.error(t('reading.rssNotFound'))
+    }
+  }
+  catch {
+    toast.error(t('reading.addFailed'))
   }
   finally {
     addingSource.value = false
@@ -232,6 +287,39 @@ async function onOpmlFileSelected(e: Event) {
             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             JSON {{ t('reading.import') }}
           </Button>
+        </div>
+      </div>
+
+      <!-- RSSHub 路由发现结果 -->
+      <div v-if="rsshubRoutes.length" class="border-b px-4 py-3 bg-orange-50 dark:bg-orange-950/20">
+        <div class="flex items-center gap-2 mb-2">
+          <Rss class="h-4 w-4 text-orange-500" />
+          <span class="text-sm font-medium text-orange-700 dark:text-orange-300">发现 {{ rsshubRoutes.length }} 个 RSSHub 路由：</span>
+          <button class="ml-auto text-xs text-neutral-400 hover:text-neutral-600" @click="rsshubRoutes = []">
+            关闭
+          </button>
+        </div>
+        <div class="space-y-1">
+          <button
+            v-for="route in rsshubRoutes"
+            :key="route.path"
+            class="flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-sm text-left hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+            :disabled="addingSource"
+            @click="addRsshubRoute(route)"
+          >
+            <Rss class="h-3.5 w-3.5 text-orange-500 shrink-0" />
+            <span class="truncate text-neutral-700 dark:text-neutral-300">{{ route.name }}</span>
+            <Loader2 v-if="addingSource" class="h-3 w-3 animate-spin text-orange-500 ml-auto" />
+          </button>
+        </div>
+        <p class="text-[10px] text-neutral-400 mt-2">
+          点击添加 RSS 订阅源，比网页采集更稳定
+        </p>
+      </div>
+      <div v-else-if="rsshubChecking" class="border-b px-4 py-2 bg-orange-50/50 dark:bg-orange-950/10">
+        <div class="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
+          <Loader2 class="h-3.5 w-3.5 animate-spin" />
+          <span>正在探测 RSSHub 路由...</span>
         </div>
       </div>
 

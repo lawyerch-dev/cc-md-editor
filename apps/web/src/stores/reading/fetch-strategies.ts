@@ -46,7 +46,7 @@ async function fetchViaNetlify(url: string, timeoutMs = 15_000): Promise<Respons
   const res = await window.fetch(fnUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, adminKey: localStorage.getItem('proxy_admin_key') || undefined }),
     signal: AbortSignal.timeout(timeoutMs),
   })
   if (!res.ok) {
