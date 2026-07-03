@@ -1,87 +1,46 @@
 import type { Article, CollectorSelectors, FeedViewType, MediaItem, Source } from './types'
 
-// ── CORS 代理 ──────────────────────────────────────────
-
-const CORS_PROXIES: Array<(url: string) => string> = [
-  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-]
-
-const RSS2JSON_API = 'https://api.rss2json.com/v1/api.json?rss_url='
-
-/** 通过 Netlify Function 服务端代理获取资源（无 CORS 限制） */
-async function fetchViaNetlifyFunction(url: string): Promise<Response | null> {
-  try {
-    const fnUrl = `${window.location.origin}/.netlify/functions/rss-fetch`
-    const res = await window.fetch(fnUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-      signal: AbortSignal.timeout(12_000),
-    })
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      console.warn(`[RssFetch] Netlify function returned ${res.status}: ${errBody.slice(0, 200)}`)
-      return null
-    }
-    const data = await res.json() as { ok?: boolean, body?: string, contentType?: string, error?: string }
-    if (data.ok && typeof data.body === 'string') {
-      return new Response(data.body, {
-        headers: { 'Content-Type': data.contentType ?? 'text/plain' },
-      })
-    }
-    console.warn(`[RssFetch] Netlify function returned bad data:`, data)
-    return null
-  }
-  catch (e) {
-    console.warn(`[RssFetch] Netlify function error:`, e)
-    return null
-  }
-}
+// ── 服务端代理（Netlify Function，类似 Folo 的 api.folo.is）──────────
 
 /**
- * 带 CORS 代理回退的 fetch：先尝试直接请求，再并行尝试所有代理（取最快成功的）。
+ * 所有 RSS/XML 获取只通过 Netlify Function 服务端代理，
+ * 不再使用不可靠的免费 CORS 代理或 rss2json。
+ * 类似 Folo 的 @follow-app/client-sdk → api.folo.is 模式。
  */
-export async function fetchWithProxy(url: string, init?: RequestInit): Promise<Response> {
-  // 1) 直接请求：HTTPS 页面拉 HTTP 源会被 Mixed Content 拦截，直接跳过
+async function fetchViaServer(url: string, timeoutMs = 12_000): Promise<Response> {
+  const fnUrl = `${window.location.origin}/.netlify/functions/rss-fetch`
+  const res = await window.fetch(fnUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '')
+    throw new Error(`服务端代理返回 ${res.status}: ${errBody.slice(0, 200)}`)
+  }
+  const data = await res.json() as { ok?: boolean, body?: string, contentType?: string, error?: string }
+  if (!data.ok || typeof data.body !== 'string')
+    throw new Error(`服务端代理返回异常: ${data.error || '未知错误'}`)
+  return new Response(data.body, {
+    headers: { 'Content-Type': data.contentType ?? 'text/plain' },
+  })
+}
+
+/** 通过 CORS 代理获取网页 HTML（仅 CSS 选择器采集源使用） */
+export async function fetchPageHTML(url: string): Promise<string> {
   const isMixedContent = typeof location !== 'undefined' && location.protocol === 'https:' && url.startsWith('http:')
   if (!isMixedContent) {
     try {
-      const res = await window.fetch(url, { ...init, signal: AbortSignal.timeout(6_000) })
+      const res = await window.fetch(url, { signal: AbortSignal.timeout(8_000) })
       if (res.ok)
-        return res
+        return res.text()
     }
-    catch { /* CORS 拦截或超时，走服务端代理 */ }
+    catch { /* 走服务端代理 */ }
   }
-
-  // 2) 优先使用自有 Netlify Function（无 CORS 限制）
-  const serverResult = await fetchViaNetlifyFunction(url)
-  if (serverResult)
-    return serverResult
-
-  // 3) 兜底：并行尝试免费 CORS 代理
-  const abortCtrl = new AbortController()
-  const proxyAttempts: Promise<Response>[] = CORS_PROXIES.map(async (buildProxyUrl) => {
-    const proxyUrl = buildProxyUrl(url)
-    const res = await window.fetch(proxyUrl, { ...init, signal: AbortSignal.any([abortCtrl.signal, AbortSignal.timeout(8_000)]) })
-    if (!res.ok)
-      throw new Error(`代理响应 ${res.status}`)
-    return res
-  })
-
-  try {
-    const result = await Promise.any(proxyAttempts)
-    abortCtrl.abort()
-    return result
-  }
-  catch {
-    abortCtrl.abort()
-    throw new Error('所有代理均失败')
-  }
+  const res = await fetchViaServer(url, 12_000)
+  return res.text()
 }
-
-/** 从一批 articles 中检测出最适合的 FeedViewType */
 export function detectFeedViewType(articles: Article[]): FeedViewType {
   // 只看前 10 条判断
   const sample = articles.slice(0, 10)
@@ -231,52 +190,9 @@ function parseRSSWithDOMParser(xml: string): { title: string, items: FeedItem[] 
 }
 
 async function fetchFeed(url: string): Promise<{ title: string, items: FeedItem[] }> {
-  try {
-    const res = await fetchWithProxy(url)
-    const xml = await res.text()
-    return parseRSSWithDOMParser(xml)
-  }
-  catch { /* 走 rss2json */ }
-
-  // rss2json 作为最终回退
-  const res = await window.fetch(RSS2JSON_API + encodeURIComponent(url), { signal: AbortSignal.timeout(8_000) })
-  if (!res.ok)
-    throw new Error(`rss2json 代理请求失败: ${res.status}`)
-  const data: unknown = await res.json()
-  if (!data || typeof data !== 'object' || !('status' in data))
-    throw new Error('rss2json 返回格式异常')
-  const status = (data as Record<string, unknown>).status
-  if (status !== 'ok') {
-    const msg = 'message' in (data as Record<string, unknown>) ? (data as Record<string, unknown>).message : 'RSS 解析失败'
-    throw new Error(String(msg))
-  }
-  const items = 'items' in (data as Record<string, unknown>) ? (data as Record<string, unknown>).items : []
-  const feed = 'feed' in (data as Record<string, unknown>) ? (data as Record<string, unknown>).feed : null
-  const feedTitle = feed && typeof feed === 'object' && 'title' in feed ? String((feed as Record<string, unknown>).title) : ''
-  return {
-    title: feedTitle,
-    items: Array.isArray(items)
-      ? items.map((item: Record<string, unknown>) => ({
-          title: typeof item.title === 'string' ? item.title : undefined,
-          link: typeof item.link === 'string' ? item.link : undefined,
-          content: typeof item.content === 'string' ? item.content : undefined,
-          contentSnippet: typeof item.description === 'string' ? item.description.replace(/<[^>]*>/g, '').slice(0, 200) : undefined,
-          creator: typeof item.author === 'string' ? item.author : undefined,
-          pubDate: typeof item.pubDate === 'string' ? item.pubDate : undefined,
-          guid: typeof item.guid === 'string' ? item.guid : undefined,
-          enclosure: item.enclosure && typeof item.enclosure === 'object'
-            ? (() => {
-                const enc = item.enclosure as Record<string, unknown>
-                return {
-                  url: typeof enc.url === 'string' ? enc.url : undefined,
-                  type: typeof enc.type === 'string' ? enc.type : undefined,
-                  length: typeof enc.length === 'string' ? enc.length : undefined,
-                }
-              })()
-            : undefined,
-        }))
-      : [],
-  }
+  const res = await fetchViaServer(url)
+  const xml = await res.text()
+  return parseRSSWithDOMParser(xml)
 }
 
 /** 探测 URL 是否为 RSS 源 */
