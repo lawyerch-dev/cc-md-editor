@@ -92,6 +92,8 @@ export default defineConfig(({ mode }) => {
     },
     css: { devSourcemap: true },
     build: {
+      // 不预加载所有 chunk，仅在进入对应视图时按需加载（减少首屏 70+ 请求）
+      modulePreload: false,
       rolldownOptions: {
         onwarn(warning, warn) {
           // @vueuse/core 中的 /* #__PURE__ */ 注释位置不符合 Rolldown 要求，忽略该警告
