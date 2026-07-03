@@ -270,8 +270,25 @@ export const useReadingStore = defineStore('reading', () => {
     const src = sources.value.find(s => s.id === sourceId)
     if (!src)
       return
-    // 不经过互斥锁，单源刷新不影响其他源的获取状态
-    await doFetchSourcesParallel([src], false)
+    // 单源刷新：完全独立，不经过互斥锁和共享 loading 状态
+    fetchingSourceIds.value[src.id] = true
+    src.health = { ...src.health, status: 'pending' }
+    try {
+      const newArticles = await fetchSourceArticles(src)
+      mergeNewArticles(newArticles)
+      src.health = { status: 'ok', lastFetchAt: Date.now(), articleCount: newArticles.length }
+      if (newArticles.length > 0)
+        lastFetchMap.value[src.id] = Date.now()
+      persistFetchMapDebounced()
+    }
+    catch (e) {
+      const msg = e instanceof Error ? e.message : '获取失败'
+      src.health = { status: 'error', lastError: msg, lastFetchAt: Date.now() }
+      console.warn(`[Reading] Failed to fetch ${src.title}:`, e)
+    }
+    finally {
+      delete fetchingSourceIds.value[src.id]
+    }
   }
 
   // ── 自动刷新 ─────────────────────────────────────────
