@@ -477,12 +477,28 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           <div class="flex-1 overflow-y-auto">
             <!-- View-driven rendering -->
             <ArticleListView
-              v-if="activeView === 0 || activeView === 1"
+              v-if="activeView === 0"
               :articles="displayArticles"
               :active-id="store.activeArticleId"
               :is-selecting="isSelecting"
               :selected-ids="selectedIds"
               @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
+            />
+            <PictureMasonryView
+              v-else-if="activeView === 1 && pictureLayout === 'masonry'"
+              :articles="displayArticles"
+              :active-id="store.activeArticleId"
+              :image-only="pictureImageOnly"
+              @select="store.setActiveArticle($event)"
+              @preview="openLightbox"
+            />
+            <PictureGridView
+              v-else-if="activeView === 1 && pictureLayout === 'grid'"
+              :articles="displayArticles"
+              :active-id="store.activeArticleId"
+              :image-only="pictureImageOnly"
+              @select="store.setActiveArticle($event)"
+              @preview="openLightbox"
             />
             <VideoGridView
               v-else-if="activeView === 2"
