@@ -56,9 +56,24 @@ function openLightbox(images: Array<{ url: string, width?: number, height?: numb
   showLightbox.value = true
 }
 
+/** 从文章 ID 打开灯箱（图片视图点击条目时） */
+function openLightboxFromArticle(articleId: string) {
+  const article = store.articles.find(a => a.id === articleId)
+  if (!article)
+    return
+  const images = article.media
+    .filter(m => m.type === 'photo')
+    .map(m => ({ url: m.url, width: m.width, height: m.height, type: 'photo' as const }))
+  if (images.length)
+    openLightbox(images, 0)
+}
+
 // ── 文章列表 ──────────────────────────────────────────
 /** 当前激活源的内容视图类型（-1 = 全部，0 = 文章，1 = 图片，2 = 视频，3 = 音频） */
 const activeView = ref<number>(-1)
+
+/** 双栏模式：图片/视频源隐藏右栏，中栏铺满 */
+const isTwoColumn = computed(() => activeView.value === 1 || activeView.value === 2)
 
 /** 切换视图时清除选中文章 */
 watch(activeView, () => { store.setActiveArticle(null) })
@@ -391,7 +406,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
       <!-- ═══ 中栏 ═══ -->
       <section
         class="relative flex flex-col bg-white dark:bg-neutral-950 overflow-hidden shrink-0"
-        :style="{ width: listCollapsed ? '0px' : `${listWidth}px` }"
+        :style="{ width: listCollapsed ? '0px' : isTwoColumn ? '100%' : `${listWidth}px` }"
       >
         <div v-show="!listCollapsed" class="flex flex-col h-full">
           <div class="flex items-center justify-between px-4 h-11 shrink-0 border-b border-neutral-100 dark:border-neutral-800">
@@ -474,12 +489,28 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           <div class="flex-1 overflow-y-auto">
             <!-- View-driven rendering -->
             <ArticleListView
-              v-if="activeView === 0 || activeView === 1"
+              v-if="activeView === 0"
               :articles="displayArticles"
               :active-id="store.activeArticleId"
               :is-selecting="isSelecting"
               :selected-ids="selectedIds"
               @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
+            />
+            <PictureMasonryView
+              v-if="activeView === 1 && pictureLayout === 'masonry'"
+              :articles="displayArticles"
+              :active-id="store.activeArticleId"
+              :image-only="pictureImageOnly"
+              @select="openLightboxFromArticle($event)"
+              @preview="openLightbox"
+            />
+            <PictureGridView
+              v-else-if="activeView === 1 && pictureLayout === 'grid'"
+              :articles="displayArticles"
+              :active-id="store.activeArticleId"
+              :image-only="pictureImageOnly"
+              @select="openLightboxFromArticle($event)"
+              @preview="openLightbox"
             />
             <VideoGridView
               v-else-if="activeView === 2"
@@ -509,8 +540,9 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         </div>
       </section>
 
-      <!-- 中栏分隔线 + 折叠按钮 -->
+      <!-- 中栏分隔线 + 折叠按钮（双栏模式隐藏） -->
       <div
+        v-if="!isTwoColumn"
         class="relative flex items-center justify-center w-1.5 shrink-0 bg-neutral-200/60 dark:bg-neutral-700/60 cursor-col-resize"
         @mousedown.left="startResize($event, 'list')"
       >
@@ -538,8 +570,8 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         </button>
       </div>
 
-      <!-- ═══ 右栏：内容展示 ═══ -->
-      <main class="flex-1 flex flex-col min-w-0 bg-white dark:bg-neutral-950">
+      <!-- ═══ 右栏：内容展示（双栏模式隐藏） ═══ -->
+      <main v-if="!isTwoColumn" class="flex-1 flex flex-col min-w-0 bg-white dark:bg-neutral-950">
         <template v-if="store.activeArticle">
           <!-- 视频：MediaArticleReader -->
           <MediaArticleReader
