@@ -26,6 +26,8 @@ const addingSource = ref(false)
 const progressMsg = ref('')
 const opmlImporting = ref(false)
 const opmlFileInput = ref<HTMLInputElement | null>(null)
+const jsonFileInput = ref<HTMLInputElement | null>(null)
+const jsonImporting = ref(false)
 const showCSSImport = ref(false)
 const editingSource = ref<Source | null>(null)
 const rsshubRoutes = ref<Array<{ name: string, path: string }>>([])
@@ -210,9 +212,51 @@ async function onOpmlFileSelected(e: Event) {
   }
   finally {
     opmlImporting.value = false
-    // 重置 input 以便下次选择同一文件
     if (opmlFileInput.value)
       opmlFileInput.value.value = ''
+  }
+}
+
+/** 导出所有数据源为 JSON 文件 */
+function exportSources() {
+  const data = store.sources.map((s) => {
+    // 排除运行时字段
+    const { health, ...exported } = s
+    return exported
+  })
+  const blob = new Blob([JSON.stringify({ version: 1, exportedAt: Date.now(), sources: data }, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `md-sources-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.success(t('reading.exportSuccess', { n: data.length }))
+}
+
+/** 从 JSON 文件导入数据源 */
+async function importSourcesFromFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file)
+    return
+  jsonImporting.value = true
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+    if (!data.sources || !Array.isArray(data.sources))
+      throw new Error('Invalid format')
+    await applyImport(data.sources, [])
+    await store.reloadFromStorage()
+    toast.success(t('reading.importStats', { sources: data.sources.length, articles: 0 }))
+  }
+  catch (e) {
+    toast.error(e instanceof Error ? e.message : t('reading.importFailed'))
+  }
+  finally {
+    jsonImporting.value = false
+    if (jsonFileInput.value)
+      jsonFileInput.value.value = ''
   }
 }
 </script>
@@ -280,6 +324,20 @@ async function onOpmlFileSelected(e: Event) {
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <input ref="opmlFileInput" type="file" accept=".opml,.xml" class="hidden" @change="onOpmlFileSelected">
+          <input ref="jsonFileInput" type="file" accept=".json" class="hidden" @change="importSourcesFromFile">
+          <Button size="sm" variant="outline" class="h-8 gap-1 text-xs" @click="exportSources()">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            {{ t('reading.export') }}
+          </Button>
+          <Button size="sm" variant="outline" class="h-8 gap-1 text-xs" :disabled="jsonImporting" @click="jsonFileInput?.click()">
+            <template v-if="jsonImporting">
+              <Loader2 class="h-3.5 w-3.5 animate-spin" />
+            </template>
+            <template v-else>
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            </template>
+            {{ t('reading.import') }}
+          </Button>
           <Button v-if="activeTab === 'rss'" size="sm" variant="outline" class="h-8 gap-1 text-xs" :disabled="opmlImporting" @click="opmlFileInput?.click()">
             <template v-if="opmlImporting">
               <Loader2 class="h-3.5 w-3.5 animate-spin" />
@@ -287,11 +345,11 @@ async function onOpmlFileSelected(e: Event) {
             <template v-else>
               <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             </template>
-            OPML {{ t('reading.import') }}
+            OPML
           </Button>
           <Button v-if="activeTab === 'css-selector'" size="sm" variant="outline" class="h-8 gap-1 text-xs" @click="showCSSImport = true">
             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            JSON {{ t('reading.import') }}
+            CSS
           </Button>
         </div>
       </div>

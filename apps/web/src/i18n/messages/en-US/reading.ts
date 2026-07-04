@@ -177,6 +177,7 @@ export default {
     noPictures: 'No pictures',
     noVideos: 'No videos',
     noAudios: 'No audio',
+    mediaArticle: 'Article',
     mediaAudio: 'Audio',
     mediaVideo: 'Video',
     mediaPhoto: 'Photo',

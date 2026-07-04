@@ -4,6 +4,8 @@ import { CheckSquare, Image, Music, Play, Square } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useReadingStore } from '@/stores/reading'
+
 defineProps<{
   articles: Article[]
   activeId: string | null
@@ -16,6 +18,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const readingStore = useReadingStore()
 
 function formatTime(ts: number) {
   const diff = Date.now() - ts
@@ -42,15 +45,21 @@ function hasVideo(article: Article): boolean {
   return article.media.some(m => m.type === 'video')
 }
 
-/** 媒体类型标签 */
-function mediaTypeLabel(article: Article): string | null {
+/** 媒体类型标签 — 按源的实际视图类型匹配，而非猜测 media 内容 */
+function articleViewType(article: Article): string {
+  const src = readingStore.sources.find(s => s.id === article.sourceId)
+  if (src) {
+    const map: Record<number, string> = { 0: 'article', 1: 'picture', 2: 'video', 3: 'audio' }
+    return map[src.view] || 'article'
+  }
+  // 降级：从 media/attachments 推断
   if (article.media.some(m => m.type === 'video'))
     return 'video'
-  if (article.media.some(m => m.type === 'audio'))
+  if (article.media.some(m => m.type === 'audio') || article.attachments?.some(a => a.mimeType?.startsWith('audio/')))
     return 'audio'
   if (article.media.some(m => m.type === 'photo'))
     return 'picture'
-  return null
+  return 'article'
 }
 
 /** 非缩略图 photo media 数量 */
@@ -88,12 +97,42 @@ const summaryLine = computed(() => (article: Article) => {
 
       <!-- 正文区域 -->
       <div class="flex-1 min-w-0">
-        <!-- 来源标题 -->
-        <div class="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">
-          <span class="size-3.5 rounded bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[7px] font-bold text-neutral-500 shrink-0">
-            {{ article.sourceTitle?.charAt(0)?.toUpperCase() || 'R' }}
-          </span>
-          <span class="truncate">{{ article.sourceTitle }}</span>
+        <!-- 来源标题行 + 徽章+时间（右上角） -->
+        <div class="flex items-start gap-2">
+          <div class="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 min-w-0 flex-1">
+            <span class="size-3.5 rounded bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[7px] font-bold text-neutral-500 shrink-0">
+              {{ article.sourceTitle?.charAt(0)?.toUpperCase() || 'R' }}
+            </span>
+            <span class="truncate">{{ article.sourceTitle }}</span>
+          </div>
+          <!-- 右上角：媒体类型徽章 + 时间（按源视图类型） -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span
+              class="inline-flex items-center gap-0.5 text-[10px] font-medium"
+              :class="{
+                'text-blue-500 dark:text-blue-400': articleViewType(article) === 'article',
+                'text-green-600 dark:text-green-400': articleViewType(article) === 'picture',
+                'text-red-500 dark:text-red-400': articleViewType(article) === 'video',
+                'text-purple-500 dark:text-purple-400': articleViewType(article) === 'audio',
+              }"
+            >
+              <template v-if="articleViewType(article) === 'video'">
+                <Play class="size-2.5" />{{ t('reading.mediaVideo') }}
+              </template>
+              <template v-else-if="articleViewType(article) === 'audio'">
+                <Music class="size-2.5" />{{ t('reading.mediaAudio') }}
+              </template>
+              <template v-else-if="articleViewType(article) === 'picture'">
+                <Image class="size-2.5" />{{ t('reading.mediaPhoto') }}
+              </template>
+              <template v-else>
+                <span class="size-2.5 inline-flex items-center justify-center text-[8px] font-bold">A</span>{{ t('reading.mediaArticle') }}
+              </template>
+            </span>
+            <span class="text-[11px] text-neutral-400 dark:text-neutral-500 tabular-nums whitespace-nowrap">
+              {{ formatTime(article.publishedAt) }}
+            </span>
+          </div>
         </div>
 
         <!-- 标题行 → 带缩略图 -->
@@ -135,28 +174,6 @@ const summaryLine = computed(() => (article: Article) => {
         <!-- 摘要/描述行 -->
         <div v-if="summaryLine(article)" class="mt-0.5 text-[11px] text-neutral-400 dark:text-neutral-500 leading-relaxed line-clamp-2">
           {{ summaryLine(article) }}
-        </div>
-
-        <!-- 底部：媒体类型徽章 + 时间 -->
-        <div class="flex items-center gap-2 mt-1">
-          <!-- 媒体类型标签 -->
-          <span
-            v-if="mediaTypeLabel(article)"
-            class="inline-flex items-center gap-0.5 text-[10px] font-medium"
-            :class="{
-              'text-red-500 dark:text-red-400': mediaTypeLabel(article) === 'video',
-              'text-purple-500 dark:text-purple-400': mediaTypeLabel(article) === 'audio',
-              'text-green-600 dark:text-green-400': mediaTypeLabel(article) === 'picture',
-            }"
-          >
-            <Play v-if="mediaTypeLabel(article) === 'video'" class="size-2.5" />
-            <Music v-else-if="mediaTypeLabel(article) === 'audio'" class="size-2.5" />
-            <Image v-else-if="mediaTypeLabel(article) === 'picture'" class="size-2.5" />
-            {{ mediaTypeLabel(article) === 'video' ? t('reading.mediaVideo') : mediaTypeLabel(article) === 'audio' ? t('reading.mediaAudio') : t('reading.mediaPhoto') }}
-          </span>
-          <span class="text-[11px] text-neutral-400 dark:text-neutral-500 tabular-nums">
-            {{ formatTime(article.publishedAt) }}
-          </span>
         </div>
       </div>
     </div>
