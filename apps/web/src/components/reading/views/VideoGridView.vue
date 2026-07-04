@@ -160,7 +160,7 @@ function getVideoSrc(article: Article): string {
     </div>
 
     <div v-if="!articles.length" class="col-span-full py-12 text-center text-sm text-neutral-400">
-      {{ t('reading.noArticles') }}
+      {{ t('reading.noVideos') }}
     </div>
   </div>
 </template>

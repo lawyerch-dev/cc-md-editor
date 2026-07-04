@@ -106,6 +106,9 @@ function handleImageClick(article: Article, e: Event) {
           </div>
         </article>
       </div>
+      <div v-if="!articles.length" class="py-12 text-center text-sm text-neutral-400">
+        {{ t('reading.noPictures') }}
+      </div>
     </div>
   </div>
 </template>

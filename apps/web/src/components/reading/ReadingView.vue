@@ -533,9 +533,6 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               :selected-ids="selectedIds"
               @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
             />
-            <div v-if="!displayArticles.length" class="flex h-32 items-center justify-center text-xs text-neutral-400">
-              {{ store.loading ? t('reading.fetching') : t('reading.noArticles') }}
-            </div>
           </div>
         </div>
 

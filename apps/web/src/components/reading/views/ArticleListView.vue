@@ -186,6 +186,9 @@ const summaryLine = computed(() => (article: Article) => {
         </div>
       </div>
     </div>
+    <div v-if="!articles.length" class="py-12 text-center text-sm text-neutral-400">
+      {{ t('reading.noArticles') }}
+    </div>
   </div>
 </template>
 

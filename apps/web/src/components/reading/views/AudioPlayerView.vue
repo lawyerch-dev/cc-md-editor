@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { CheckSquare, Square } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { useAudioPlayer } from '@/composables/useAudioPlayer'
 
 defineProps<{
@@ -15,6 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const player = useAudioPlayer()
+const { t } = useI18n()
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -128,5 +130,8 @@ function toggleAudio(article: Article) {
         </svg>
       </a>
     </div>
+  </div>
+  <div v-if="!articles.length" class="py-12 text-center text-sm text-neutral-400">
+    {{ t('reading.noAudios') }}
   </div>
 </template>

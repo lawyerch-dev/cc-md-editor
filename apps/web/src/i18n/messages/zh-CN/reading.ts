@@ -175,6 +175,8 @@ export default {
     prevPictureArticle: '上一条图片',
     nextPictureArticle: '下一条图片',
     noPictures: '暂无图片',
+    noVideos: '暂无视频',
+    noAudios: '暂无音频',
     mediaAudio: '音频',
     mediaVideo: '视频',
     mediaPhoto: '图片',

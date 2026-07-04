@@ -175,6 +175,8 @@ export default {
     prevPictureArticle: 'Previous picture item',
     nextPictureArticle: 'Next picture item',
     noPictures: 'No pictures',
+    noVideos: 'No videos',
+    noAudios: 'No audio',
     mediaAudio: 'Audio',
     mediaVideo: 'Video',
     mediaPhoto: 'Photo',
