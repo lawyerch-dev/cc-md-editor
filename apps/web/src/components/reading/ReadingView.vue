@@ -62,8 +62,11 @@ function openLightbox(images: Array<{ url: string, width?: number, height?: numb
 /** 当前激活源的内容视图类型（-1 = 全部，0 = 文章，1 = 图片，2 = 视频，3 = 音频） */
 const activeView = ref<number>(-1)
 
-/** 图片/视频视图：宽屏模式，隐藏右栏 */
-const isWideMode = computed(() => activeView.value === 1 || activeView.value === 2)
+/** 宽屏模式：图片/视频/音频视图隐藏右栏，内容全宽展示 */
+const isWideMode = computed(() => activeView.value === 1 || activeView.value === 2 || activeView.value === 3)
+
+/** 切换视图时清除选中文章，避免右栏显示过期内容 */
+watch(activeView, () => { store.setActiveArticle(null) })
 
 /** 按源视图类型筛选文章（activeView != -1 时） */
 function filterByView(articles: Article[], view: number): Article[] {
@@ -536,14 +539,14 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           </div>
         </div>
 
-        <!-- 宽屏模式（图片/视频）：选中文章后全屏覆盖 -->
+        <!-- 宽屏模式（图片/视频/音频）：选中文章后全屏覆盖 -->
         <div
           v-if="isWideMode && store.activeArticle"
           class="absolute inset-0 z-10 flex flex-col bg-white dark:bg-neutral-950 animate-slide-up"
         >
           <MediaArticleReader
             :article="store.activeArticle"
-            :media-type="activeView === 1 ? 'picture' : 'video'"
+            :media-type="activeView === 1 ? 'picture' : activeView === 2 ? 'video' : 'audio'"
             :can-go-prev="activeView === 1 ? canGoPrevPicture : false"
             :can-go-next="activeView === 1 ? canGoNextPicture : false"
             @close="store.setActiveArticle(null)"
