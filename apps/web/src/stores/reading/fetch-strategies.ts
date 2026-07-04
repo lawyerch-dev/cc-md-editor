@@ -724,7 +724,7 @@ interface FoloFeedResponse {
       summary?: string
       publishedAt: string
       author?: string
-      media?: Array<{ url: string, type: string, width?: number, height?: number }>
+      media?: Array<{ url: string, type: string, width?: number, height?: number, preview_image_url?: string, duration_in_seconds?: number }>
       attachments?: Array<{ url: string, mime_type?: string, duration_in_seconds?: number, size_in_bytes?: number, title?: string }> | null
     }>
     analytics?: { view?: number }
@@ -745,18 +745,28 @@ interface FoloEntriesResponse {
       summary?: string
       publishedAt: string
       author?: string
-      media?: Array<{ url: string, type: string, width?: number, height?: number }>
+      media?: Array<{ url: string, type: string, width?: number, height?: number, preview_image_url?: string, duration_in_seconds?: number }>
       attachments?: Array<{ url: string, mime_type?: string, duration_in_seconds?: number, size_in_bytes?: number, title?: string }> | null
     }
     settings?: { unread?: boolean }
   }>
 }
 
+/** 从 HTML 中提取第一张图片 URL */
+function firstImageFromHtml(html: string): string | undefined {
+  const m = html.match(/<img[^>]+src="([^"]+)"/i)
+  return m?.[1]
+}
+
 /** 将 Folo API 返回的条目转为我们的 Article 格式 */
 function mapFoloEntry(entry: FoloFeedResponse['data']['entries'][0], sourceId: string, sourceTitle: string): Article {
+  const contentHtml = entry.content || entry.description || ''
   const media: MediaItem[] = (entry.media || []).map(m => ({
     url: m.url,
     type: (m.type === 'video' ? 'video' : m.type === 'audio' ? 'audio' : 'photo') as MediaItem['type'],
+    // ponytail: fallback to first img from content for video thumbnails
+    previewImageUrl: m.preview_image_url || firstImageFromHtml(contentHtml),
+    durationInSeconds: m.duration_in_seconds,
     width: m.width,
     height: m.height,
   }))
@@ -786,6 +796,54 @@ function mapFoloEntry(entry: FoloFeedResponse['data']['entries'][0], sourceId: s
   }
 }
 
+/** Folo 分页参数 */
+const MAX_PAGES = 3
+const BATCH_SIZE = 40
+
+/**
+ * 通用 Folo entries 分页获取
+ * 循环拉取多页，直到没有更多或达到 MAX_PAGES 上限
+ */
+async function fetchFoloEntriesPaginated(feedId: string, view: number, publishedAfter: string | null = null): Promise<Article[]> {
+  const allArticles: Article[] = []
+  let cursor = publishedAfter
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const json: FoloEntriesResponse = await fetchFoloJSON(`${FOLO_API}/entries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        view: -1, // -1 = all views; avoids Folo vs local FeedViewType numbering mismatch
+        feedId,
+        read: false,
+        insertedAfter: null,
+        publishedAfter: cursor,
+        limit: BATCH_SIZE,
+      }),
+    })
+    if (json.code !== 0)
+      throw new Error(`Folo entries API 错误: code=${json.code}`)
+
+    const batch = json.data.map((item) => {
+      const art = mapFoloEntry(item.entries, item.feeds.id, item.feeds.title)
+      art.read = !!item.read
+      return art
+    })
+
+    if (batch.length === 0)
+      break
+
+    allArticles.push(...batch)
+
+    // 用最后一条的 publishedAt 作为下一页游标
+    cursor = new Date(batch[batch.length - 1].publishedAt).toISOString()
+
+    // 返回少于 limit → 没有更多了
+    if (batch.length < BATCH_SIZE)
+      break
+  }
+  return allArticles
+}
+
 /** 通过 Folo API 获取 rsshub:// 源的订阅信息和文章 */
 export async function fetchFoloFeed(rsshubUrl: string): Promise<{ feed: FoloFeedResponse['data']['feed'], articles: Article[], foloView?: number }> {
   const apiUrl = `${FOLO_API}/feeds?url=${encodeURIComponent(rsshubUrl)}`
@@ -794,32 +852,29 @@ export async function fetchFoloFeed(rsshubUrl: string): Promise<{ feed: FoloFeed
     throw new Error(`Folo API 错误: code=${json.code}`)
 
   const { feed, entries, analytics } = json.data
-  const articles = entries.map(e => mapFoloEntry(e, feed.id, feed.title))
+  let articles = entries.map(e => mapFoloEntry(e, feed.id, feed.title))
+
+  // 首次拉取后，继续翻页获取更多历史文章
+  if (articles.length > 0) {
+    try {
+      const more = await fetchFoloEntriesPaginated(
+        feed.id,
+        -1,
+        new Date(articles[articles.length - 1].publishedAt).toISOString(),
+      )
+      articles = articles.concat(more)
+    }
+    catch {
+      // 翻页失败不影响已有结果
+    }
+  }
+
   return { feed, articles, foloView: analytics?.view }
 }
 
 /** 通过 Folo API 获取更多文章（分页/刷新） */
-export async function fetchFoloEntries(feedId: string, view = 0): Promise<Article[]> {
-  const json: FoloEntriesResponse = await fetchFoloJSON(`${FOLO_API}/entries`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      view,
-      feedId,
-      read: false,
-      insertedAfter: null,
-      publishedAfter: null,
-      limit: 240,
-    }),
-  })
-  if (json.code !== 0)
-    throw new Error(`Folo entries API 错误: code=${json.code}`)
-
-  return json.data.map((item) => {
-    const art = mapFoloEntry(item.entries, item.feeds.id, item.feeds.title)
-    art.read = !!item.read
-    return art
-  })
+export async function fetchFoloEntries(feedId: string, view = -1): Promise<Article[]> {
+  return fetchFoloEntriesPaginated(feedId, view)
 }
 
 /** 通过 CORS 代理请求 Folo JSON API */
