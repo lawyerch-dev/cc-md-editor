@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { CheckSquare, Square } from '@lucide/vue'
+import { useAudioPlayer } from '@/composables/useAudioPlayer'
 
 defineProps<{
   articles: Article[]
@@ -12,6 +13,8 @@ defineProps<{
 const emit = defineEmits<{
   select: [id: string]
 }>()
+
+const player = useAudioPlayer()
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -34,6 +37,30 @@ function getDuration(article: Article): string | null {
   }
   return null
 }
+
+function getAudioSrc(article: Article): string {
+  for (const att of article.attachments) {
+    if (att.mimeType?.startsWith('audio/') || /\.(?:mp3|wav|ogg|m4a|aac|flac)/i.test(att.url))
+      return att.url
+  }
+  for (const m of article.media) {
+    if (m.type === 'audio' || /\.(?:mp3|wav|ogg|m4a|aac|flac)/i.test(m.url))
+      return m.url
+  }
+  return ''
+}
+
+function toggleAudio(article: Article) {
+  const src = getAudioSrc(article)
+  if (!src)
+    return
+  if (player.isPlaying(src)) {
+    player.togglePlay()
+  }
+  else {
+    player.play(src, { title: article.title, sourceTitle: article.sourceTitle, articleId: article.id })
+  }
+}
 </script>
 
 <template>
@@ -55,9 +82,13 @@ function getDuration(article: Article): string | null {
       <button
         v-else
         class="flex size-10 shrink-0 items-center justify-center rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20 transition-colors"
-        @click.stop
+        @click.stop="toggleAudio(article)"
       >
-        <svg class="ml-0.5 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+        <svg v-if="player.isPlaying(getAudioSrc(article))" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="4" width="4" height="16" rx="1" />
+          <rect x="14" y="4" width="4" height="16" rx="1" />
+        </svg>
+        <svg v-else class="ml-0.5 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
           <polygon points="5 3 19 12 5 21 5 3" />
         </svg>
       </button>

@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, X, ZoomIn, ZoomOut } from '@lu
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps<{
-  images: Array<{ url: string, width?: number, height?: number }>
+  images: Array<{ url: string, width?: number, height?: number, type?: 'photo' | 'video' }>
   initialIndex?: number
 }>()
 
@@ -163,10 +163,18 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 图片 -->
+    <!-- 图片/视频 -->
     <div class="relative z-10 flex items-center justify-center w-full h-full px-16 py-12">
+      <video
+        v-if="currentImage?.type === 'video'"
+        :key="currentImage.url"
+        :src="currentImage.url"
+        controls
+        autoplay
+        class="max-w-full max-h-full object-contain"
+      />
       <img
-        v-if="currentImage"
+        v-else-if="currentImage"
         :key="currentImage.url"
         :src="currentImage.url"
         :style="{ transform: `scale(${scale})`, transformOrigin: 'center center' }"
