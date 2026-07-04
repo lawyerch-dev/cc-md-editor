@@ -10,7 +10,17 @@ const props = defineProps<{
 
 const player = useAudioPlayer()
 
-const audioMedia = computed(() => props.article.media.find(m => m.type === 'audio'))
+const audioMedia = computed(() => {
+  // 优先从 media 找音频
+  const m = props.article.media.find(m => m.type === 'audio')
+  if (m)
+    return m
+  // 回退到 attachments
+  const att = props.article.attachments?.find(a => a.mimeType?.startsWith('audio/') || /\.(?:mp3|wav|ogg|m4a|aac|flac)(?:\?|$)/i.test(a.url))
+  if (att)
+    return { url: att.url, type: 'audio' as const, mimeType: att.mimeType, durationInSeconds: att.durationInSeconds }
+  return undefined
+})
 const coverImage = computed(() => audioMedia.value?.previewImageUrl || props.article.media.find(m => m.type === 'photo')?.url)
 const audioSrc = computed(() => audioMedia.value?.url || '')
 const duration = computed(() => audioMedia.value?.durationInSeconds || 0)
