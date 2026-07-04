@@ -42,23 +42,15 @@ function hasVideo(article: Article): boolean {
   return article.media.some(m => m.type === 'video')
 }
 
-/** 是否有音频 media */
-function hasAudio(article: Article): boolean {
-  return article.media.some(m => m.type === 'audio')
-}
-
-/** 音频时长 */
-function audioDuration(article: Article): string | null {
-  const audio = article.media.find(m => m.type === 'audio')
-  if (!audio?.durationInSeconds)
-    return null
-  const s = audio.durationInSeconds
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = Math.floor(s % 60)
-  if (h > 0)
-    return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-  return `${m}:${String(sec).padStart(2, '0')}`
+/** 媒体类型标签 */
+function mediaTypeLabel(article: Article): string | null {
+  if (article.media.some(m => m.type === 'video'))
+    return 'video'
+  if (article.media.some(m => m.type === 'audio'))
+    return 'audio'
+  if (article.media.some(m => m.type === 'photo'))
+    return 'picture'
+  return null
 }
 
 /** 非缩略图 photo media 数量 */
@@ -147,39 +139,21 @@ const summaryLine = computed(() => (article: Article) => {
 
         <!-- 底部：媒体类型徽章 + 时间 -->
         <div class="flex items-center gap-2 mt-1">
-          <!-- 纯音频（无缩略图） → 显示音乐图标 -->
+          <!-- 媒体类型标签 -->
           <span
-            v-if="hasAudio(article) && !hasVideo(article) && !thumbnailUrl(article)"
-            class="inline-flex items-center gap-0.5 text-[10px] text-purple-500 dark:text-purple-400"
+            v-if="mediaTypeLabel(article)"
+            class="inline-flex items-center gap-0.5 text-[10px] font-medium"
+            :class="{
+              'text-red-500 dark:text-red-400': mediaTypeLabel(article) === 'video',
+              'text-purple-500 dark:text-purple-400': mediaTypeLabel(article) === 'audio',
+              'text-green-600 dark:text-green-400': mediaTypeLabel(article) === 'picture',
+            }"
           >
-            <Music class="size-3" />
-            <span>{{ article.media.filter(m => m.type === 'audio').length > 1 ? `${article.media.filter(m => m.type === 'audio').length} ` : '' }}{{ t('reading.mediaAudio') }}</span>
-            <span v-if="audioDuration(article)" class="ml-0.5 tabular-nums">{{ audioDuration(article) }}</span>
+            <Play v-if="mediaTypeLabel(article) === 'video'" class="size-2.5" />
+            <Music v-else-if="mediaTypeLabel(article) === 'audio'" class="size-2.5" />
+            <Image v-else-if="mediaTypeLabel(article) === 'picture'" class="size-2.5" />
+            {{ mediaTypeLabel(article) === 'video' ? t('reading.mediaVideo') : mediaTypeLabel(article) === 'audio' ? t('reading.mediaAudio') : t('reading.mediaPhoto') }}
           </span>
-          <!-- 纯视频（无缩略图） -->
-          <span
-            v-else-if="hasVideo(article) && !thumbnailUrl(article)"
-            class="inline-flex items-center gap-0.5 text-[10px] text-red-500 dark:text-red-400"
-          >
-            <Play class="size-3" />
-            <span>{{ t('reading.mediaVideo') }}</span>
-          </span>
-          <!-- 纯图片（无缩略图） -->
-          <span
-            v-else-if="article.media.some(m => m.type === 'photo') && !thumbnailUrl(article)"
-            class="inline-flex items-center gap-0.5 text-[10px] text-green-600 dark:text-green-400"
-          >
-            <Image class="size-3" />
-            <span>{{ article.media.filter(m => m.type === 'photo').length > 1 ? `${article.media.length} ` : '' }}{{ t('reading.mediaPhoto') }}</span>
-          </span>
-          <!-- 多个混合媒体 -->
-          <span
-            v-else-if="article.media.length > 1"
-            class="text-[10px] text-neutral-500"
-          >
-            {{ t('reading.mediaCount', { n: article.media.length }) }}
-          </span>
-
           <span class="text-[11px] text-neutral-400 dark:text-neutral-500 tabular-nums">
             {{ formatTime(article.publishedAt) }}
           </span>
