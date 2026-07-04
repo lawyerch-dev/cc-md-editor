@@ -194,11 +194,14 @@ export const useReadingStore = defineStore('reading', () => {
     if (existing)
       return existing
     const newId = `src-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const view = data.view ?? 0
     sources.value.push({
       ...data,
       id: newId,
       addedAt: Date.now(),
-      view: data.view ?? 0,
+      view,
+      // 如果用户没有手动设置 view（使用默认值 0），标记为自动检测
+      autoDetectedView: view === 0,
     })
     saveSources(sources.value)
     // 添加后自动获取文章
@@ -209,6 +212,10 @@ export const useReadingStore = defineStore('reading', () => {
     const src = sources.value.find(s => s.id === id)
     if (src) {
       Object.assign(src, updates)
+      // 用户手动设置 view 时，清除自动检测标志
+      if (updates.view !== undefined) {
+        src.autoDetectedView = false
+      }
       saveSources(sources.value)
     }
   }
@@ -403,11 +410,12 @@ export const useReadingStore = defineStore('reading', () => {
         lastFetchMap.value[src.id] = Date.now()
       persistFetchMapDebounced()
 
-      // 自动检测视图类型（仅首次，当源还是默认文章类型时）
-      if (newArticles.length > 0 && src.view === 0) {
+      // 自动检测视图类型（当源还是默认文章类型，或用户未手动设置时）
+      if (newArticles.length > 0) {
         const detected = detectFeedViewType(newArticles)
-        if (detected !== 0) {
+        if (detected !== 0 && (src.view === 0 || src.autoDetectedView)) {
           src.view = detected
+          src.autoDetectedView = true
           saveSources(sources.value)
         }
       }

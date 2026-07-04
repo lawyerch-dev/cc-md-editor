@@ -53,6 +53,8 @@ export interface Source {
   selectors?: CollectorSelectors
   /** 内容视图类型 */
   view: FeedViewType
+  /** 是否为自动检测的视图类型（用户手动设置后此标志清除） */
+  autoDetectedView?: boolean
   /** 描述 */
   description?: string
   /** 运行时健康状态（不持久化） */

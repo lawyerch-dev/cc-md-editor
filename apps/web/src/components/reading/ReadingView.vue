@@ -370,7 +370,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         <!-- 收起按钮（展开时显示在分隔线左侧） -->
         <button
           v-if="!sidebarCollapsed"
-          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-l-md bg-orange-200 dark:bg-orange-900/50 hover:bg-orange-300 dark:hover:bg-orange-800/60 transition-colors left-0 translate-x-[-100%] top-1/2 -translate-y-1/2"
+          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-l-md bg-orange-200 dark:bg-orange-900/50 hover:bg-orange-300 dark:hover:bg-orange-800/60 transition-colors left-0 -translate-x-full top-1/2 -translate-y-1/2"
           title="收起源列表"
           @dblclick.stop
           @mousedown.stop="sidebarCollapsed = true"
@@ -381,7 +381,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         <!-- 展开按钮（收起时显示在分隔线右侧，顶部） -->
         <button
           v-if="sidebarCollapsed"
-          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-r-md bg-orange-200 dark:bg-orange-900/50 hover:bg-orange-300 dark:hover:bg-orange-800/60 transition-colors right-0 translate-x-[100%] top-4"
+          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-r-md bg-orange-200 dark:bg-orange-900/50 hover:bg-orange-300 dark:hover:bg-orange-800/60 transition-colors right-0 translate-x-full top-4"
           title="展开源列表"
           @dblclick.stop
           @mousedown.stop="sidebarCollapsed = false"
@@ -393,8 +393,9 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
 
       <!-- ═══ 中栏 ═══ -->
       <section
-        class="relative flex flex-col bg-white dark:bg-neutral-950 overflow-hidden shrink-0"
-        :style="{ width: listCollapsed ? '0px' : isTwoColumn ? '100%' : `${listWidth}px` }"
+        class="relative flex flex-col bg-white dark:bg-neutral-950 overflow-hidden"
+        :class="listCollapsed ? 'w-0 shrink-0' : isTwoColumn ? 'flex-1 min-w-0' : 'shrink-0'"
+        :style="!isTwoColumn && !listCollapsed ? { width: `${listWidth}px` } : undefined"
       >
         <div v-show="!listCollapsed" class="flex flex-col h-full">
           <div class="flex items-center justify-between px-4 h-11 shrink-0 border-b border-neutral-100 dark:border-neutral-800">
@@ -407,38 +408,41 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               </span>
             </div>
             <div class="flex items-center gap-1">
-              <template v-if="activeView === 1">
+              <div :class="activeView === 1 ? 'flex items-center gap-1' : 'hidden'">
                 <button
-                  class="rounded-lg p-1.5 transition-colors"
+                  class="rounded-lg px-2 py-1 transition-colors text-xs flex items-center gap-1"
                   :class="pictureLayout === 'grid'
                     ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
-                    : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+                    : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
                   :title="t('reading.pictureLayoutGrid')"
                   @click="pictureLayout = 'grid'"
                 >
                   <Grid3X3 class="h-3.5 w-3.5" />
+                  <span>网格</span>
                 </button>
                 <button
-                  class="rounded-lg p-1.5 transition-colors"
+                  class="rounded-lg px-2 py-1 transition-colors text-xs flex items-center gap-1"
                   :class="pictureLayout === 'masonry'
                     ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
-                    : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+                    : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
                   :title="t('reading.pictureLayoutMasonry')"
                   @click="pictureLayout = 'masonry'"
                 >
                   <Grid2X2 class="h-3.5 w-3.5" />
+                  <span>瀑布流</span>
                 </button>
                 <button
-                  class="rounded-lg p-1.5 transition-colors"
+                  class="rounded-lg px-2 py-1 transition-colors text-xs flex items-center gap-1"
                   :class="pictureImageOnly
                     ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
-                    : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+                    : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
                   :title="t('reading.pictureImageOnly')"
                   @click="pictureImageOnly = !pictureImageOnly"
                 >
                   <Image class="h-3.5 w-3.5" />
+                  <span>仅图片</span>
                 </button>
-              </template>
+              </div>
               <button
                 class="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 :disabled="store.activeSourceId ? store.fetchingSourceIds[store.activeSourceId] : store.loading"
@@ -537,7 +541,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         <!-- 收起按钮（展开时显示在分隔线左侧） -->
         <button
           v-if="!listCollapsed"
-          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-l-md bg-blue-200 dark:bg-blue-900/50 hover:bg-blue-300 dark:hover:bg-blue-800/60 transition-colors left-0 translate-x-[-100%] top-1/2 -translate-y-1/2"
+          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-l-md bg-blue-200 dark:bg-blue-900/50 hover:bg-blue-300 dark:hover:bg-blue-800/60 transition-colors left-0 -translate-x-full top-1/2 -translate-y-1/2"
           title="收起文章列表"
           @dblclick.stop
           @mousedown.stop="listCollapsed = true"
@@ -548,7 +552,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         <!-- 展开按钮（收起时显示在分隔线右侧，偏下） -->
         <button
           v-if="listCollapsed"
-          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-r-md bg-blue-200 dark:bg-blue-900/50 hover:bg-blue-300 dark:hover:bg-blue-800/60 transition-colors right-0 translate-x-[100%] top-20"
+          class="absolute z-20 flex flex-col items-center justify-center w-5 h-14 rounded-r-md bg-blue-200 dark:bg-blue-900/50 hover:bg-blue-300 dark:hover:bg-blue-800/60 transition-colors right-0 translate-x-full top-20"
           title="展开文章列表"
           @dblclick.stop
           @mousedown.stop="listCollapsed = false"

@@ -232,7 +232,7 @@ export function detectFeedViewType(articles: Article[]): FeedViewType {
     return 3 // Audios
   if (videoCount / total >= 0.6)
     return 2 // Videos
-  if (imageCount / total >= 0.6 && imageCount >= 6)
+  if (imageCount / total >= 0.5 && imageCount >= 3)
     return 1 // Pictures
   return 0 // Articles
 }

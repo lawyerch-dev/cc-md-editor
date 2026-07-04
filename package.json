@@ -17,7 +17,7 @@
   },
   "scripts": {
     "start": "pnpm dev",
-    "dev": "npx shx rm -rf apps/web/node_modules/.vite apps/web/.netlify/functions-serve && netlify dev --filter @md/web",
+    "dev": "rm -rf apps/web/node_modules/.vite apps/web/.netlify/functions-serve && netlify dev --filter @md/web",
     "dev:vite": "pnpm web dev",
     "web": "pnpm --filter @md/web",
     "vscode": "pnpm --prefix ./apps/vscode",
@@ -25,7 +25,7 @@
     "mcp": "pnpm --filter @md/mcp-server",
     "api": "pnpm --filter @md/api",
     "cli": "pnpm --filter @doocs/md-cli",
-    "build:cli": "pnpm web build && npx shx rm -rf packages/md-cli/dist && npx shx rm -rf dist/**/*.map && npx shx cp -r apps/web/dist packages/md-cli/ && cd packages/md-cli && npm pack",
+    "build:cli": "pnpm web build && rm -rf packages/md-cli/dist && rm -rf dist/**/*.map && cp -r apps/web/dist packages/md-cli/ && cd packages/md-cli && npm pack",
     "release:cli": "node ./scripts/release.js",
     "lint": "eslint . --fix",
     "type-check": "pnpm type-check:web && pnpm type-check:packages",
