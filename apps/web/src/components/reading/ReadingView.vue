@@ -410,6 +410,14 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         <div v-show="!listCollapsed" class="flex flex-col h-full">
           <div class="flex items-center justify-between px-4 h-11 shrink-0 border-b border-neutral-100 dark:border-neutral-800">
             <div class="min-w-0 flex items-center gap-3">
+              <!-- 宽屏模式详情时显示返回按钮 -->
+              <button
+                v-if="isWideMode && store.activeArticle"
+                class="rounded p-1 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                @click="store.setActiveArticle(null)"
+              >
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" /></svg>
+              </button>
               <span class="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                 {{ activeFilter === 'starred' ? t('reading.starred') : store.activeSourceId ? store.sources.find(s => s.id === store.activeSourceId)?.title : activeView === -1 ? t('reading.allArticles') : activeView === 0 ? t('reading.viewArticles') : activeView === 1 ? t('reading.viewPictures') : activeView === 2 ? t('reading.viewVideos') : activeView === 3 ? t('reading.viewAudios') : t('reading.allArticles') }}
               </span>
@@ -485,131 +493,75 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
             </button>
           </div>
 
-          <div class="flex-1 overflow-y-auto">
+          <div class="flex-1 overflow-y-auto relative">
             <!-- View-driven rendering -->
-            <ArticleListView
-              v-if="activeView === 0"
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              :is-selecting="isSelecting"
-              :selected-ids="selectedIds"
-              @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
-            />
-            <!-- 图片视图：瀑布流或网格 -->
-            <PictureMasonryView
-              v-if="activeView === 1 && pictureLayout === 'masonry'"
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              :image-only="pictureImageOnly"
-              @select="store.setActiveArticle($event)"
-              @preview="openLightbox"
-            />
-            <PictureGridView
-              v-else-if="activeView === 1 && pictureLayout === 'grid'"
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              :image-only="pictureImageOnly"
-              @select="store.setActiveArticle($event)"
-              @preview="openLightbox"
-            />
-            <VideoGridView
-              v-else-if="activeView === 2"
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              :is-selecting="isSelecting"
-              :selected-ids="selectedIds"
-              @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
-            />
-            <AudioPlayerView
-              v-else-if="activeView === 3"
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              :is-selecting="isSelecting"
-              :selected-ids="selectedIds"
-              @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
-            />
-            <ArticleListView
-              v-else
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              :is-selecting="isSelecting"
-              :selected-ids="selectedIds"
-              @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
-            />
-          </div>
-        </div>
+            <div v-show="!isWideMode || !store.activeArticle">
+              <ArticleListView
+                v-if="activeView === 0"
+                :articles="displayArticles"
+                :active-id="store.activeArticleId"
+                :is-selecting="isSelecting"
+                :selected-ids="selectedIds"
+                @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
+              />
+              <PictureMasonryView
+                v-if="activeView === 1 && pictureLayout === 'masonry'"
+                :articles="displayArticles"
+                :active-id="store.activeArticleId"
+                :image-only="pictureImageOnly"
+                @select="store.setActiveArticle($event)"
+                @preview="openLightbox"
+              />
+              <PictureGridView
+                v-else-if="activeView === 1 && pictureLayout === 'grid'"
+                :articles="displayArticles"
+                :active-id="store.activeArticleId"
+                :image-only="pictureImageOnly"
+                @select="store.setActiveArticle($event)"
+                @preview="openLightbox"
+              />
+              <VideoGridView
+                v-else-if="activeView === 2"
+                :articles="displayArticles"
+                :active-id="store.activeArticleId"
+                :is-selecting="isSelecting"
+                :selected-ids="selectedIds"
+                @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
+              />
+              <AudioPlayerView
+                v-else-if="activeView === 3"
+                :articles="displayArticles"
+                :active-id="store.activeArticleId"
+                :is-selecting="isSelecting"
+                :selected-ids="selectedIds"
+                @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
+              />
+              <ArticleListView
+                v-else
+                :articles="displayArticles"
+                :active-id="store.activeArticleId"
+                :is-selecting="isSelecting"
+                :selected-ids="selectedIds"
+                @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
+              />
+            </div>
 
-        <!-- 宽屏模式（图片/视频/音频）：选中文章后全屏覆盖 -->
-        <div
-          v-if="isWideMode && store.activeArticle"
-          class="absolute inset-0 z-10 flex flex-col bg-white dark:bg-neutral-950 animate-slide-up"
-        >
-          <MediaArticleReader
-            :article="store.activeArticle"
-            :media-type="activeView === 1 ? 'picture' : activeView === 2 ? 'video' : 'audio'"
-            :can-go-prev="activeView === 1 ? canGoPrevPicture : false"
-            :can-go-next="activeView === 1 ? canGoNextPicture : false"
-            @close="store.setActiveArticle(null)"
-            @prev-article="openPrevPictureArticle"
-            @next-article="openNextPictureArticle"
-          >
-            <template v-if="activeView === 1" #toolbar-extra>
-              <button
-                class="rounded-lg border px-2 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-                :class="canGoPrevPicture
-                  ? 'border-neutral-200 text-neutral-500 hover:text-neutral-700 dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200'
-                  : 'border-neutral-200 text-neutral-300 dark:border-neutral-800 dark:text-neutral-700'"
-                :title="t('reading.prevPictureArticle')"
-                :disabled="!canGoPrevPicture"
-                @click.stop="openPrevPictureArticle"
-              >
-                ←
-              </button>
-              <button
-                class="rounded-lg border px-2 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-                :class="canGoNextPicture
-                  ? 'border-neutral-200 text-neutral-500 hover:text-neutral-700 dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200'
-                  : 'border-neutral-200 text-neutral-300 dark:border-neutral-800 dark:text-neutral-700'"
-                :title="t('reading.nextPictureArticle')"
-                :disabled="!canGoNextPicture"
-                @click.stop="openNextPictureArticle"
-              >
-                →
-              </button>
-              <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700" />
-              <button
-                class="rounded-lg p-1.5 transition-colors"
-                :class="pictureLayout === 'grid'
-                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
-                  : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-white/10'"
-                :title="t('reading.pictureLayoutGrid')"
-                @click.stop="pictureLayout = 'grid'"
-              >
-                <Grid3X3 class="h-3.5 w-3.5" />
-              </button>
-              <button
-                class="rounded-lg p-1.5 transition-colors"
-                :class="pictureLayout === 'masonry'
-                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
-                  : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-white/10'"
-                :title="t('reading.pictureLayoutMasonry')"
-                @click.stop="pictureLayout = 'masonry'"
-              >
-                <Grid2X2 class="h-3.5 w-3.5" />
-              </button>
-              <button
-                class="rounded-lg p-1.5 transition-colors"
-                :class="pictureImageOnly
-                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
-                  : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-white/10'"
-                :title="t('reading.pictureImageOnly')"
-                @click.stop="pictureImageOnly = !pictureImageOnly"
-              >
-                <Image class="h-3.5 w-3.5" />
-              </button>
-              <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700" />
-            </template>
-          </MediaArticleReader>
+            <!-- 宽屏模式详情（覆盖内容区，头部配置始终可见） -->
+            <div
+              v-if="isWideMode && store.activeArticle"
+              class="absolute inset-0 z-10 bg-white dark:bg-neutral-950 animate-slide-up"
+            >
+              <MediaArticleReader
+                :article="store.activeArticle"
+                :media-type="activeView === 1 ? 'picture' : activeView === 2 ? 'video' : 'audio'"
+                :can-go-prev="activeView === 1 ? canGoPrevPicture : false"
+                :can-go-next="activeView === 1 ? canGoNextPicture : false"
+                @close="store.setActiveArticle(null)"
+                @prev-article="openPrevPictureArticle"
+                @next-article="openNextPictureArticle"
+              />
+            </div>
+          </div>
         </div>
       </section>
 
