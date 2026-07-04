@@ -319,7 +319,7 @@ async function importFullDataFromFile(e: Event) {
           <input ref="fullDataFileInput" type="file" accept=".json" class="hidden" @change="importFullDataFromFile">
           <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" @click="exportSources()">
             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-            {{ t('reading.export') }}
+            {{ t('reading.exportSources') }}
           </Button>
           <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" :disabled="jsonImporting" @click="jsonFileInput?.click()">
             <template v-if="jsonImporting">
@@ -328,7 +328,7 @@ async function importFullDataFromFile(e: Event) {
             <template v-else>
               <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             </template>
-            {{ t('reading.import') }}
+            {{ t('reading.importSources') }}
           </Button>
           <div class="mx-1 h-5 w-px bg-border" />
           <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" @click="exportFullData()">
