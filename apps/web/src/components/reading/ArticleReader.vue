@@ -275,7 +275,7 @@ async function handleTranslate() {
 
         <!-- 播客音频播放器 -->
         <div
-          v-if="article.media.some(m => m.type === 'audio') || article.attachments?.some(a => a.mimeType?.startsWith('audio/') || /\.(?:mp3|wav|ogg|m4a|aac|flac)(?:\?|$)/i.test(a.url))"
+          v-if="(article.media || []).some(m => m.type === 'audio') || article.attachments?.some(a => a.mimeType?.startsWith('audio/') || /\.(?:mp3|wav|ogg|m4a|aac|flac)(?:\?|$)/i.test(a.url))"
           class="mb-6 mx-auto max-w-md rounded-xl border border-neutral-200 dark:border-neutral-700 bg-gradient-to-b from-orange-50/80 to-amber-50/50 dark:from-orange-950/30 dark:to-amber-950/20 p-5"
         >
           <PodcastInlinePlayer :article="article" />

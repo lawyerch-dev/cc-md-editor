@@ -3,6 +3,7 @@ import type { Article } from '@/stores/reading'
 import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, Star } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useReadingStore } from '@/stores/reading'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 
 const props = defineProps<{
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   close: []
   prevArticle: []
   nextArticle: []
+  preview: [images: Array<{ url: string, width?: number, height?: number }>, index: number]
 }>()
 
 const { t } = useI18n()
@@ -37,7 +39,7 @@ function formatDate(ts: number) {
 const detectedType = computed(() => {
   if (props.mediaType)
     return props.mediaType
-  const media = props.article.media
+  const media = props.article.media || []
   if (media.some(m => m.type === 'video'))
     return 'video'
   if (media.some(m => m.type === 'audio'))
@@ -48,14 +50,15 @@ const detectedType = computed(() => {
 })
 
 // 图片列表
-const photos = computed(() => props.article.media.filter(m => m.type === 'photo'))
+const mediaItems = computed(() => props.article.media || [])
+const photos = computed(() => mediaItems.value.filter(m => m.type === 'photo'))
 const currentImageIndex = ref(0)
 
 // 视频
-const video = computed(() => props.article.media.find(m => m.type === 'video'))
+const video = computed(() => mediaItems.value.find(m => m.type === 'video'))
 
 // 音频
-const audio = computed(() => props.article.media.find(m => m.type === 'audio') || props.article.attachments?.find(a => a.mimeType?.startsWith('audio')))
+const audio = computed(() => mediaItems.value.find(m => m.type === 'audio') || props.article.attachments?.find(a => a.mimeType?.startsWith('audio')))
 
 // 文本内容
 const textContent = computed(() => {
@@ -141,7 +144,7 @@ const readingStore = useReadingStore()
                   {{ currentImageIndex + 1 }} / {{ photos.length }}
                 </span>
               </div>
-              <div class="relative aspect-[4/3] bg-neutral-100 dark:bg-neutral-950">
+              <div class="relative aspect-[4/3] bg-neutral-100 dark:bg-neutral-950 cursor-pointer" @click="emit('preview', photos.map(p => ({ url: p.url, width: p.width, height: p.height })), currentImageIndex)">
                 <img
                   :src="photos[currentImageIndex]?.url"
                   class="h-full w-full object-contain"
@@ -178,12 +181,6 @@ const readingStore = useReadingStore()
           <div v-else class="flex h-64 flex-col items-center justify-center gap-2 text-neutral-400">
             <svg class="size-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
             <span class="text-sm">{{ t('reading.noPictures') }}</span>
-          </div>
-
-          <div class="w-full max-w-4xl px-1">
-            <p v-if="textContent" class="text-sm leading-7 text-neutral-600 dark:text-neutral-400">
-              {{ textContent }}
-            </p>
           </div>
         </div>
       </template>

@@ -68,7 +68,7 @@ function toggleAudio(article: Article) {
 <template>
   <div class="space-y-1 p-3">
     <div
-      v-for="article in articles"
+      v-for="(article, idx) in articles"
       :key="article.id"
       class="flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all cursor-pointer"
       :class="activeId === article.id
@@ -76,6 +76,7 @@ function toggleAudio(article: Article) {
         : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800/50'"
       @click="emit('select', article.id)"
     >
+      <span class="shrink-0 w-5 text-center text-[11px] tabular-nums text-neutral-300 dark:text-neutral-600 select-none">{{ idx + 1 }}</span>
       <!-- 多选 / 播放按钮 -->
       <div v-if="isSelecting" class="shrink-0" @click.stop="emit('select', article.id)">
         <CheckSquare v-if="selectedIds.has(article.id)" class="h-5 w-5 text-orange-500" />

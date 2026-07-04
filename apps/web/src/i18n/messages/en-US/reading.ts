@@ -1,7 +1,7 @@
 export default {
   reading: {
     title: 'News Reader',
-    allArticles: 'All Articles',
+    allArticles: 'All Content',
     starred: 'Favorites',
     articles: '{count} articles',
     multiSelect: 'Select',

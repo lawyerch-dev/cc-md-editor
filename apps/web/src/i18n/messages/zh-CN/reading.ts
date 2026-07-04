@@ -1,7 +1,7 @@
 export default {
   reading: {
     title: '资讯阅读',
-    allArticles: '全部文章',
+    allArticles: '全部内容',
     starred: '收藏',
     articles: '{count} 篇文章',
     multiSelect: '多选',

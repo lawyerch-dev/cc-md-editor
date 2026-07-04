@@ -129,6 +129,16 @@ const viewCounts = computed<Record<number, number>>(() => {
 /** 全部文章数 = store.articles 的实际总数 */
 const allArticleCount = computed(() => store.articles.length)
 
+/** 当前文章是否为视频/图片源的文章（全部视图下应走 MediaArticleReader 而非 ArticleReader） */
+const activeArticleNeedsMediaReader = computed(() => {
+  const a = store.activeArticle
+  if (!a)
+    return false
+  const src = store.sources.find(s => s.id === a.sourceId)
+  // 视频源 (2) 和图片源 (1) 的文章在 ArticleReader 中会显示乱码/重复图片
+  return src?.view === 1 || src?.view === 2
+})
+
 const pictureArticles = computed(() =>
   displayArticles.value.filter(article => article.media.some(m => m.type === 'photo')),
 )
@@ -221,8 +231,8 @@ watch(searchQuery, (v) => { store.searchQuery = v })
 onMounted(async () => {
   await store.hydrate()
   store.setupBeforeUnload()
-  // 首次加载用渐进式刷新，避免大量并发请求阻塞
-  void store.fetchAllGradual(300)
+  // 首次加载并发刷新所有源
+  void store.fetchAllGradual()
   store.startAutoRefresh()
   window.addEventListener('keydown', handleKeydown)
 })
@@ -565,12 +575,12 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
       <!-- ═══ 右栏：内容展示（双栏模式隐藏） ═══ -->
       <main v-if="!isTwoColumn" class="flex-1 flex flex-col min-w-0 bg-white dark:bg-neutral-950">
         <template v-if="store.activeArticle">
-          <!-- 视频：MediaArticleReader -->
+          <!-- 媒体内容：MediaArticleReader（视频视图/图片视图，或全部内容中的多媒体条目） -->
           <MediaArticleReader
-            v-if="activeView === 2"
+            v-if="activeView === 2 || (activeView === -1 && activeArticleNeedsMediaReader)"
             :article="store.activeArticle"
-            media-type="video"
             @close="store.setActiveArticle(null)"
+            @preview="openLightbox"
           />
           <!-- 图片：全宽图片网格预览 -->
           <div v-else-if="activeView === 1" class="flex flex-1 flex-col overflow-hidden">

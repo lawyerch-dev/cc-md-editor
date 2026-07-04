@@ -36,8 +36,10 @@ function togglePlay(id: string) {
   }
 }
 
+function safeMedia(article: Article) { return article.media || [] }
+
 function getPoster(article: Article): string {
-  return article.media.find(m => m.type === 'video')?.previewImageUrl || ''
+  return safeMedia(article).find(m => m.type === 'video')?.previewImageUrl || ''
 }
 
 // ── 时长格式化 ──
@@ -52,7 +54,7 @@ function formatDuration(seconds: number): string {
 }
 
 function getDuration(article: Article): number | null {
-  for (const m of article.media) {
+  for (const m of safeMedia(article)) {
     if (m.type === 'video' && m.durationInSeconds)
       return m.durationInSeconds
   }
@@ -64,7 +66,7 @@ function getDuration(article: Article): number | null {
 }
 
 function getVideoSrc(article: Article): string {
-  const video = article.media.find(m => m.type === 'video')
+  const video = safeMedia(article).find(m => m.type === 'video')
   if (video?.url)
     return video.url
   const att = article.attachments.find(a => a.mimeType?.startsWith('video/') || a.url.match(/\.(mp4|webm|ogg)/i))
@@ -75,9 +77,9 @@ function getVideoSrc(article: Article): string {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2">
+  <div class="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
     <div
-      v-for="article in articles"
+      v-for="(article, idx) in articles"
       :key="article.id"
       class="group relative overflow-hidden rounded-lg border transition-all cursor-pointer"
       :class="activeId === article.id
@@ -85,6 +87,7 @@ function getVideoSrc(article: Article): string {
         : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 hover:shadow-md'"
       @click="emit('select', article.id)"
     >
+      <span class="absolute top-2 left-2 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white/90">{{ idx + 1 }}</span>
       <!-- 多选复选框 -->
       <div
         v-if="isSelecting"

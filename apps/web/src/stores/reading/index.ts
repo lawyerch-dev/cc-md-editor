@@ -22,7 +22,7 @@ export type { Article, CollectorSelectors, FeedViewType, FetchStrategy, ReadingL
 export { VIEW_TYPE_OPTIONS } from './types'
 
 /** 并发获取上限，避免 CORS 代理过载 */
-const FETCH_CONCURRENCY = 4
+const FETCH_CONCURRENCY = 5
 const ARTICLE_CAP = 3000
 const PER_SOURCE_ARTICLE_CAP = 240
 const READING_PICTURE_LAYOUT_KEY = 'reading_picture_layout'
@@ -373,24 +373,14 @@ export const useReadingStore = defineStore('reading', () => {
     await fetchSourcesParallel(pendingTargets, background)
   }
 
-  /**
-   * 渐进式刷新：逐个刷新源，每批之间有延迟，适合导入后大量源的首次刷新。
-   * 不会阻塞 UI，返回后所有源完成或超时。
-   */
-  async function fetchAllGradual(delayMs = 500) {
+  /** 并发刷新所有源，最大并发数由 FETCH_CONCURRENCY 控制 */
+  async function fetchAllGradual(_delayMs = 500) {
     const targets = sources.value.filter(src =>
       src.refreshInterval > 0 && !fetchingSourceIds.value[src.id],
     )
     if (!targets.length)
       return
-
-    backgroundRefreshing.value = true
-    for (const src of targets) {
-      await fetchSingleSource(src.id)
-      if (delayMs > 0)
-        await new Promise(r => setTimeout(r, delayMs))
-    }
-    backgroundRefreshing.value = false
+    await doFetchSourcesParallel(targets, true)
   }
 
   async function fetchSingleSource(sourceId: string) {

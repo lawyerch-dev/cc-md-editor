@@ -47,11 +47,12 @@ function handleImageClick(article: Article, e: Event) {
     <div class="flex-1 overflow-y-auto px-4 pb-6 pt-4">
       <div class="grid gap-x-4 gap-y-5" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr))">
         <article
-          v-for="article in pictureArticles"
+          v-for="(article, idx) in pictureArticles"
           :key="article.id"
-          class="group"
+          class="group relative"
           @click="emit('select', article.id)"
         >
+          <span class="absolute top-2 left-2 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white/90 select-none">{{ idx + 1 }}</span>
           <div
             class="relative overflow-hidden rounded-2xl bg-neutral-100 dark:bg-neutral-800 cursor-pointer"
             :class="activeId === article.id ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950' : ''"

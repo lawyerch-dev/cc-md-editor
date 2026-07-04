@@ -106,11 +106,12 @@ function handleImageClick(item: typeof items.value[number], e: Event) {
             :style="{ gap: `${gutter}px` }"
           >
             <article
-              v-for="item in col"
+              v-for="(item, idx) in col"
               :key="item.article.id"
-              class="group"
+              class="group relative"
               @click="emit('select', item.article.id)"
             >
+              <span class="absolute top-2 left-2 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white/90 select-none">{{ idx + 1 }}</span>
               <div
                 class="relative overflow-hidden rounded-2xl bg-neutral-100 dark:bg-neutral-800 cursor-pointer"
                 :class="activeId === item.article.id ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950' : ''"

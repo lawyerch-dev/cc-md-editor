@@ -34,15 +34,17 @@ function formatTime(ts: number) {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
+function safeMedia(article: Article) { return article.media || [] }
+
 /** 缩略图 URL — 优先取 media 中的 photo */
 function thumbnailUrl(article: Article): string | null {
-  const photo = article.media.find(m => m.type === 'photo')
+  const photo = safeMedia(article).find(m => m.type === 'photo')
   return photo?.previewImageUrl || photo?.url || null
 }
 
 /** 是否有视频 media */
 function hasVideo(article: Article): boolean {
-  return article.media.some(m => m.type === 'video')
+  return safeMedia(article).some(m => m.type === 'video')
 }
 
 /** 媒体类型标签 — 按源的实际视图类型匹配，而非猜测 media 内容 */
@@ -53,19 +55,21 @@ function articleViewType(article: Article): string {
     return map[src.view] || 'article'
   }
   // 降级：从 media/attachments 推断
-  if (article.media.some(m => m.type === 'video'))
+  const media = safeMedia(article)
+  if (media.some(m => m.type === 'video'))
     return 'video'
-  if (article.media.some(m => m.type === 'audio') || article.attachments?.some(a => a.mimeType?.startsWith('audio/')))
+  if (media.some(m => m.type === 'audio') || article.attachments?.some(a => a.mimeType?.startsWith('audio/')))
     return 'audio'
-  if (article.media.some(m => m.type === 'photo'))
+  if (media.some(m => m.type === 'photo'))
     return 'picture'
   return 'article'
 }
 
 /** 非缩略图 photo media 数量 */
 function extraMediaCount(article: Article): number {
-  const firstPhotoIndex = article.media.findIndex(m => m.type === 'photo')
-  const photos = article.media.filter(m => m.type === 'photo')
+  const media = safeMedia(article)
+  const firstPhotoIndex = media.findIndex(m => m.type === 'photo')
+  const photos = media.filter(m => m.type === 'photo')
   return Math.max(0, photos.length - (firstPhotoIndex >= 0 ? 1 : 0))
 }
 
@@ -82,14 +86,20 @@ const summaryLine = computed(() => (article: Article) => {
 <template>
   <div>
     <div
-      v-for="article in articles"
+      v-for="(article, idx) in articles"
       :key="article.id"
-      class="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-neutral-50 dark:border-neutral-800/50"
+      class="relative flex items-start gap-2 px-3 py-3 min-h-[82px] rounded-lg cursor-pointer transition-colors"
       :class="activeId === article.id ? 'bg-blue-50/60 dark:bg-blue-950/30' : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/30'"
       @click="emit('select', article.id)"
     >
+      <!-- 渐变分割线 -->
+      <div
+        v-if="idx < articles.length - 1"
+        class="absolute left-3 right-3 bottom-0 h-px bg-gradient-to-r from-transparent via-neutral-200 dark:via-neutral-700 to-transparent pointer-events-none"
+      />
+      <span class="mt-1 shrink-0 w-5 text-right text-[11px] tabular-nums text-neutral-300 dark:text-neutral-600 select-none">{{ idx + 1 }}</span>
       <!-- 未读/选中状态 -->
-      <div v-if="!isSelecting" class="mt-1.5 size-2 shrink-0 rounded-full" :class="!article.read ? 'bg-orange-500' : 'bg-transparent'" />
+      <div v-if="!isSelecting" class="mt-1.5 size-1.5 shrink-0 rounded-full" :class="!article.read ? 'bg-orange-500' : 'bg-transparent'" />
       <div v-if="isSelecting" class="mt-1 shrink-0">
         <CheckSquare v-if="selectedIds.has(article.id)" class="h-4 w-4 text-orange-500" />
         <Square v-else class="h-4 w-4 text-neutral-400" />
