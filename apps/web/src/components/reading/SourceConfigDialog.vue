@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useCollectorAI } from '@/composables/useCollectorAI'
 import { useReadingStore } from '@/stores/reading'
 import { applyImport, importFromOpml } from '@/stores/reading/folo-import'
+import { exportAllData, importAllData } from '@/stores/reading/persistence'
 import CSSImportDialog from './CSSImportDialog.vue'
 
 const emit = defineEmits<{
@@ -28,6 +29,8 @@ const opmlImporting = ref(false)
 const opmlFileInput = ref<HTMLInputElement | null>(null)
 const jsonFileInput = ref<HTMLInputElement | null>(null)
 const jsonImporting = ref(false)
+const fullDataFileInput = ref<HTMLInputElement | null>(null)
+const fullDataImporting = ref(false)
 const showCSSImport = ref(false)
 const editingSource = ref<Source | null>(null)
 const rsshubRoutes = ref<Array<{ name: string, path: string }>>([])
@@ -259,6 +262,48 @@ async function importSourcesFromFile(e: Event) {
       jsonFileInput.value.value = ''
   }
 }
+
+/** 导出全部数据（源+文章+收藏） */
+async function exportFullData() {
+  try {
+    const data = await exportAllData()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `md-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(t('reading.exportFullSuccess', { sources: data.sources.length, articles: data.articles.length }))
+  }
+  catch (e) {
+    toast.error(e instanceof Error ? e.message : t('reading.exportFailed'))
+  }
+}
+
+/** 从 JSON 文件导入全部数据 */
+async function importFullDataFromFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file)
+    return
+  fullDataImporting.value = true
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+    await importAllData(data)
+    await store.reloadFromStorage()
+    toast.success(t('reading.importFullSuccess', { sources: data.sources.length, articles: data.articles.length }))
+  }
+  catch (e) {
+    toast.error(e instanceof Error ? e.message : t('reading.importFailed'))
+  }
+  finally {
+    fullDataImporting.value = false
+    if (fullDataFileInput.value)
+      fullDataFileInput.value.value = ''
+  }
+}
 </script>
 
 <template>
@@ -271,6 +316,7 @@ async function importSourcesFromFile(e: Event) {
         </h2>
         <div class="flex items-center gap-1.5">
           <input ref="jsonFileInput" type="file" accept=".json" class="hidden" @change="importSourcesFromFile">
+          <input ref="fullDataFileInput" type="file" accept=".json" class="hidden" @change="importFullDataFromFile">
           <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" @click="exportSources()">
             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
             {{ t('reading.export') }}
@@ -283,6 +329,20 @@ async function importSourcesFromFile(e: Event) {
               <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             </template>
             {{ t('reading.import') }}
+          </Button>
+          <div class="mx-1 h-5 w-px bg-border" />
+          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" @click="exportFullData()">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            {{ t('reading.exportAll') }}
+          </Button>
+          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" :disabled="fullDataImporting" @click="fullDataFileInput?.click()">
+            <template v-if="fullDataImporting">
+              <Loader2 class="h-3.5 w-3.5 animate-spin" />
+            </template>
+            <template v-else>
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            </template>
+            {{ t('reading.importAll') }}
           </Button>
           <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
             <X class="h-4 w-4" />
