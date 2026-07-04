@@ -74,9 +74,11 @@ watch(() => props.article.id, async (id, oldId) => {
   translatedParagraphs.value = {}
   translationActive.value = false
   translating.value = false
+  // ponytail: media articles (video/audio/picture) already have their content, skip fetching original HTML
+  const isMediaArticle = props.article.media?.length > 0
   const content = props.article.content || props.article.summary || ''
   const textLen = content.replace(/<[^>]*>/g, '').trim().length
-  if (textLen < 200 && props.article.link) {
+  if (!isMediaArticle && textLen < 200 && props.article.link) {
     fullTextLoading.value = true
     fullTextError.value = ''
     try {
