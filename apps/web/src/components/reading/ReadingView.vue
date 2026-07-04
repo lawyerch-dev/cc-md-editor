@@ -56,18 +56,6 @@ function openLightbox(images: Array<{ url: string, width?: number, height?: numb
   showLightbox.value = true
 }
 
-/** 从文章 ID 打开灯箱（图片视图点击条目时） */
-function openLightboxFromArticle(articleId: string) {
-  const article = store.articles.find(a => a.id === articleId)
-  if (!article)
-    return
-  const images = article.media
-    .filter(m => m.type === 'photo')
-    .map(m => ({ url: m.url, width: m.width, height: m.height, type: 'photo' as const }))
-  if (images.length)
-    openLightbox(images, 0)
-}
-
 // ── 文章列表 ──────────────────────────────────────────
 /** 当前激活源的内容视图类型（-1 = 全部，0 = 文章，1 = 图片，2 = 视频，3 = 音频） */
 const activeView = ref<number>(-1)
@@ -489,28 +477,12 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           <div class="flex-1 overflow-y-auto">
             <!-- View-driven rendering -->
             <ArticleListView
-              v-if="activeView === 0"
+              v-if="activeView === 0 || activeView === 1"
               :articles="displayArticles"
               :active-id="store.activeArticleId"
               :is-selecting="isSelecting"
               :selected-ids="selectedIds"
               @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
-            />
-            <PictureMasonryView
-              v-if="activeView === 1 && pictureLayout === 'masonry'"
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              :image-only="pictureImageOnly"
-              @select="openLightboxFromArticle($event)"
-              @preview="openLightbox"
-            />
-            <PictureGridView
-              v-else-if="activeView === 1 && pictureLayout === 'grid'"
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              :image-only="pictureImageOnly"
-              @select="openLightboxFromArticle($event)"
-              @preview="openLightbox"
             />
             <VideoGridView
               v-else-if="activeView === 2"
