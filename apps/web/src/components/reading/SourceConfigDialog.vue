@@ -265,14 +265,29 @@ async function importSourcesFromFile(e: Event) {
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="emit('close')">
     <div class="flex h-[80vh] w-[700px] max-w-[95vw] flex-col rounded-xl border bg-background shadow-2xl">
       <!-- Header -->
-      <!-- Header -->
       <div class="flex items-center justify-between border-b px-4 py-3">
         <h2 class="text-base font-semibold">
           {{ t('reading.sourceManageTitle') }}
         </h2>
-        <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
-          <X class="h-4 w-4" />
-        </Button>
+        <div class="flex items-center gap-1.5">
+          <input ref="jsonFileInput" type="file" accept=".json" class="hidden" @change="importSourcesFromFile">
+          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" @click="exportSources()">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            {{ t('reading.export') }}
+          </Button>
+          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" :disabled="jsonImporting" @click="jsonFileInput?.click()">
+            <template v-if="jsonImporting">
+              <Loader2 class="h-3.5 w-3.5 animate-spin" />
+            </template>
+            <template v-else>
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            </template>
+            {{ t('reading.import') }}
+          </Button>
+          <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
+            <X class="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <!-- Tab Bar -->
@@ -324,20 +339,6 @@ async function importSourcesFromFile(e: Event) {
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <input ref="opmlFileInput" type="file" accept=".opml,.xml" class="hidden" @change="onOpmlFileSelected">
-          <input ref="jsonFileInput" type="file" accept=".json" class="hidden" @change="importSourcesFromFile">
-          <Button size="sm" variant="outline" class="h-8 gap-1 text-xs" @click="exportSources()">
-            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-            {{ t('reading.export') }}
-          </Button>
-          <Button size="sm" variant="outline" class="h-8 gap-1 text-xs" :disabled="jsonImporting" @click="jsonFileInput?.click()">
-            <template v-if="jsonImporting">
-              <Loader2 class="h-3.5 w-3.5 animate-spin" />
-            </template>
-            <template v-else>
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            </template>
-            {{ t('reading.import') }}
-          </Button>
           <Button v-if="activeTab === 'rss'" size="sm" variant="outline" class="h-8 gap-1 text-xs" :disabled="opmlImporting" @click="opmlFileInput?.click()">
             <template v-if="opmlImporting">
               <Loader2 class="h-3.5 w-3.5 animate-spin" />
