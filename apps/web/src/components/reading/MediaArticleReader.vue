@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, Star } from '@lucide/vue'
-import DOMPurify from 'dompurify'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
@@ -21,8 +20,6 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-
-const sanitize = (html: string) => DOMPurify.sanitize(html, { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling'] })
 
 function formatDate(ts: number) {
   const diff = Date.now() - ts
@@ -222,7 +219,9 @@ const readingStore = useReadingStore()
               <span>{{ article.sourceTitle }}</span>
               <span v-if="article.author">· {{ article.author }}</span>
             </div>
-            <p v-if="textContent" class="mt-3 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed" v-html="sanitize(article.content || article.summary)" />
+            <p v-if="textContent" class="mt-3 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              {{ textContent }}
+            </p>
           </div>
         </div>
       </template>
@@ -242,11 +241,12 @@ const readingStore = useReadingStore()
             <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 leading-snug">
               {{ article.title || '无标题' }}
             </h2>
-            <div
+            <p
               v-if="textContent"
-              class="mt-3 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed article-content"
-              v-html="sanitize(article.content || article.summary)"
-            />
+              class="mt-3 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed"
+            >
+              {{ textContent }}
+            </p>
           </div>
         </div>
       </template>
