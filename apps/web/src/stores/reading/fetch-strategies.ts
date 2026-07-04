@@ -206,7 +206,6 @@ export async function fetchPageHTML(url: string): Promise<string> {
   return res.text()
 }
 export function detectFeedViewType(articles: Article[]): FeedViewType {
-  // 只看前 10 条判断
   const sample = articles.slice(0, 10)
   let audioCount = 0
   let videoCount = 0
@@ -220,17 +219,21 @@ export function detectFeedViewType(articles: Article[]): FeedViewType {
       else if (m.type === 'photo')
         imageCount++
     }
+    // 也检查 attachments 中的音频（播客可能存放在 attachments）
+    for (const att of a.attachments) {
+      if (att.mimeType?.startsWith('audio/') || /\.(?:mp3|wav|ogg|m4a|aac|flac)(?:\?|$)/i.test(att.url))
+        audioCount++
+      else if (att.mimeType?.startsWith('video/') || /\.(?:mp4|webm|mov)(?:\?|$)/i.test(att.url))
+        videoCount++
+    }
   }
   const total = sample.length || 1
-  // 如果 80%+ 条目有音频 → Audios
   if (audioCount / total >= 0.8)
-    return 3
-  // 如果 60%+ 有视频 → Videos
+    return 3 // Audios
   if (videoCount / total >= 0.6)
-    return 2
-  // 如果 60%+ 有图片且平均每篇 >= 2 张 → Pictures
+    return 2 // Videos
   if (imageCount / total >= 0.6 && imageCount >= 6)
-    return 1
+    return 1 // Pictures
   return 0 // Articles
 }
 

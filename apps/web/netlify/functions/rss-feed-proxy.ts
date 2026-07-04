@@ -17,6 +17,7 @@ interface FeedArticle {
     mimeType?: string
     width?: number
     height?: number
+    durationInSeconds?: number
   }>
 }
 
@@ -94,6 +95,15 @@ function parseRSS(xml: string): FeedResult {
     if (encM) {
       enclosureUrl = encM[0].match(/url="([^"]+)"/)?.[1] || ''
       encType = encM[0].match(/type="([^"]+)"/)?.[1] || ''
+      // 如果没有 type，根据 URL 扩展名推断
+      if (enclosureUrl && !encType) {
+        if (/\.(?:mp3|wav|ogg|m4a|aac|flac)(?:\?|$)/i.test(enclosureUrl))
+          encType = 'audio/mpeg'
+        else if (/\.(?:mp4|webm|mov)(?:\?|$)/i.test(enclosureUrl))
+          encType = 'video/mp4'
+        else if (/\.(?:jpg|jpeg|png|gif|webp)(?:\?|$)/i.test(enclosureUrl))
+          encType = 'image/jpeg'
+      }
     }
 
     // media:content
@@ -122,6 +132,23 @@ function parseRSS(xml: string): FeedResult {
       thumbUrl = mtM[0].match(/url="([^"]+)"/)?.[1] || ''
     }
 
+    // itunes:duration（播客时长，格式可能是 HH:MM:SS, MM:SS 或秒数）
+    const itunesDurationStr = extractTag(item, 'itunes\:duration') || ''
+    let durationInSeconds: number | undefined
+    if (itunesDurationStr) {
+      const parts = itunesDurationStr.split(':').map(Number)
+      if (parts.length === 3)
+        durationInSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
+      else if (parts.length === 2)
+        durationInSeconds = parts[0] * 60 + parts[1]
+      else if (!Number.isNaN(Number(itunesDurationStr)))
+        durationInSeconds = Number(itunesDurationStr)
+    }
+
+    // itunes:image（播客封面）
+    const itunesImage = extractTag(item, 'itunes\:image') || ''
+    const coverUrl = itunesImage || thumbUrl
+
     const media: FeedArticle['media'] = []
     if (enclosureUrl && encType) {
       const type = encType.startsWith('image')
@@ -131,7 +158,12 @@ function parseRSS(xml: string): FeedResult {
           : encType.startsWith('audio')
             ? 'audio' as const
             : 'photo' as const
-      media.push({ url: enclosureUrl, type, mimeType: encType || undefined })
+      const entry: FeedArticle['media'][number] = { url: enclosureUrl, type, mimeType: encType }
+      if (type === 'audio' && durationInSeconds)
+        entry.durationInSeconds = durationInSeconds
+      if (type === 'audio' && coverUrl)
+        entry.previewImageUrl = coverUrl
+      media.push(entry)
     }
     if (mediaUrl) {
       const type = mediaType.startsWith('image') || mediaType === 'photo'

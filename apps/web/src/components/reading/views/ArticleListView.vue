@@ -47,6 +47,20 @@ function hasAudio(article: Article): boolean {
   return article.media.some(m => m.type === 'audio')
 }
 
+/** 音频时长 */
+function audioDuration(article: Article): string | null {
+  const audio = article.media.find(m => m.type === 'audio')
+  if (!audio?.durationInSeconds)
+    return null
+  const s = audio.durationInSeconds
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = Math.floor(s % 60)
+  if (h > 0)
+    return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
 /** 非缩略图 photo media 数量 */
 function extraMediaCount(article: Article): number {
   const firstPhotoIndex = article.media.findIndex(m => m.type === 'photo')
@@ -140,6 +154,7 @@ const summaryLine = computed(() => (article: Article) => {
           >
             <Music class="size-3" />
             <span>{{ article.media.filter(m => m.type === 'audio').length > 1 ? `${article.media.filter(m => m.type === 'audio').length} ` : '' }}{{ t('reading.mediaAudio') }}</span>
+            <span v-if="audioDuration(article)" class="ml-0.5 tabular-nums">{{ audioDuration(article) }}</span>
           </span>
           <!-- 纯视频（无缩略图） -->
           <span

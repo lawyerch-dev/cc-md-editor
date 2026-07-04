@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
 import { useReadingStore } from '@/stores/reading'
+import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 
 const props = defineProps<{
   article: Article
@@ -268,6 +269,14 @@ async function handleTranslate() {
           </div>
           <span v-if="article.author">{{ article.author }}</span>
           <span>{{ formatDate(article.publishedAt) }}</span>
+        </div>
+
+        <!-- 播客音频播放器 -->
+        <div
+          v-if="article.media.some(m => m.type === 'audio')"
+          class="mb-6 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 p-4"
+        >
+          <PodcastInlinePlayer :article="article" />
         </div>
 
         <!-- 正文 -->
