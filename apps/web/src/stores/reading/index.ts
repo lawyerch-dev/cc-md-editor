@@ -223,21 +223,33 @@ export const useReadingStore = defineStore('reading', () => {
   // ── 获取 ─────────────────────────────────────────────
 
   function mergeNewArticles(newArticles: Article[]) {
-    const existingIds = new Set(articles.value.map(a => a.id))
-    // 同时用 content key 去重（防止不同 ID 但相同内容的文章）
+    const existingMap = new Map(articles.value.map(a => [a.id, a]))
     const existingKeys = new Set(articles.value.map(a => `${a.sourceId}|${a.title}|${a.publishedAt}`))
-    const toAdd = newArticles.filter((a) => {
-      if (existingIds.has(a.id))
-        return false
-      const key = `${a.sourceId}|${a.title}|${a.publishedAt}`
-      if (existingKeys.has(key))
-        return false
-      return true
-    })
     const validSourceIds = new Set(sources.value.map(s => s.id))
-    const filtered = toAdd.filter(a => validSourceIds.has(a.sourceId))
-    if (filtered.length) {
-      articles.value = [...filtered, ...articles.value].slice(0, ARTICLE_CAP)
+
+    const toAdd: Article[] = []
+    let updated = false
+    for (const a of newArticles) {
+      if (!validSourceIds.has(a.sourceId))
+        continue
+      const key = `${a.sourceId}|${a.title}|${a.publishedAt}`
+      const existing = existingMap.get(a.id)
+      if (existing) {
+        // 如果新文章有更多媒体数据，更新已有文章
+        if (a.media.length > existing.media.length || (a.attachments?.length ?? 0) > (existing.attachments?.length ?? 0)) {
+          Object.assign(existing, { media: a.media, attachments: a.attachments, content: a.content || existing.content, summary: a.summary || existing.summary })
+          updated = true
+        }
+        continue
+      }
+      if (existingKeys.has(key))
+        continue
+      toAdd.push(a)
+    }
+
+    if (toAdd.length || updated) {
+      if (toAdd.length)
+        articles.value = [...toAdd, ...articles.value].slice(0, ARTICLE_CAP)
       saveArticles(articles.value)
     }
     // 每个源淘汰旧文章，防止无限堆积

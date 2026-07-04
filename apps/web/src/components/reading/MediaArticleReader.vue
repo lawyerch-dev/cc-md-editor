@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, Star } from '@lucid
 import DOMPurify from 'dompurify'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 
 const props = defineProps<{
   article: Article
@@ -33,16 +34,6 @@ function formatDate(ts: number) {
     return t('reading.daysAgo', { n: Math.floor(diff / 86400000) })
   const d = new Date(ts)
   return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  if (m >= 60) {
-    const h = Math.floor(m / 60)
-    return `${h}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  }
-  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 // 检测媒体类型
@@ -242,32 +233,7 @@ const readingStore = useReadingStore()
           <!-- 音频播放器 -->
           <div v-if="audio" class="w-full max-w-2xl mx-auto">
             <div class="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700">
-              <div class="flex items-center gap-4">
-                <div class="size-16 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                  <svg class="h-8 w-8 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M9 18V5l12-2v13" />
-                    <circle cx="6" cy="18" r="3" />
-                    <circle cx="18" cy="16" r="3" />
-                  </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
-                    {{ article.title || '音频' }}
-                  </p>
-                  <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                    {{ article.sourceTitle }}
-                    <template v-if="audio.durationInSeconds">
-                      · {{ formatDuration(audio.durationInSeconds) }}
-                    </template>
-                  </p>
-                </div>
-              </div>
-              <audio
-                :src="audio.url"
-                controls
-                preload="metadata"
-                class="w-full mt-4 h-10"
-              />
+              <PodcastInlinePlayer :article="article" />
             </div>
           </div>
 
