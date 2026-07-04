@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { FileText, Globe, Lightbulb, Moon, Newspaper, Settings, Sun, X } from '@lucide/vue'
+import { FileText, Globe, Lightbulb, Moon, Newspaper, ScrollText, Settings, Sun, X } from '@lucide/vue'
 import { defineAsyncComponent, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import ChangelogDialog from '@/components/landing/ChangelogDialog.vue'
 import { Button } from '@/components/ui/button'
 import { useLocaleStore } from '@/stores/locale'
 import { useUIStore } from '@/stores/ui'
@@ -9,7 +11,9 @@ const AIConfig = defineAsyncComponent(() => import('@/components/ai/chat-box/AIC
 
 const uiStore = useUIStore()
 const localeStore = useLocaleStore()
+const { t } = useI18n()
 const showAIConfig = ref(false)
+const showChangelog = ref(false)
 </script>
 
 <template>
@@ -41,6 +45,15 @@ const showAIConfig = ref(false)
       >
         <Settings class="h-4 w-4" />
         AI 设置
+      </button>
+
+      <!-- 更新日志 -->
+      <button
+        class="flex h-9 items-center gap-1.5 rounded-lg border bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+        @click="showChangelog = true"
+      >
+        <ScrollText class="h-4 w-4" />
+        {{ t('changelog.button') }}
       </button>
     </div>
 
@@ -104,6 +117,9 @@ const showAIConfig = ref(false)
         </button>
       </div>
     </div>
+
+    <!-- 更新日志弹窗 -->
+    <ChangelogDialog :open="showChangelog" @close="showChangelog = false" />
 
     <!-- AI 配置对话框 -->
     <div v-if="showAIConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showAIConfig = false">

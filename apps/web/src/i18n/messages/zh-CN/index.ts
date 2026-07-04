@@ -1,4 +1,5 @@
 import ai from './ai'
+import changelog from './changelog'
 import chrome from './chrome'
 import common from './common'
 import dialog from './dialog'
@@ -10,6 +11,7 @@ import upload from './upload'
 
 export default {
   ...common,
+  ...changelog,
   ...chrome,
   ...dialog,
   ...editor,
