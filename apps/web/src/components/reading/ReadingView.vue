@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Globe, Loader2, Moon, Plus, RefreshCcw, Search, Square, Star, Sun, X } from '@lucide/vue'
+import type { Article } from '@/stores/reading'
+import { Globe, Grid2X2, Grid3X3, Image, Loader2, Moon, Plus, RefreshCcw, Search, Square, Star, Sun, X } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
@@ -11,8 +12,14 @@ import { useLocaleStore } from '@/stores/locale'
 import { useReadingStore } from '@/stores/reading'
 import { useUIStore } from '@/stores/ui'
 import ArticleReader from './ArticleReader.vue'
+import MediaArticleReader from './MediaArticleReader.vue'
 import SourceConfigDialog from './SourceConfigDialog.vue'
 import ArticleListView from './views/ArticleListView.vue'
+import AudioPlayerView from './views/AudioPlayerView.vue'
+import ImageLightbox from './views/ImageLightbox.vue'
+import PictureGridView from './views/PictureGridView.vue'
+import PictureMasonryView from './views/PictureMasonryView.vue'
+import VideoGridView from './views/VideoGridView.vue'
 
 const { t } = useI18n()
 const store = useReadingStore()
@@ -39,44 +46,116 @@ function toggleSelect(id: string) {
 
 function clearSelection() { selectedIds.value = new Set(); isSelecting.value = false }
 
+// ── 图片灯箱 ──────────────────────────────────────────
+const lightboxImages = ref<Array<{ url: string, width?: number, height?: number }>>([])
+const lightboxIndex = ref(0)
+const showLightbox = ref(false)
+
+function openLightbox(images: Array<{ url: string, width?: number, height?: number }>, index: number) {
+  lightboxImages.value = images
+  lightboxIndex.value = index
+  showLightbox.value = true
+}
+
 // ── 文章列表 ──────────────────────────────────────────
+/** 当前激活源的内容视图类型（-1 = 全部，0 = 文章，1 = 图片，2 = 视频，3 = 音频） */
+const activeView = ref<number>(-1)
+
+/** 图片/视频视图：宽屏模式，隐藏右栏 */
+const isWideMode = computed(() => activeView.value === 1 || activeView.value === 2)
+
+/** 按源视图类型筛选文章（activeView != -1 时） */
+function filterByView(articles: Article[], view: number): Article[] {
+  if (view === -1)
+    return articles
+  const srcViewMap = new Map(store.sources.map(s => [s.id, s.view ?? 0]))
+  return articles.filter(a => (srcViewMap.get(a.sourceId) ?? 0) === view)
+}
+
 const displayArticles = computed(() => {
-  if (activeFilter.value === 'starred')
-    return store.filteredArticles.filter(a => a.starred)
-  return store.filteredArticles
+  const base = activeFilter.value === 'starred'
+    ? store.filteredArticles.filter(a => a.starred)
+    : store.filteredArticles
+  return filterByView(base, activeView.value)
 })
 
 function selectAll() {
   selectedIds.value = new Set(displayArticles.value.map(a => a.id))
 }
 
-/** 当前激活源的内容视图类型（-1 = 全部，0 = 文章，1 = 图片，2 = 视频，3 = 音频，4 = 社交媒体） */
-const activeView = ref<number>(-1)
+/** 图片布局模式：masonry（瀑布流）或 grid（网格） */
+const pictureLayout = computed({
+  get: () => store.pictureLayout,
+  set: value => store.setPictureLayout(value),
+})
+const pictureImageOnly = computed({
+  get: () => store.pictureImageOnly,
+  set: value => store.togglePictureImageOnly(value),
+})
 
 /** 选中源时自动切换视图 */
 watch(() => store.activeSourceId, (id) => {
-  if (!id) {
-    activeView.value = -1
+  // 切换源时清除选中文章，避免旧文章在新视图类型下渲染
+  store.setActiveArticle(null)
+  if (!id)
     return
-  }
   const src = store.sources.find(s => s.id === id)
-  activeView.value = src?.view ?? 0
+  if (src?.view != null)
+    activeView.value = src.view
 })
 
-/** 各视图类型的未读数（用于显示视图图标计数） */
+/** 每个源的文章总数（用于源列表显示） */
+const sourceArticleCountMap = computed(() => {
+  const map: Record<string, number> = {}
+  for (const a of store.articles) {
+    map[a.sourceId] = (map[a.sourceId] || 0) + 1
+  }
+  return map
+})
+
+/** 各视图类型的数量（用于显示视图图标计数） */
 const viewCounts = computed<Record<number, number>>(() => {
   const srcViewMap = new Map(store.sources.map(s => [s.id, s.view ?? 0]))
   const counts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 }
   for (const a of store.articles) {
-    if (!a.read) {
-      const view = srcViewMap.get(a.sourceId) ?? 0
-      counts[view] = (counts[view] || 0) + 1
-    }
+    const view = srcViewMap.get(a.sourceId) ?? 0
+    counts[view] = (counts[view] || 0) + 1
   }
   return counts
 })
 
-// ── 键盘 ──────────────────────────────────────────────
+/** 全部文章数 = store.articles 的实际总数 */
+const allArticleCount = computed(() => store.articles.length)
+
+const pictureArticles = computed(() =>
+  displayArticles.value.filter(article => article.media.some(m => m.type === 'photo')),
+)
+
+const activePictureArticleIndex = computed(() => {
+  if (!store.activeArticleId)
+    return -1
+  return pictureArticles.value.findIndex(article => article.id === store.activeArticleId)
+})
+
+const canGoPrevPicture = computed(() => activePictureArticleIndex.value > 0)
+const canGoNextPicture = computed(() => activePictureArticleIndex.value >= 0 && activePictureArticleIndex.value < pictureArticles.value.length - 1)
+
+function openPrevPictureArticle() {
+  if (!store.activeArticleId)
+    return
+  const targetId = store.getAdjacentPictureArticleId(store.activeArticleId, 'prev')
+  if (targetId && targetId !== store.activeArticleId)
+    store.setActiveArticle(targetId)
+}
+
+function openNextPictureArticle() {
+  if (!store.activeArticleId)
+    return
+  const targetId = store.getAdjacentPictureArticleId(store.activeArticleId, 'next')
+  if (targetId && targetId !== store.activeArticleId)
+    store.setActiveArticle(targetId)
+}
+
 function handleKeydown(e: KeyboardEvent) {
   const tag = (e.target as HTMLElement)?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA')
@@ -89,6 +168,20 @@ function handleKeydown(e: KeyboardEvent) {
     case 'k': case 'ArrowUp': { e.preventDefault(); const idx = articles.findIndex(a => a.id === store.activeArticleId); store.setActiveArticle(articles[Math.max(idx - 1, 0)]?.id ?? articles[0].id); break }
     case 's': { if (store.activeArticleId)
       store.toggleStar(store.activeArticleId); break }
+    case 'h': {
+      if (activeView.value === 1 && isWideMode.value && store.activeArticleId) {
+        e.preventDefault()
+        openPrevPictureArticle()
+      }
+      break
+    }
+    case 'l': {
+      if (activeView.value === 1 && isWideMode.value && store.activeArticleId) {
+        e.preventDefault()
+        openNextPictureArticle()
+      }
+      break
+    }
   }
 }
 
@@ -181,19 +274,19 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           <div class="flex items-center justify-between px-1 pb-3">
             <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === -1 && !store.activeSourceId ? 'text-orange-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.allArticles')" @click="activeView = -1; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
-              <span class="text-[9px] font-semibold tabular-nums">{{ store.totalUnread }}</span>
+              <span class="text-[9px] font-semibold tabular-nums">{{ allArticleCount }}</span>
             </button>
             <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 0 && !store.activeSourceId ? 'text-orange-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewArticles')" @click="activeView = 0; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
               <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[0] }}</span>
             </button>
-            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 4 && !store.activeSourceId ? 'text-blue-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewSocialMedia')" @click="activeView = 4; activeFilter = 'all'; store.activeSourceId = null">
-              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-              <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[4] }}</span>
-            </button>
             <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 1 && !store.activeSourceId ? 'text-green-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewPictures')" @click="activeView = 1; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
               <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[1] }}</span>
+            </button>
+            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 3 && !store.activeSourceId ? 'text-purple-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewAudios')" @click="activeView = 3; activeFilter = 'all'; store.activeSourceId = null">
+              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+              <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[3] }}</span>
             </button>
             <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 2 && !store.activeSourceId ? 'text-red-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewVideos')" @click="activeView = 2; activeFilter = 'all'; store.activeSourceId = null">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>
@@ -207,7 +300,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           >
             <svg class="size-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
             <span class="flex-1 text-left">{{ t('reading.allArticles') }}</span>
-            <span class="text-xs tabular-nums font-medium text-neutral-500">{{ store.totalUnread }}</span>
+            <span class="text-xs tabular-nums font-medium text-neutral-500">{{ allArticleCount }}</span>
           </button>
           <button
             class="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-sm transition-colors"
@@ -245,7 +338,20 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               <span class="truncate">{{ src.title }}</span>
             </div>
             <div class="flex items-center gap-1 shrink-0">
-              <span v-if="store.unreadCountMap[src.id]" class="text-xs tabular-nums font-medium text-neutral-500 dark:text-neutral-400">{{ store.unreadCountMap[src.id] }}</span>
+              <!-- 按视图类型显示图标+总数 -->
+              <span class="flex items-center gap-0.5 text-xs tabular-nums text-neutral-400 dark:text-neutral-500">
+                <!-- 文章 -->
+                <svg v-if="src.view === 0" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+                <!-- 图片 -->
+                <svg v-else-if="src.view === 1" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                <!-- 视频 -->
+                <svg v-else-if="src.view === 2" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                <!-- 音频 -->
+                <svg v-else-if="src.view === 3" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+                <!-- 其他 -->
+                <svg v-else class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+                {{ sourceArticleCountMap[src.id] || 0 }}
+              </span>
               <Loader2 v-if="store.fetchingSourceIds[src.id]" class="h-3 w-3 animate-spin text-orange-500" />
               <button v-else class="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity rounded p-0.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50" @click.stop="store.fetchSingleSource(src.id)">
                 <RefreshCcw class="h-3 w-3 text-neutral-400" />
@@ -294,15 +400,52 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
 
       <!-- ═══ 中栏 ═══ -->
       <section
-        class="flex flex-col bg-white dark:bg-neutral-950 overflow-hidden shrink-0"
-        :style="{ width: listCollapsed ? '0px' : `${listWidth}px` }"
+        class="relative flex flex-col bg-white dark:bg-neutral-950 overflow-hidden shrink-0"
+        :style="{ width: listCollapsed ? '0px' : isWideMode ? '100%' : `${listWidth}px` }"
       >
         <div v-show="!listCollapsed" class="flex flex-col h-full">
           <div class="flex items-center justify-between px-4 h-11 shrink-0 border-b border-neutral-100 dark:border-neutral-800">
-            <span class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-              {{ activeFilter === 'starred' ? t('reading.starred') : store.activeSourceId ? store.sources.find(s => s.id === store.activeSourceId)?.title : activeView === -1 ? t('reading.allArticles') : activeView === 0 ? t('reading.viewArticles') : activeView === 1 ? t('reading.viewPictures') : activeView === 2 ? t('reading.viewVideos') : activeView === 3 ? t('reading.viewAudios') : activeView === 4 ? t('reading.viewSocialMedia') : t('reading.allArticles') }}
-            </span>
-            <div class="flex items-center gap-0.5">
+            <div class="min-w-0 flex items-center gap-3">
+              <span class="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                {{ activeFilter === 'starred' ? t('reading.starred') : store.activeSourceId ? store.sources.find(s => s.id === store.activeSourceId)?.title : activeView === -1 ? t('reading.allArticles') : activeView === 0 ? t('reading.viewArticles') : activeView === 1 ? t('reading.viewPictures') : activeView === 2 ? t('reading.viewVideos') : activeView === 3 ? t('reading.viewAudios') : t('reading.allArticles') }}
+              </span>
+              <span v-if="activeView === 1" class="shrink-0 text-xs text-neutral-400 dark:text-neutral-500">
+                {{ t('reading.pictureCount', { count: pictureArticles.length }) }}
+              </span>
+            </div>
+            <div class="flex items-center gap-1">
+              <template v-if="activeView === 1">
+                <button
+                  class="rounded-lg p-1.5 transition-colors"
+                  :class="pictureLayout === 'grid'
+                    ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
+                    : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+                  :title="t('reading.pictureLayoutGrid')"
+                  @click="pictureLayout = 'grid'"
+                >
+                  <Grid3X3 class="h-3.5 w-3.5" />
+                </button>
+                <button
+                  class="rounded-lg p-1.5 transition-colors"
+                  :class="pictureLayout === 'masonry'
+                    ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
+                    : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+                  :title="t('reading.pictureLayoutMasonry')"
+                  @click="pictureLayout = 'masonry'"
+                >
+                  <Grid2X2 class="h-3.5 w-3.5" />
+                </button>
+                <button
+                  class="rounded-lg p-1.5 transition-colors"
+                  :class="pictureImageOnly
+                    ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
+                    : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+                  :title="t('reading.pictureImageOnly')"
+                  @click="pictureImageOnly = !pictureImageOnly"
+                >
+                  <Image class="h-3.5 w-3.5" />
+                </button>
+              </template>
               <button
                 class="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 :disabled="store.activeSourceId ? store.fetchingSourceIds[store.activeSourceId] : store.loading"
@@ -321,7 +464,6 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               </button>
             </div>
           </div>
-
           <div v-if="isSelecting" class="flex items-center gap-2 px-4 py-2 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
             <span class="text-xs text-neutral-500">{{ t('reading.selected', { count: selectedIds.size }) }}</span>
             <button class="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 ml-1" @click="selectAll">
@@ -349,26 +491,39 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               :selected-ids="selectedIds"
               @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
             />
-            <div v-else-if="activeView === 1" class="flex flex-col items-center justify-center h-full gap-2 text-neutral-400">
-              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-              <span class="text-sm">{{ t('reading.viewPictures') }}</span>
-              <span class="text-xs text-neutral-500">{{ t('reading.noContent') }}</span>
-            </div>
-            <div v-else-if="activeView === 2" class="flex flex-col items-center justify-center h-full gap-2 text-neutral-400">
-              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-              <span class="text-sm">{{ t('reading.viewVideos') }}</span>
-              <span class="text-xs text-neutral-500">{{ t('reading.noContent') }}</span>
-            </div>
-            <div v-else-if="activeView === 3" class="flex flex-col items-center justify-center h-full gap-2 text-neutral-400">
-              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
-              <span class="text-sm">{{ t('reading.viewAudios') }}</span>
-              <span class="text-xs text-neutral-500">{{ t('reading.noContent') }}</span>
-            </div>
-            <div v-else-if="activeView === 4" class="flex flex-col items-center justify-center h-full gap-2 text-neutral-400">
-              <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-              <span class="text-sm">{{ t('reading.viewSocialMedia') }}</span>
-              <span class="text-xs text-neutral-500">{{ t('reading.noContent') }}</span>
-            </div>
+            <!-- 图片视图：瀑布流或网格 -->
+            <PictureMasonryView
+              v-if="activeView === 1 && pictureLayout === 'masonry'"
+              :articles="displayArticles"
+              :active-id="store.activeArticleId"
+              :image-only="pictureImageOnly"
+              @select="store.setActiveArticle($event)"
+              @preview="openLightbox"
+            />
+            <PictureGridView
+              v-else-if="activeView === 1 && pictureLayout === 'grid'"
+              :articles="displayArticles"
+              :active-id="store.activeArticleId"
+              :image-only="pictureImageOnly"
+              @select="store.setActiveArticle($event)"
+              @preview="openLightbox"
+            />
+            <VideoGridView
+              v-else-if="activeView === 2"
+              :articles="displayArticles"
+              :active-id="store.activeArticleId"
+              :is-selecting="isSelecting"
+              :selected-ids="selectedIds"
+              @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
+            />
+            <AudioPlayerView
+              v-else-if="activeView === 3"
+              :articles="displayArticles"
+              :active-id="store.activeArticleId"
+              :is-selecting="isSelecting"
+              :selected-ids="selectedIds"
+              @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
+            />
             <ArticleListView
               v-else
               :articles="displayArticles"
@@ -382,10 +537,84 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
             </div>
           </div>
         </div>
+
+        <!-- 宽屏模式（图片/视频）：选中文章后全屏覆盖 -->
+        <div
+          v-if="isWideMode && store.activeArticle"
+          class="absolute inset-0 z-10 flex flex-col bg-white dark:bg-neutral-950 animate-slide-up"
+        >
+          <MediaArticleReader
+            :article="store.activeArticle"
+            :media-type="activeView === 1 ? 'picture' : 'video'"
+            :can-go-prev="activeView === 1 ? canGoPrevPicture : false"
+            :can-go-next="activeView === 1 ? canGoNextPicture : false"
+            @close="store.setActiveArticle(null)"
+            @prev-article="openPrevPictureArticle"
+            @next-article="openNextPictureArticle"
+          >
+            <template v-if="activeView === 1" #toolbar-extra>
+              <button
+                class="rounded-lg border px-2 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                :class="canGoPrevPicture
+                  ? 'border-neutral-200 text-neutral-500 hover:text-neutral-700 dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200'
+                  : 'border-neutral-200 text-neutral-300 dark:border-neutral-800 dark:text-neutral-700'"
+                :title="t('reading.prevPictureArticle')"
+                :disabled="!canGoPrevPicture"
+                @click.stop="openPrevPictureArticle"
+              >
+                ←
+              </button>
+              <button
+                class="rounded-lg border px-2 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                :class="canGoNextPicture
+                  ? 'border-neutral-200 text-neutral-500 hover:text-neutral-700 dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200'
+                  : 'border-neutral-200 text-neutral-300 dark:border-neutral-800 dark:text-neutral-700'"
+                :title="t('reading.nextPictureArticle')"
+                :disabled="!canGoNextPicture"
+                @click.stop="openNextPictureArticle"
+              >
+                →
+              </button>
+              <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700" />
+              <button
+                class="rounded-lg p-1.5 transition-colors"
+                :class="pictureLayout === 'grid'
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
+                  : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-white/10'"
+                :title="t('reading.pictureLayoutGrid')"
+                @click.stop="pictureLayout = 'grid'"
+              >
+                <Grid3X3 class="h-3.5 w-3.5" />
+              </button>
+              <button
+                class="rounded-lg p-1.5 transition-colors"
+                :class="pictureLayout === 'masonry'
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
+                  : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-white/10'"
+                :title="t('reading.pictureLayoutMasonry')"
+                @click.stop="pictureLayout = 'masonry'"
+              >
+                <Grid2X2 class="h-3.5 w-3.5" />
+              </button>
+              <button
+                class="rounded-lg p-1.5 transition-colors"
+                :class="pictureImageOnly
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300'
+                  : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-white/10'"
+                :title="t('reading.pictureImageOnly')"
+                @click.stop="pictureImageOnly = !pictureImageOnly"
+              >
+                <Image class="h-3.5 w-3.5" />
+              </button>
+              <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700" />
+            </template>
+          </MediaArticleReader>
+        </div>
       </section>
 
-      <!-- 中栏分隔线 + 折叠按钮 -->
+      <!-- 中栏分隔线 + 折叠按钮（宽屏模式隐藏） -->
       <div
+        v-if="!isWideMode"
         class="relative flex items-center justify-center w-1.5 shrink-0 bg-neutral-200/60 dark:bg-neutral-700/60 cursor-col-resize"
         @mousedown.left="startResize($event, 'list')"
       >
@@ -413,9 +642,22 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         </button>
       </div>
 
-      <!-- ═══ 右栏 ═══ -->
-      <main class="flex-1 flex flex-col min-w-0 bg-white dark:bg-neutral-950">
-        <ArticleReader v-if="store.activeArticle" :article="store.activeArticle" />
+      <!-- ═══ 右栏（宽屏模式隐藏） ═══ -->
+      <main v-if="!isWideMode" class="flex-1 flex flex-col min-w-0 bg-white dark:bg-neutral-950">
+        <template v-if="store.activeArticle">
+          <!-- 图片/视频/音频视图：媒体优先布局 -->
+          <MediaArticleReader
+            v-if="activeView === 1 || activeView === 2 || activeView === 3"
+            :article="store.activeArticle"
+            :media-type="activeView === 1 ? 'picture' : activeView === 2 ? 'video' : 'audio'"
+            :can-go-prev="activeView === 1 ? canGoPrevPicture : false"
+            :can-go-next="activeView === 1 ? canGoNextPicture : false"
+            @prev-article="openPrevPictureArticle"
+            @next-article="openNextPictureArticle"
+          />
+          <!-- 文章视图：标准布局 -->
+          <ArticleReader v-else :article="store.activeArticle" />
+        </template>
         <div v-else class="flex flex-1 items-center justify-center text-sm text-neutral-300 dark:text-neutral-600">
           {{ t('reading.selectArticle') }}
         </div>
@@ -436,5 +678,29 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
         </div>
       </div>
     </div>
+
+    <!-- 图片灯箱 -->
+    <ImageLightbox
+      v-if="showLightbox"
+      :images="lightboxImages"
+      :initial-index="lightboxIndex"
+      @close="showLightbox = false"
+    />
   </div>
 </template>
+
+<style scoped>
+@keyframes slide-up {
+  from {
+    transform: translateY(1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+</style>

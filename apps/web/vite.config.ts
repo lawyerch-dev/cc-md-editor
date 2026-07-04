@@ -34,6 +34,12 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:9999',
           changeOrigin: true,
         },
+        // 本地开发代理 Folo API（绕过 CORS）
+        '/api/folo': {
+          target: 'https://api.folo.is',
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/api\/folo/, ''),
+        },
       },
     },
     envPrefix: [`VITE_`, `CF_`],

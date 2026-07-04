@@ -1,5 +1,13 @@
 import type { Article, CollectorSelectors, FeedViewType, MediaItem, Source } from './types'
 
+/** 基于内容的简易哈希，用于无 guid/link 时生成稳定 ID */
+function hashContent(s: string): string {
+  let h = 0
+  for (let i = 0; i < s.length; i++)
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  return `h${(h >>> 0).toString(36)}`
+}
+
 // ── 服务端代理（Netlify Function，类似 Folo 的 api.folo.is）──────────
 
 /**
@@ -352,7 +360,11 @@ async function fetchFeed(url: string): Promise<{ title: string, items: FeedItem[
 }
 
 /** 探测 URL 是否为 RSS 源 */
-export async function probeRSS(url: string): Promise<{ isRSS: boolean, title?: string, itemCount?: number }> {
+export async function probeRSS(url: string): Promise<{ isRSS: boolean, title?: string, itemCount?: number, view?: number }> {
+  // rsshub:// 协议 → 通过 Folo API 探测
+  if (url.startsWith('rsshub://'))
+    return probeFoloRSSHub(url)
+
   // 优先走服务端 RSS 代理（无 CORS 限制，支持编码检测）
   try {
     const result = await fetchFeedViaProxy(url)
@@ -422,7 +434,7 @@ function parseHTMLWithSelectors(html: string, selectors: CollectorSelectors, sou
     const publishedAt = dateStr ? new Date(dateStr).getTime() || Date.now() - i * 60000 : Date.now() - i * 60000
 
     articles.push({
-      id: `col-${sourceId}-${link || title.replace(/[^\w\u4E00-\u9FFF]/g, '').slice(0, 40) || i}`,
+      id: `col-${sourceId}-${link || title.replace(/[^\w\u4E00-\u9FFF]/g, '').slice(0, 40) || hashContent(title + dateStr)}`,
       sourceId,
       sourceTitle,
       title,
@@ -528,8 +540,8 @@ async function fetchRSSSource(source: Source): Promise<Article[]> {
     try {
       const feed = await fetchFeed(source.url)
       srcTitle = feed.title || source.title
-      const mapItem = (item: FeedItem, i: number) => ({
-        id: `art-${source.id}-${item.guid || item.link || `item-${i}`}`,
+      const mapItem = (item: FeedItem, _i: number) => ({
+        id: `art-${source.id}-${item.guid || item.link || hashContent(item.title || `${item.pubDate || ''}`)}`,
         sourceId: source.id,
         sourceTitle: srcTitle,
         title: item.title || '无标题',
@@ -572,6 +584,46 @@ async function fetchCSSSource(source: Source): Promise<Article[]> {
 const STRATEGIES: Record<string, (source: Source) => Promise<Article[]>> = {
   'rss': fetchRSSSource,
   'css-selector': fetchCSSSource,
+  'folo-rsshub': fetchFoloSource,
+}
+
+/** Folo analytics.view → 我们的 FeedViewType 映射 */
+const FOLO_VIEW_MAP: Record<number, FeedViewType> = {
+  0: 0, // Articles
+  1: 4, // SocialMedia
+  2: 1, // Pictures
+  3: 2, // Videos
+  4: 3, // Audios
+}
+
+/** 通过 Folo API 获取 rsshub:// 源的文章 */
+async function fetchFoloSource(source: Source): Promise<Article[]> {
+  let articles: Article[]
+  // 已有 feedId：优先调 entries API（POST）
+  if (source.foloFeedId) {
+    try {
+      articles = await fetchFoloEntries(source.foloFeedId)
+    }
+    catch {
+      // POST 失败（CORS 代理不支持 POST）→ 降级为 GET /feeds
+      const result = await fetchFoloFeed(source.url)
+      articles = result.articles
+    }
+  }
+  else {
+    // 首次获取：用 rsshub:// URL 调 feeds API（GET）
+    const result = await fetchFoloFeed(source.url)
+    articles = result.articles
+    // 缓存 feedId 和视图类型
+    const feedId = result.feed.id
+    const foloView = result.foloView
+    const mappedView = foloView != null ? (FOLO_VIEW_MAP[foloView] ?? 0) : undefined
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('folo-feed-id', { detail: { sourceId: source.id, feedId, view: mappedView } }))
+    }
+  }
+  // 统一 sourceId 为 store 中的源 ID
+  return articles.map(a => ({ ...a, sourceId: source.id, sourceTitle: source.title }))
 }
 
 /**
@@ -650,6 +702,209 @@ export async function fetchFullText(url: string): Promise<string> {
     }
   }
   return best?.innerHTML || doc.body?.innerHTML || ''
+}
+
+// ── Folo API（代理 rsshub:// 请求）──────────────────────
+
+const FOLO_API = 'https://api.folo.is'
+
+interface FoloFeedResponse {
+  code: number
+  data: {
+    feed: { id: string, title: string, description?: string, siteUrl?: string, image?: string }
+    entries: Array<{
+      id: string
+      title: string
+      url: string
+      content?: string
+      description?: string
+      summary?: string
+      publishedAt: string
+      author?: string
+      media?: Array<{ url: string, type: string, width?: number, height?: number }>
+      attachments?: Array<{ url: string, mime_type?: string, duration_in_seconds?: number, size_in_bytes?: number, title?: string }> | null
+    }>
+    analytics?: { view?: number }
+  }
+}
+
+interface FoloEntriesResponse {
+  code: number
+  data: Array<{
+    read: boolean
+    feeds: { id: string, title: string }
+    entries: {
+      id: string
+      title: string
+      url: string
+      content?: string
+      description?: string
+      summary?: string
+      publishedAt: string
+      author?: string
+      media?: Array<{ url: string, type: string, width?: number, height?: number }>
+      attachments?: Array<{ url: string, mime_type?: string, duration_in_seconds?: number, size_in_bytes?: number, title?: string }> | null
+    }
+    settings?: { unread?: boolean }
+  }>
+}
+
+/** 将 Folo API 返回的条目转为我们的 Article 格式 */
+function mapFoloEntry(entry: FoloFeedResponse['data']['entries'][0], sourceId: string, sourceTitle: string): Article {
+  const media: MediaItem[] = (entry.media || []).map(m => ({
+    url: m.url,
+    type: (m.type === 'video' ? 'video' : m.type === 'audio' ? 'audio' : 'photo') as MediaItem['type'],
+    width: m.width,
+    height: m.height,
+  }))
+  const attachments: Article['attachments'] = (entry.attachments || []).map(a => ({
+    url: a.url,
+    mimeType: a.mime_type,
+    durationInSeconds: a.duration_in_seconds,
+    sizeInBytes: a.size_in_bytes,
+    title: a.title,
+  }))
+  const content = entry.content || entry.description || ''
+  const summary = entry.summary || content.replace(/<[^>]*>/g, '').slice(0, 200) || ''
+  return {
+    id: `folo-${sourceId}-${entry.id}`,
+    sourceId,
+    sourceTitle,
+    title: entry.title || '无标题',
+    link: entry.url || '',
+    content,
+    summary,
+    author: entry.author || '',
+    publishedAt: entry.publishedAt ? new Date(entry.publishedAt).getTime() : Date.now(),
+    read: false,
+    starred: false,
+    media,
+    attachments,
+  }
+}
+
+/** 通过 Folo API 获取 rsshub:// 源的订阅信息和文章 */
+export async function fetchFoloFeed(rsshubUrl: string): Promise<{ feed: FoloFeedResponse['data']['feed'], articles: Article[], foloView?: number }> {
+  const apiUrl = `${FOLO_API}/feeds?url=${encodeURIComponent(rsshubUrl)}`
+  const json: FoloFeedResponse = await fetchFoloJSON(apiUrl)
+  if (json.code !== 0 || !json.data?.feed)
+    throw new Error(`Folo API 错误: code=${json.code}`)
+
+  const { feed, entries, analytics } = json.data
+  const articles = entries.map(e => mapFoloEntry(e, feed.id, feed.title))
+  return { feed, articles, foloView: analytics?.view }
+}
+
+/** 通过 Folo API 获取更多文章（分页/刷新） */
+export async function fetchFoloEntries(feedId: string, view = 0): Promise<Article[]> {
+  const json: FoloEntriesResponse = await fetchFoloJSON(`${FOLO_API}/entries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      view,
+      feedId,
+      read: false,
+      insertedAfter: null,
+      publishedAfter: null,
+      limit: 240,
+    }),
+  })
+  if (json.code !== 0)
+    throw new Error(`Folo entries API 错误: code=${json.code}`)
+
+  return json.data.map((item) => {
+    const art = mapFoloEntry(item.entries, item.feeds.id, item.feeds.title)
+    art.read = !!item.read
+    return art
+  })
+}
+
+/** 通过 CORS 代理请求 Folo JSON API */
+async function fetchFoloJSON<T>(url: string, init?: RequestInit): Promise<T> {
+  const method = init?.method || 'GET'
+  const body = init?.body ? JSON.parse(init.body as string) : undefined
+  const foloPath = url.replace('https://api.folo.is', '')
+  const lastErrors: string[] = []
+
+  // 1. Vite 本地代理（开发环境，/api/folo → api.folo.is）
+  if (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1') || window.location.port) {
+    try {
+      const proxyUrl = `/api/folo${foloPath}`
+      const res = await window.fetch(proxyUrl, {
+        ...init,
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (res.ok)
+        return await res.json() as T
+    }
+    catch (e) {
+      lastErrors.push(`vite-proxy: ${e instanceof Error ? e.message : e}`)
+    }
+  }
+
+  // 2. Netlify Function 代理（生产环境，GET/POST 均支持）
+  if (netlifyFunctionsAvailable()) {
+    try {
+      const fnUrl = netlifyFunctionPath('folo-proxy')
+      const res = await window.fetch(fnUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: foloPath, method, body }),
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data && typeof data === 'object' && 'ok' in data && !data.ok)
+          throw new Error(data.error || 'Folo proxy error')
+        return data as T
+      }
+    }
+    catch (e) {
+      lastErrors.push(`netlify: ${e instanceof Error ? e.message : e}`)
+    }
+  }
+
+  // 3. CORS 代理（GET 请求）
+  if (method === 'GET') {
+    const proxies = [
+      { name: 'allorigins', build: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+    ]
+    for (const proxy of proxies) {
+      try {
+        const proxyUrl = proxy.build(url)
+        const res = await window.fetch(proxyUrl, { signal: AbortSignal.timeout(10_000) })
+        if (res.ok)
+          return await res.json() as T
+      }
+      catch (e) {
+        lastErrors.push(`${proxy.name}: ${e instanceof Error ? e.message : e}`)
+      }
+    }
+  }
+
+  // 4. 直连（最后尝试）
+  try {
+    const res = await window.fetch(url, { ...init, signal: AbortSignal.timeout(5_000) })
+    if (res.ok)
+      return await res.json() as T
+  }
+  catch (e) {
+    lastErrors.push(`direct: ${e instanceof Error ? e.message : e}`)
+  }
+
+  throw new Error(`Folo API 请求失败: ${lastErrors.join('; ')}`)
+}
+
+/** 探测 rsshub:// 源是否可用（通过 Folo API） */
+export async function probeFoloRSSHub(rsshubUrl: string): Promise<{ isRSS: boolean, title?: string, itemCount?: number, feedId?: string, view?: number }> {
+  try {
+    const { feed, articles, foloView } = await fetchFoloFeed(rsshubUrl)
+    const mappedView = foloView != null ? (FOLO_VIEW_MAP[foloView] ?? 0) : undefined
+    return { isRSS: articles.length > 0, title: feed.title, itemCount: articles.length, feedId: feed.id, view: mappedView }
+  }
+  catch {
+    return { isRSS: false }
+  }
 }
 
 // ── RSSHub 发现 ────────────────────────────────────────

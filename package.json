@@ -17,7 +17,7 @@
   },
   "scripts": {
     "start": "pnpm dev",
-    "dev": "netlify dev --filter @md/web",
+    "dev": "npx shx rm -rf apps/web/node_modules/.vite apps/web/.netlify/functions-serve && netlify dev --filter @md/web",
     "dev:vite": "pnpm web dev",
     "web": "pnpm --filter @md/web",
     "vscode": "pnpm --prefix ./apps/vscode",

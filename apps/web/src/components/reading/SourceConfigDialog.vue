@@ -41,11 +41,13 @@ const REFRESH_OPTIONS = [
   { value: 1440, label: () => t('reading.hours', { n: 24 }) },
 ]
 
-const filteredSources = computed(() =>
-  store.sources.filter(s => s.strategy === activeTab.value),
-)
+const filteredSources = computed(() => {
+  if (activeTab.value === 'rss')
+    return store.sources.filter(s => s.strategy === 'rss' || s.strategy === 'folo-rsshub')
+  return store.sources.filter(s => s.strategy === activeTab.value)
+})
 
-const rssCount = computed(() => store.sources.filter(s => s.strategy === 'rss').length)
+const rssCount = computed(() => store.sources.filter(s => s.strategy === 'rss' || s.strategy === 'folo-rsshub').length)
 const cssCount = computed(() => store.sources.filter(s => s.strategy === 'css-selector').length)
 
 function updateInterval(src: Source, minutes: number) {
@@ -68,17 +70,21 @@ async function handleInlineAdd() {
   addingSource.value = true
   try {
     if (activeTab.value === 'rss') {
+      const isFoloRSSHub = url.startsWith('rsshub://')
       const probe = await store.probeRSS(url)
       if (probe.isRSS) {
         store.addSource({
           url,
           title: probe.title || url,
-          strategy: 'rss',
-          view: 0,
+          strategy: isFoloRSSHub ? 'folo-rsshub' : 'rss',
+          view: probe.view ?? 0,
           refreshInterval: 30,
           rsshubPath: undefined,
         })
         toast.success(t('reading.added', { title: probe.title || url }))
+      }
+      else if (isFoloRSSHub) {
+        toast.error(t('reading.rsshubProbeFailed'))
       }
       else {
         // 直接不是 RSS，尝试 RSSHub 发现
@@ -379,6 +385,12 @@ async function onOpmlFileSelected(e: Event) {
                   class="rounded px-1 py-0.5 text-[9px] bg-orange-500/10 text-orange-600 shrink-0 leading-none"
                   title="通过 RSSHub 获取"
                 >RSSHub</span>
+                <!-- Folo 代理标记 -->
+                <span
+                  v-if="src.strategy === 'folo-rsshub'"
+                  class="rounded px-1 py-0.5 text-[9px] bg-blue-500/10 text-blue-600 shrink-0 leading-none"
+                  title="通过 Folo API 代理获取"
+                >Folo</span>
 
                 <p class="text-xs font-medium truncate">
                   {{ src.title }}

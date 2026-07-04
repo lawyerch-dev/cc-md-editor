@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useCollectorAI } from '@/composables/useCollectorAI'
-import { useReadingStore } from '@/stores/reading'
+import { useReadingStore, VIEW_TYPE_OPTIONS } from '@/stores/reading'
 
 const props = defineProps<{
   /** 编辑模式：传入已有源 */
@@ -143,6 +143,7 @@ const SCRIPT_TEMPLATES: ScriptTemplate[] = [
 async function handleDetect() {
   if (!url.value.trim())
     return
+
   detecting.value = true
   detectError.value = ''
   detectedTitle.value = ''
@@ -156,20 +157,34 @@ async function handleDetect() {
       return
     }
 
-    // 1. 先尝试 RSS 探测
-    const probe = await store.probeRSS(url.value.trim())
+    const trimmedUrl = url.value.trim()
+    const isFoloRSSHub = trimmedUrl.startsWith('rsshub://')
+
+    // 1. 先尝试 RSS 探测（probeRSS 内部已处理 rsshub:// → Folo API）
+    const probe = await store.probeRSS(trimmedUrl)
     if (probe.isRSS) {
       strategy.value = 'rss'
       detectedTitle.value = probe.title || ''
       detectedItemCount.value = probe.itemCount || 0
       if (!title.value && probe.title)
         title.value = probe.title
+      // 使用 Folo 检测的视图类型
+      if (probe.view != null && probe.view !== 0)
+        view.value = probe.view
+      if (!isFoloRSSHub && trimmedUrl.includes('rsshub.app'))
+        rsshubPath.value = new URL(trimmedUrl).pathname
       step.value = 'config'
       return
     }
 
-    // 2. 不是 RSS → 尝试 RSSHub 发现
-    const routes = await store.discoverRSSHubRoutes(url.value.trim())
+    // 2. rsshub:// 探测失败 → 提示错误
+    if (isFoloRSSHub) {
+      detectError.value = t('reading.rsshubProbeFailed')
+      return
+    }
+
+    // 3. 普通 URL → 尝试 RSSHub 发现
+    const routes = await store.discoverRSSHubRoutes(trimmedUrl)
     if (routes.length > 0) {
       discoveredRoutes.value = routes
       if (!autoSelectedRoute.value) {
@@ -179,7 +194,7 @@ async function handleDetect() {
       return
     }
 
-    // 3. 兜底：AI 分析 HTML
+    // 4. 兜底：AI 分析 HTML
     await runCSSAI()
   }
   catch (e) {
@@ -245,11 +260,15 @@ function handleSave() {
   if (!url.value.trim())
     return
 
+  const trimmedUrl = url.value.trim()
+  // rsshub:// URL 自动使用 folo-rsshub 策略
+  const effectiveStrategy: FetchStrategy = trimmedUrl.startsWith('rsshub://') ? 'folo-rsshub' : strategy.value
+
   const data = {
-    url: url.value.trim(),
-    title: title.value.trim() || url.value.trim(),
+    url: trimmedUrl,
+    title: title.value.trim() || trimmedUrl,
     refreshInterval: refreshInterval.value,
-    strategy: strategy.value,
+    strategy: effectiveStrategy,
     view: view.value,
     selectors: strategy.value === 'css-selector' ? selectors.value : undefined,
     description: description.value.trim() || undefined,
@@ -395,20 +414,8 @@ watch(url, () => {
               v-model="view"
               class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <option :value="0">
-                {{ t('reading.viewArticles') }}
-              </option>
-              <option :value="1">
-                {{ t('reading.viewPictures') }}
-              </option>
-              <option :value="2">
-                {{ t('reading.viewVideos') }}
-              </option>
-              <option :value="3">
-                {{ t('reading.viewAudios') }}
-              </option>
-              <option :value="4">
-                {{ t('reading.viewSocialMedia') }}
+              <option v-for="opt in VIEW_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
+                {{ t(opt.i18nKey) }}
               </option>
             </select>
           </div>

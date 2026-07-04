@@ -25,6 +25,15 @@ interface FeedResult {
   articles: FeedArticle[]
 }
 
+/** 基于内容的简易哈希，用于无 guid 时生成稳定 ID */
+function hashContent(s: string): string {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  }
+  return `h${(h >>> 0).toString(36)}`
+}
+
 /** 提取标签内的文本，处理 CDATA */
 function extractTag(xml: string, tagName: string): string {
   // 同时匹配带 namespace 和不带 namespace 的标签，处理 CDATA
@@ -73,7 +82,8 @@ function parseRSS(xml: string): FeedResult {
     const summary = description.replace(/<[^>]*>/g, '').slice(0, 200)
     const author = extractTag(item, 'dc\\:creator') || extractTag(item, 'author') || ''
     const pubDateStr = extractTag(item, 'pubDate') || extractTag(item, 'date') || ''
-    const guid = extractTag(item, 'guid') || link || `item-${articles.length}`
+    const rawGuid = extractTag(item, 'guid') || link
+    const guid = rawGuid || hashContent(title + pubDateStr)
     const publishedAt = pubDateStr ? new Date(pubDateStr).getTime() || Date.now() : Date.now()
 
     // enclosure
@@ -198,7 +208,8 @@ function parseAtom(xml: string): FeedResult {
       author = extractTag(am[1], 'name') || extractTag(am[1], 'email') || ''
     }
     const published = extractTag(entry, 'published') || extractTag(entry, 'updated') || ''
-    const id = extractTag(entry, 'id') || link || `entry-${articles.length}`
+    const rawId = extractTag(entry, 'id') || link
+    const id = rawId || hashContent(title + published)
     const publishedAt = published ? new Date(published).getTime() || Date.now() : Date.now()
 
     articles.push({

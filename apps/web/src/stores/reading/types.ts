@@ -1,5 +1,5 @@
 /** 获取策略类型 */
-export type FetchStrategy = 'rss' | 'css-selector'
+export type FetchStrategy = 'rss' | 'css-selector' | 'folo-rsshub'
 
 /** 内容视图类型 — 决定如何渲染条目 */
 export enum FeedViewType {
@@ -9,6 +9,14 @@ export enum FeedViewType {
   Audios = 3,
   SocialMedia = 4,
 }
+
+/** 视图类型选项 — 用于筛选栏和下拉菜单，顺序统一 */
+export const VIEW_TYPE_OPTIONS: { value: FeedViewType, i18nKey: string }[] = [
+  { value: FeedViewType.Articles, i18nKey: 'reading.viewArticles' },
+  { value: FeedViewType.Pictures, i18nKey: 'reading.viewPictures' },
+  { value: FeedViewType.Audios, i18nKey: 'reading.viewAudios' },
+  { value: FeedViewType.Videos, i18nKey: 'reading.viewVideos' },
+]
 
 /** 多媒体条目 */
 export interface MediaItem {
@@ -51,6 +59,8 @@ export interface Source {
   health?: SourceHealth
   /** RSSHub 路由路径（如 /weibo/user/123），优先于直接 RSS 获取 */
   rsshubPath?: string
+  /** Folo feed ID（rsshub:// 源首次获取后缓存，后续刷新用 entries API） */
+  foloFeedId?: string
 }
 
 /** 源健康状态 */

@@ -1,7 +1,8 @@
 import type { Article, ReadingList, Source } from './types'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { discoverRSSHubRoutes, fetchFullText, fetchPageHTML, fetchSourceArticles, previewSelectors, probeRSS } from './fetch-strategies'
+import { store } from '@/storage'
+import { detectFeedViewType, discoverRSSHubRoutes, fetchFullText, fetchPageHTML, fetchSourceArticles, previewSelectors, probeRSS } from './fetch-strategies'
 import { clearAll as clearAllIDB } from './indexeddb-persistence'
 import {
   loadArticles,
@@ -18,13 +19,14 @@ import {
 } from './persistence'
 
 export type { Article, CollectorSelectors, FeedViewType, FetchStrategy, ReadingList, Source, SourceHealth } from './types'
+export { VIEW_TYPE_OPTIONS } from './types'
 
 /** 并发获取上限，避免 CORS 代理过载 */
 const FETCH_CONCURRENCY = 4
-/** 文章保留上限 */
-const ARTICLE_CAP = 2000
-/** 每个源保留的文章数上限 */
-const PER_SOURCE_ARTICLE_CAP = 100
+const ARTICLE_CAP = 3000
+const PER_SOURCE_ARTICLE_CAP = 240
+const READING_PICTURE_LAYOUT_KEY = 'reading_picture_layout'
+const READING_PICTURE_IMAGE_ONLY_KEY = 'reading_picture_image_only'
 /** lastFetchMap 持久化防抖 */
 let persistFetchMapTimer: number | null = null
 
@@ -38,6 +40,8 @@ export const useReadingStore = defineStore('reading', () => {
   const error = ref('')
   const activeSourceId = ref<string | null>(null)
   const activeArticleId = ref<string | null>(null)
+  const pictureLayout = store.reactive<'masonry' | 'grid'>(READING_PICTURE_LAYOUT_KEY, 'masonry')
+  const pictureImageOnly = store.reactive<boolean>(READING_PICTURE_IMAGE_ONLY_KEY, false)
   const searchQuery = ref('')
   const fetchingSourceIds = ref<Record<string, boolean>>({})
   const lastFetchMap = ref<Record<string, number>>({})
@@ -83,6 +87,18 @@ export const useReadingStore = defineStore('reading', () => {
 
   // ── Hydration（IndexedDB → 内存）─────────────────────
 
+  /** 标准化 URL 用于去重比较 */
+  function normalizeUrl(url: string): string {
+    try {
+      const u = new URL(url)
+      // 去掉 trailing slash、query、fragment，统一 protocol
+      return `${u.origin}${u.pathname.replace(/\/$/, '')}`.toLowerCase()
+    }
+    catch {
+      return url.toLowerCase().replace(/\/$/, '')
+    }
+  }
+
   async function hydrate() {
     const [s, a, l, fetchMap] = await Promise.all([
       loadSourcesAsync(),
@@ -90,16 +106,93 @@ export const useReadingStore = defineStore('reading', () => {
       loadListsAsync(),
       loadLastFetchMap(),
     ])
-    sources.value = s
-    articles.value = a
+
+    // ── 源去重：按标准化 URL，保留第一个，合并文章到保留的源 ──
+    const urlToKeepId = new Map<string, string>()
+    const removeSourceIds = new Set<string>()
+    const keptSources: Source[] = []
+    for (const src of s) {
+      const norm = normalizeUrl(src.url)
+      const existing = urlToKeepId.get(norm)
+      if (existing) {
+        removeSourceIds.add(src.id)
+      }
+      else {
+        urlToKeepId.set(norm, src.id)
+        keptSources.push(src)
+      }
+    }
+    sources.value = keptSources
+
+    // ── 文章去重：迁移被删源的文章 + 按内容去重 ──
+    // 被删源的文章 → 归到保留的源
+    if (removeSourceIds.size > 0) {
+      // 建立 oldSourceId → keptSourceId 映射（通过 URL 匹配）
+      const oldIdToNorm = new Map<string, string>()
+      for (const src of s) {
+        if (removeSourceIds.has(src.id)) {
+          oldIdToNorm.set(src.id, normalizeUrl(src.url))
+        }
+      }
+      for (const article of a) {
+        if (removeSourceIds.has(article.sourceId)) {
+          const norm = oldIdToNorm.get(article.sourceId)
+          const keptId = norm ? urlToKeepId.get(norm) : undefined
+          if (keptId)
+            article.sourceId = keptId
+        }
+      }
+    }
+
+    // 按 sourceId+title+publishedAt 去重（比 ID 去重更可靠）
+    const validSourceIds = new Set(keptSources.map(s => s.id))
+    const seenArticleKeys = new Set<string>()
+    const keptArticles: Article[] = []
+    for (const article of a) {
+      if (!validSourceIds.has(article.sourceId))
+        continue
+      const key = `${article.sourceId}|${article.title}|${article.publishedAt}`
+      if (seenArticleKeys.has(key))
+        continue
+      seenArticleKeys.add(key)
+      keptArticles.push(article)
+    }
+    articles.value = keptArticles
+
     lists.value = l
     lastFetchMap.value = fetchMap
     hydrated.value = true
+
+    // 去重后持久化，防止下次启动重复清理
+    if (removeSourceIds.size > 0 || keptArticles.length < a.length) {
+      saveSources(sources.value)
+      saveArticles(articles.value)
+    }
+
+    // 监听 Folo feedId 缓存事件（fetchFoloSource 首次获取后触发）
+    window.addEventListener('folo-feed-id', ((e: CustomEvent<{ sourceId: string, feedId: string, view?: number }>) => {
+      const src = sources.value.find(s => s.id === e.detail.sourceId)
+      if (src) {
+        if (!src.foloFeedId) {
+          src.foloFeedId = e.detail.feedId
+        }
+        // 使用 Folo 的视图类型检测结果
+        if (e.detail.view != null && e.detail.view !== 0) {
+          src.view = e.detail.view
+        }
+        saveSources(sources.value)
+      }
+    }) as EventListener)
   }
 
   // ── 源 CRUD ──────────────────────────────────────────
 
   function addSource(data: Omit<Source, 'id' | 'addedAt' | 'health'>) {
+    // 防止重复添加相同 URL 的源（标准化 URL 比较）
+    const norm = normalizeUrl(data.url)
+    const existing = sources.value.find(s => normalizeUrl(s.url) === norm)
+    if (existing)
+      return existing
     const newId = `src-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     sources.value.push({
       ...data,
@@ -112,7 +205,7 @@ export const useReadingStore = defineStore('reading', () => {
     void fetchSingleSource(newId)
   }
 
-  function updateSource(id: string, updates: Partial<Pick<Source, 'title' | 'refreshInterval' | 'selectors' | 'description' | 'url' | 'view' | 'rsshubPath'>>) {
+  function updateSource(id: string, updates: Partial<Pick<Source, 'title' | 'refreshInterval' | 'selectors' | 'description' | 'url' | 'view' | 'rsshubPath' | 'foloFeedId'>>) {
     const src = sources.value.find(s => s.id === id)
     if (src) {
       Object.assign(src, updates)
@@ -131,7 +224,16 @@ export const useReadingStore = defineStore('reading', () => {
 
   function mergeNewArticles(newArticles: Article[]) {
     const existingIds = new Set(articles.value.map(a => a.id))
-    const toAdd = newArticles.filter(a => !existingIds.has(a.id))
+    // 同时用 content key 去重（防止不同 ID 但相同内容的文章）
+    const existingKeys = new Set(articles.value.map(a => `${a.sourceId}|${a.title}|${a.publishedAt}`))
+    const toAdd = newArticles.filter((a) => {
+      if (existingIds.has(a.id))
+        return false
+      const key = `${a.sourceId}|${a.title}|${a.publishedAt}`
+      if (existingKeys.has(key))
+        return false
+      return true
+    })
     const validSourceIds = new Set(sources.value.map(s => s.id))
     const filtered = toAdd.filter(a => validSourceIds.has(a.sourceId))
     if (filtered.length) {
@@ -288,6 +390,15 @@ export const useReadingStore = defineStore('reading', () => {
       if (newArticles.length > 0)
         lastFetchMap.value[src.id] = Date.now()
       persistFetchMapDebounced()
+
+      // 自动检测视图类型（仅首次，当源还是默认文章类型时）
+      if (newArticles.length > 0 && src.view === 0) {
+        const detected = detectFeedViewType(newArticles)
+        if (detected !== 0) {
+          src.view = detected
+          saveSources(sources.value)
+        }
+      }
     }
     catch (e) {
       const msg = e instanceof Error ? e.message : '获取失败'
@@ -347,6 +458,27 @@ export const useReadingStore = defineStore('reading', () => {
     activeArticleId.value = id
     if (id)
       markRead(id)
+  }
+
+  function setPictureLayout(layout: 'masonry' | 'grid') {
+    pictureLayout.value = layout
+  }
+
+  function togglePictureImageOnly(force?: boolean) {
+    pictureImageOnly.value = typeof force === 'boolean' ? force : !pictureImageOnly.value
+  }
+
+  function getAdjacentPictureArticleId(currentId: string, direction: 'prev' | 'next') {
+    const pictureArticles = filteredArticles.value.filter(article => article.media.some(m => m.type === 'photo'))
+    if (!pictureArticles.length)
+      return null
+    const currentIndex = pictureArticles.findIndex(article => article.id === currentId)
+    if (currentIndex === -1)
+      return pictureArticles[0]?.id ?? null
+    const nextIndex = direction === 'next'
+      ? Math.min(currentIndex + 1, pictureArticles.length - 1)
+      : Math.max(currentIndex - 1, 0)
+    return pictureArticles[nextIndex]?.id ?? null
   }
 
   function deleteArticle(id: string) {
@@ -476,6 +608,8 @@ export const useReadingStore = defineStore('reading', () => {
     error,
     activeSourceId,
     activeArticleId,
+    pictureLayout,
+    pictureImageOnly,
     searchQuery,
     fetchingSourceIds,
     hydrated,
@@ -500,6 +634,9 @@ export const useReadingStore = defineStore('reading', () => {
     markRead,
     toggleStar,
     setActiveArticle,
+    setPictureLayout,
+    togglePictureImageOnly,
+    getAdjacentPictureArticleId,
     deleteArticle,
     deleteArticles,
     starArticles,
