@@ -311,7 +311,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
             :key="src.id"
             class="group flex items-center justify-between px-2.5 py-1 rounded-lg cursor-pointer transition-colors text-sm"
             :class="store.activeSourceId === src.id ? 'bg-neutral-200/60 dark:bg-neutral-700/60 font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/30 dark:hover:bg-neutral-700/30'"
-            @click="store.activeSourceId = src.id; activeFilter = 'all'; store.fetchSingleSource(src.id)"
+            @click="store.activeSourceId = src.id; activeFilter = 'all'; activeView = src.view ?? -1; store.fetchSingleSource(src.id)"
           >
             <div class="flex items-center gap-2 min-w-0">
               <!-- 状态圆点：绿色=正常，红色=错误，黄色=加载中 -->
