@@ -63,7 +63,7 @@ function openLightbox(images: Array<{ url: string, width?: number, height?: numb
 const activeView = ref<number>(-1)
 
 /** 宽屏模式：图片/视频/音频视图隐藏右栏，内容全宽展示 */
-const isWideMode = computed(() => activeView.value === 1 || activeView.value === 2 || activeView.value === 3)
+const isWideMode = computed(() => activeView.value === 1 || activeView.value === 2)
 
 /** 切换视图时清除选中文章，避免右栏显示过期内容 */
 watch(activeView, () => { store.setActiveArticle(null) })
@@ -553,7 +553,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
             >
               <MediaArticleReader
                 :article="store.activeArticle"
-                :media-type="activeView === 1 ? 'picture' : activeView === 2 ? 'video' : 'audio'"
+                :media-type="activeView === 1 ? 'picture' : 'video'"
                 :can-go-prev="activeView === 1 ? canGoPrevPicture : false"
                 :can-go-next="activeView === 1 ? canGoNextPicture : false"
                 @close="store.setActiveArticle(null)"
@@ -598,17 +598,17 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
       <!-- ═══ 右栏（宽屏模式隐藏） ═══ -->
       <main v-if="!isWideMode" class="flex-1 flex flex-col min-w-0 bg-white dark:bg-neutral-950">
         <template v-if="store.activeArticle">
-          <!-- 图片/视频/音频视图：媒体优先布局 -->
+          <!-- 图片/视频视图：媒体优先布局 -->
           <MediaArticleReader
-            v-if="activeView === 1 || activeView === 2 || activeView === 3"
+            v-if="activeView === 1 || activeView === 2"
             :article="store.activeArticle"
-            :media-type="activeView === 1 ? 'picture' : activeView === 2 ? 'video' : 'audio'"
+            :media-type="activeView === 1 ? 'picture' : 'video'"
             :can-go-prev="activeView === 1 ? canGoPrevPicture : false"
             :can-go-next="activeView === 1 ? canGoNextPicture : false"
             @prev-article="openPrevPictureArticle"
             @next-article="openNextPictureArticle"
           />
-          <!-- 文章视图：标准布局 -->
+          <!-- 文章/音频视图：标准布局（音频顶部有 PodcastInlinePlayer） -->
           <ArticleReader v-else :article="store.activeArticle" />
         </template>
         <div v-else class="flex flex-1 items-center justify-center text-sm text-neutral-300 dark:text-neutral-600">
