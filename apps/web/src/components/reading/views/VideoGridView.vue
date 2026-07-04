@@ -18,18 +18,26 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-// ── Hover 预览 ──
-const hoveredId = ref<string | null>(null)
-const hoverTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+// ── 视频播放状态 ──
+const playingIds = ref<Set<string>>(new Set())
+const videoEls = ref<Map<string, HTMLVideoElement>>(new Map())
 
-function onMouseEnter(id: string) {
-  hoverTimer.value = setTimeout(() => { hoveredId.value = id }, 500)
+function togglePlay(id: string) {
+  const el = videoEls.value.get(id)
+  if (!el)
+    return
+  if (el.paused) {
+    el.play()
+    playingIds.value = new Set([...playingIds.value, id])
+  }
+  else {
+    el.pause()
+    playingIds.value = new Set([...playingIds.value].filter(x => x !== id))
+  }
 }
 
-function onMouseLeave() {
-  if (hoverTimer.value)
-    clearTimeout(hoverTimer.value)
-  hoveredId.value = null
+function getPoster(article: Article): string {
+  return article.media.find(m => m.type === 'video')?.previewImageUrl || ''
 }
 
 // ── 时长格式化 ──
@@ -56,11 +64,9 @@ function getDuration(article: Article): number | null {
 }
 
 function getVideoSrc(article: Article): string {
-  // 优先找视频 media 的直接 URL
   const video = article.media.find(m => m.type === 'video')
   if (video?.url)
     return video.url
-  // 尝试 attachments
   const att = article.attachments.find(a => a.mimeType?.startsWith('video/') || a.url.match(/\.(mp4|webm|ogg)/i))
   if (att?.url)
     return att.url
@@ -78,8 +84,6 @@ function getVideoSrc(article: Article): string {
         ? 'ring-2 ring-orange-500 border-orange-300 dark:border-orange-700'
         : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 hover:shadow-md'"
       @click="emit('select', article.id)"
-      @mouseenter="onMouseEnter(article.id)"
-      @mouseleave="onMouseLeave"
     >
       <!-- 多选复选框 -->
       <div
@@ -96,48 +100,44 @@ function getVideoSrc(article: Article): string {
         class="absolute top-2 right-2 z-10 size-2 rounded-full bg-orange-500"
       />
 
-      <!-- 视频封面 / Hover 预览 -->
+      <!-- always video element with poster, like Folo -->
       <div class="relative aspect-video overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-        <!-- 缩略图 -->
-        <template v-if="hoveredId !== article.id">
-          <img
-            v-if="article.media.find(m => m.type === 'video')?.previewImageUrl"
-            :src="article.media.find(m => m.type === 'video')!.previewImageUrl"
-            class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-            alt=""
+        <video
+          :ref="(el: any) => { if (el) videoEls.set(article.id, el as HTMLVideoElement) }"
+          :src="getVideoSrc(article)"
+          :poster="getPoster(article) || undefined"
+          class="h-full w-full object-cover"
+          playsinline
+          muted
+          loop
+        />
+        <!-- play/pause overlay → matches Folo: always visible -->
+        <div
+          class="absolute inset-0 flex items-center justify-center cursor-pointer"
+          @click.stop="togglePlay(article.id)"
+        >
+          <div
+            class="flex size-14 items-center justify-center rounded-full bg-black/50 text-white/90 transition-transform hover:scale-110"
           >
-          <img
-            v-else-if="article.media[0]?.url"
-            :src="article.media[0].url"
-            class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-            alt=""
-          >
-          <!-- 无图占位 -->
-          <div v-else class="flex h-full items-center justify-center">
-            <svg class="size-10 text-neutral-300 dark:text-neutral-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+            <svg
+              v-if="!playingIds.has(article.id)"
+              class="ml-0.5 size-7"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            <svg
+              v-else
+              class="size-7"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <rect x="6" y="4" width="4" height="16" rx="1" />
+              <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
           </div>
-          <!-- 播放按钮覆盖层 -->
-          <div class="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div class="rounded-full bg-black/60 p-3 backdrop-blur-sm">
-              <svg class="size-6 text-white" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-            </div>
-          </div>
-        </template>
-
-        <!-- Hover 预览：内联视频 -->
-        <template v-else>
-          <video
-            :src="getVideoSrc(article)"
-            class="h-full w-full object-cover"
-            autoplay
-            muted
-            loop
-            playsinline
-          />
-        </template>
-
+        </div>
         <!-- 时长徽标 -->
         <span
           v-if="getDuration(article)"
