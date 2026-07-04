@@ -20,7 +20,6 @@ import CornerPlayer from './views/CornerPlayer.vue'
 import ImageLightbox from './views/ImageLightbox.vue'
 import PictureGridView from './views/PictureGridView.vue'
 import PictureMasonryView from './views/PictureMasonryView.vue'
-import SocialMediaView from './views/SocialMediaView.vue'
 import VideoGridView from './views/VideoGridView.vue'
 
 const { t } = useI18n()
@@ -294,10 +293,6 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>
               <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[2] }}</span>
             </button>
-            <button class="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors" :class="activeView === 4 && !store.activeSourceId ? 'text-blue-500' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'" :title="t('reading.viewSocialMedia')" @click="activeView = 4; activeFilter = 'all'; store.activeSourceId = null">
-              <svg class="size-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-              <span class="text-[9px] font-semibold tabular-nums">{{ viewCounts[4] }}</span>
-            </button>
           </div>
           <button
             class="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-sm transition-colors"
@@ -354,8 +349,6 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
                 <svg v-else-if="src.view === 2" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>
                 <!-- 音频 -->
                 <svg v-else-if="src.view === 3" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
-                <!-- 社交 -->
-                <svg v-else-if="src.view === 4" class="size-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                 <!-- 其他 -->
                 <svg v-else class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
                 {{ sourceArticleCountMap[src.id] || 0 }}
@@ -415,7 +408,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           <div class="flex items-center justify-between px-4 h-11 shrink-0 border-b border-neutral-100 dark:border-neutral-800">
             <div class="min-w-0 flex items-center gap-3">
               <span class="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                {{ activeFilter === 'starred' ? t('reading.starred') : store.activeSourceId ? store.sources.find(s => s.id === store.activeSourceId)?.title : activeView === -1 ? t('reading.allArticles') : activeView === 0 ? t('reading.viewArticles') : activeView === 1 ? t('reading.viewPictures') : activeView === 2 ? t('reading.viewVideos') : activeView === 3 ? t('reading.viewAudios') : activeView === 4 ? t('reading.viewSocialMedia') : t('reading.allArticles') }}
+                {{ activeFilter === 'starred' ? t('reading.starred') : store.activeSourceId ? store.sources.find(s => s.id === store.activeSourceId)?.title : activeView === -1 ? t('reading.allArticles') : activeView === 0 ? t('reading.viewArticles') : activeView === 1 ? t('reading.viewPictures') : activeView === 2 ? t('reading.viewVideos') : activeView === 3 ? t('reading.viewAudios') : t('reading.allArticles') }}
               </span>
               <span v-if="activeView === 1" class="shrink-0 text-xs text-neutral-400 dark:text-neutral-500">
                 {{ t('reading.pictureCount', { count: pictureArticles.length }) }}
@@ -531,13 +524,6 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               :is-selecting="isSelecting"
               :selected-ids="selectedIds"
               @select="isSelecting ? toggleSelect($event) : store.setActiveArticle($event)"
-            />
-            <SocialMediaView
-              v-else-if="activeView === 4"
-              :articles="displayArticles"
-              :active-id="store.activeArticleId"
-              @select="store.setActiveArticle($event)"
-              @preview="openLightbox"
             />
             <ArticleListView
               v-else
