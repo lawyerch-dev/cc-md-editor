@@ -58,6 +58,19 @@ function openLightbox(images: Array<{ url: string, width?: number, height?: numb
   showLightbox.value = true
 }
 
+/** 从文章 ID 打开灯箱（图片视图点击条目时） */
+function openLightboxFromArticle(articleId: string) {
+  const article = store.articles.find(a => a.id === articleId)
+  if (!article)
+    return
+  const images = article.media
+    .filter(m => m.type === 'photo')
+    .map(m => ({ url: m.url, width: m.width, height: m.height, type: 'photo' as const }))
+  if (images.length) {
+    openLightbox(images, 0)
+  }
+}
+
 // ── 文章列表 ──────────────────────────────────────────
 /** 当前激活源的内容视图类型（-1 = 全部，0 = 文章，1 = 图片，2 = 视频，3 = 音频） */
 const activeView = ref<number>(-1)
@@ -509,7 +522,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
                 :articles="displayArticles"
                 :active-id="store.activeArticleId"
                 :image-only="pictureImageOnly"
-                @select="store.setActiveArticle($event)"
+                @select="openLightboxFromArticle($event)"
                 @preview="openLightbox"
               />
               <PictureGridView
@@ -517,7 +530,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
                 :articles="displayArticles"
                 :active-id="store.activeArticleId"
                 :image-only="pictureImageOnly"
-                @select="store.setActiveArticle($event)"
+                @select="openLightboxFromArticle($event)"
                 @preview="openLightbox"
               />
               <VideoGridView
@@ -546,19 +559,15 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
               />
             </div>
 
-            <!-- 宽屏模式详情（覆盖内容区，头部配置始终可见） -->
+            <!-- 宽屏模式详情（仅视频，图片直接用灯箱） -->
             <div
-              v-if="isWideMode && store.activeArticle"
+              v-if="isWideMode && store.activeArticle && activeView === 2"
               class="absolute inset-0 z-10 bg-white dark:bg-neutral-950 animate-slide-up"
             >
               <MediaArticleReader
                 :article="store.activeArticle"
-                :media-type="activeView === 1 ? 'picture' : 'video'"
-                :can-go-prev="activeView === 1 ? canGoPrevPicture : false"
-                :can-go-next="activeView === 1 ? canGoNextPicture : false"
+                media-type="video"
                 @close="store.setActiveArticle(null)"
-                @prev-article="openPrevPictureArticle"
-                @next-article="openNextPictureArticle"
               />
             </div>
           </div>
