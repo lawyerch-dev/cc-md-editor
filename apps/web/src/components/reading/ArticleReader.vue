@@ -354,9 +354,10 @@ async function handleTranslate() {
   text-decoration-color: hsl(var(--primary));
 }
 .article-content :deep(img) {
+  display: block;
   max-width: 100%;
   border-radius: 0.75rem;
-  margin: 1.5rem 0;
+  margin: 1.5rem auto;
 }
 .article-content :deep(blockquote) {
   border-left: 3px solid hsl(var(--primary) / 0.3);

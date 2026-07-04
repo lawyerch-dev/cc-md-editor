@@ -253,9 +253,10 @@ const readingStore = useReadingStore()
 
 <style scoped>
 .article-content :deep(img) {
+  display: block;
   max-width: 100%;
   border-radius: 0.5rem;
-  margin: 1rem 0;
+  margin: 1rem auto;
 }
 .article-content :deep(p) {
   margin-bottom: 0.75rem;
