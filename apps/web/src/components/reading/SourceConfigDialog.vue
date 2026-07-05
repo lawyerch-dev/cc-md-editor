@@ -35,6 +35,7 @@ const showCSSImport = ref(false)
 const editingSource = ref<Source | null>(null)
 const rsshubRoutes = ref<Array<{ name: string, path: string }>>([])
 const rsshubChecking = ref(false)
+const inlineError = ref('')
 
 const REFRESH_OPTIONS = [
   { value: 0, label: () => t('common.close') },
@@ -90,6 +91,7 @@ async function handleInlineAdd() {
       }
       else if (isFoloRSSHub) {
         toast.error(t('reading.rsshubProbeFailed'))
+        inlineError.value = t('reading.rsshubProbeFailed')
       }
       else {
         // 直接不是 RSS，尝试 RSSHub 发现
@@ -114,6 +116,7 @@ async function handleInlineAdd() {
         catch { /* RSSHub 不可用 */ }
         rsshubChecking.value = false
         toast.error(t('reading.rssNotFound'))
+        inlineError.value = t('reading.rssNotFound')
       }
     }
     else {
@@ -146,10 +149,12 @@ async function handleInlineAdd() {
       toast.success(t('reading.added', { title: new URL(url).hostname }))
     }
     newUrl.value = ''
+    inlineError.value = ''
   }
   catch (e) {
     const msg = e instanceof Error ? e.message : t('reading.addFailed')
     toast.error(`${msg}。可尝试切换到「订阅源」标签用 RSS 添加`)
+    inlineError.value = msg
   }
   finally {
     addingSource.value = false
@@ -379,6 +384,7 @@ async function importFullDataFromFile(e: Event) {
             v-model="newUrl"
             class="h-8 text-xs flex-1"
             :placeholder="activeTab === 'rss' ? t('reading.rssPlaceholder') : t('reading.cssPlaceholder')"
+            @input="inlineError = ''"
             @keydown.enter="handleInlineAdd"
           />
           <Button size="sm" class="h-8 gap-1 text-xs shrink-0" :disabled="!newUrl.trim() || addingSource" @click="handleInlineAdd">
@@ -413,6 +419,15 @@ async function importFullDataFromFile(e: Event) {
             JSON
           </Button>
         </div>
+      </div>
+
+      <!-- 内联错误提示 -->
+      <div v-if="inlineError" class="border-b bg-red-50 dark:bg-red-950/20 px-4 py-2 flex items-center gap-2">
+        <AlertCircle class="h-3.5 w-3.5 text-red-500 shrink-0" />
+        <span class="text-xs text-red-600 dark:text-red-400 flex-1">{{ inlineError }}</span>
+        <button class="text-xs text-neutral-400 hover:text-neutral-600" @click="inlineError = ''">
+          关闭
+        </button>
       </div>
 
       <!-- RSSHub 路由发现结果 -->
