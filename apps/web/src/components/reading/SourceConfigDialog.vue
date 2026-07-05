@@ -12,7 +12,6 @@ import { useCollectorAI } from '@/composables/useCollectorAI'
 import { useReadingStore } from '@/stores/reading'
 import { applyImport } from '@/stores/reading/folo-import'
 import { exportAllData, importAllData } from '@/stores/reading/persistence'
-import CSSImportDialog from './CSSImportDialog.vue'
 
 const emit = defineEmits<{
   close: []
@@ -31,7 +30,6 @@ const jsonFileInput = ref<HTMLInputElement | null>(null)
 const jsonImporting = ref(false)
 const fullDataFileInput = ref<HTMLInputElement | null>(null)
 const fullDataImporting = ref(false)
-const showCSSImport = ref(false)
 const editingSource = ref<Source | null>(null)
 const rsshubRoutes = ref<Array<{ name: string, path: string }>>([])
 const rsshubChecking = ref(false)
@@ -338,12 +336,6 @@ async function importFullDataFromFile(e: Event) {
             </template>
           </Button>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <Button v-if="activeTab === 'css-selector'" size="sm" variant="outline" class="h-8 gap-1 text-xs" @click="showCSSImport = true">
-            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            JSON
-          </Button>
-        </div>
       </div>
 
       <!-- 内联错误提示 -->
@@ -555,8 +547,5 @@ async function importFullDataFromFile(e: Event) {
 
     <!-- 编辑源对话框 -->
     <AddSourceDialog v-if="editingSource" :source="editingSource" @close="editingSource = null" />
-
-    <!-- 网页采集导入（JSON） -->
-    <CSSImportDialog v-if="showCSSImport" @close="showCSSImport = false" @imported="showCSSImport = false" />
   </div>
 </template>
