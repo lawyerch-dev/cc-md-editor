@@ -224,6 +224,7 @@ const annPopup = ref<{ x: number, y: number, text: string } | null>(null)
 const activeAnnId = ref<string | null>(null)
 const annPanelOpen = ref(true)
 const contentRef = ref<HTMLElement | null>(null)
+const lineCoords = ref<{ x1: number, y1: number, x2: number, y2: number } | null>(null)
 
 function loadAnnotations() {
   try {
@@ -319,7 +320,8 @@ function highlightAnn(ann: Annotation) {
       const span = document.createElement('span')
       span.className = 'ann-highlight'
       span.dataset.annId = ann.id
-      span.addEventListener('click', () => { activeAnnId.value = ann.id; annPanelOpen.value = true })
+      span.addEventListener('click', () => { activeAnnId.value = ann.id; annPanelOpen.value = true; nextTick(updateLine) })
+      span.addEventListener('mouseenter', () => { activeAnnId.value = ann.id; nextTick(updateLine) })
       try { range.surroundContents(span) }
       catch { /* skip cross-element */ }
       return
@@ -333,12 +335,33 @@ function scrollToAnn(id: string) {
   activeAnnId.value = id
   const span = contentRef.value?.querySelector(`[data-ann-id="${id}"]`) as HTMLElement
   if (span) {
-    // 移除旧的 active 高亮
     contentRef.value?.querySelectorAll('.ann-highlight-active').forEach(el => el.classList.remove('ann-highlight-active'))
     span.classList.add('ann-highlight-active')
     span.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    nextTick(updateLine)
   }
 }
+
+function updateLine() {
+  const id = activeAnnId.value
+  if (!id || !contentRef.value) { lineCoords.value = null; return }
+  const highlight = contentRef.value.querySelector(`[data-ann-id="${id}"]`) as HTMLElement
+  const card = contentRef.value.closest('.flex.flex-1.overflow-hidden')?.querySelector(`[data-card-id="${id}"]`) as HTMLElement
+  if (!highlight || !card) { lineCoords.value = null; return }
+  const wrapper = contentRef.value.closest('.flex.flex-1.overflow-hidden') as HTMLElement
+  if (!wrapper) { lineCoords.value = null; return }
+  const wrapperRect = wrapper.getBoundingClientRect()
+  const hlRect = highlight.getBoundingClientRect()
+  const cardRect = card.getBoundingClientRect()
+  lineCoords.value = {
+    x1: hlRect.right - wrapperRect.left,
+    y1: hlRect.top - wrapperRect.top + hlRect.height / 2,
+    x2: cardRect.left - wrapperRect.left,
+    y2: cardRect.top - wrapperRect.top + 12,
+  }
+}
+
+watch(activeAnnId, () => nextTick(updateLine))
 
 function highlightAllAnnotations() {
   nextTick(() => annotations.value.forEach(a => highlightAnn(a)))
@@ -399,7 +422,7 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
     <!-- 内容区 + 批注面板 -->
     <div class="flex flex-1 overflow-hidden">
       <!-- 可滚动文章内容 -->
-      <div ref="contentRef" class="flex-1 overflow-y-auto relative" @mouseup="handleAnnMouseUp">
+      <div ref="contentRef" class="flex-1 overflow-y-auto relative" @mouseup="handleAnnMouseUp" @scroll="updateLine">
         <div class="mx-auto max-w-3xl px-8 pb-32">
           <!-- 完整标题 -->
           <h1 class="pt-8 pb-3 text-[1.7rem] font-bold leading-snug text-neutral-900 dark:text-neutral-100 select-text">
@@ -485,8 +508,10 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
           <div
             v-for="ann in annotations"
             :key="ann.id"
+            :data-card-id="ann.id"
             class="group mx-2 mb-2 rounded-lg p-2 cursor-pointer transition-all"
             :class="activeAnnId === ann.id ? 'bg-white dark:bg-neutral-800 ring-1 ring-red-300 shadow-sm' : 'hover:bg-white dark:hover:bg-neutral-800'"
+            @mouseenter="activeAnnId = ann.id; nextTick(updateLine)"
             @click="activeAnnId = ann.id; scrollToAnn(ann.id)"
           >
             <div class="flex items-start justify-between gap-2">
@@ -519,6 +544,24 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
         <MessageSquarePlus class="h-3 w-3" />
         {{ annotations.length }}
       </button>
+
+      <!-- 连接线 SVG -->
+      <svg
+        v-if="lineCoords"
+        class="absolute inset-0 pointer-events-none overflow-visible"
+        style="z-index: 5;"
+      >
+        <line
+          :x1="lineCoords.x1"
+          :y1="lineCoords.y1"
+          :x2="lineCoords.x2"
+          :y2="lineCoords.y2"
+          stroke="#ef4444"
+          stroke-width="1.5"
+          stroke-dasharray="5 3"
+          stroke-opacity="0.6"
+        />
+      </svg>
     </div>
   </div>
 </template>
