@@ -92,9 +92,33 @@ const circles = [
       </div>
 
       <!-- 中央：Ikigai 图 -->
-      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div class="absolute inset-0 flex items-center justify-center">
         <svg :viewBox="`0 0 ${size} ${size}`" :width="size" :height="size">
-          <circle v-for="c in circles" :key="c.key" :cx="c.cx" :cy="c.cy" :r="r" :fill="c.color" fill-opacity="0.12" :stroke="c.color" stroke-width="1.5" stroke-opacity="0.3" />
+          <!-- 非激活的圆 -->
+          <circle
+            v-for="c in circles.filter(c => c.key !== editing)"
+            :key="c.key"
+            :cx="c.cx" :cy="c.cy" :r="r"
+            :fill="c.color" fill-opacity="0.1"
+            :stroke="c.color" stroke-width="1" stroke-opacity="0.25"
+            class="cursor-pointer transition-all hover:fill-opacity-20"
+            @click="startEdit(c.key)"
+          />
+          <!-- 激活的圆（最上层，高亮） -->
+          <circle
+            v-if="editing"
+            :key="`${editing}-active`"
+            :cx="circles.find(c => c.key === editing)!.cx"
+            :cy="circles.find(c => c.key === editing)!.cy"
+            :r="r"
+            :fill="circles.find(c => c.key === editing)!.color"
+            fill-opacity="0.25"
+            :stroke="circles.find(c => c.key === editing)!.color"
+            stroke-width="3"
+            stroke-opacity="0.7"
+            class="cursor-pointer"
+            @click="startEdit(editing!)"
+          />
           <text :x="cx" :y="cy - 6" text-anchor="middle" class="text-sm font-bold fill-foreground pointer-events-none">IKIGAI</text>
           <text :x="cx" :y="cy + 10" text-anchor="middle" class="text-[8px] fill-muted-foreground pointer-events-none">生き甲斐</text>
         </svg>
