@@ -78,9 +78,9 @@ function average() {
       </p>
     </div>
 
-    <div class="flex items-start gap-8">
+    <div class="flex items-start gap-12">
       <!-- 雷达图 -->
-      <svg viewBox="0 0 400 400" class="w-[400px] h-[400px] shrink-0">
+      <svg viewBox="-20 -20 440 440" class="w-[420px] h-[420px] shrink-0">
         <!-- 网格线 -->
         <polygon
           v-for="level in gridLevels"
