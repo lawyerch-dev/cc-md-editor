@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
-import { ExternalLink, Languages, MessageSquarePlus, Sparkles, Star, X } from '@lucide/vue'
+import { BookOpen, ExternalLink, Languages, MessageSquarePlus, Sparkles, Star, X } from '@lucide/vue'
 import DOMPurify from 'dompurify'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
