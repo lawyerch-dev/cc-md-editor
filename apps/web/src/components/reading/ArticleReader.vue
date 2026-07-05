@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
-import { ExternalLink, Languages, Sparkles, Star } from '@lucide/vue'
+import { ExternalLink, Languages, MessageSquarePlus, Sparkles, Star } from '@lucide/vue'
 import DOMPurify from 'dompurify'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
 import { useReadingStore } from '@/stores/reading'
+import ArticleAnnotator from './ArticleAnnotator.vue'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 
 const props = defineProps<{
@@ -49,6 +50,7 @@ const bilingualBlocks = computed(() => {
 
 // ── AI 摘要 + 翻译 ──────────────────────────────────────
 const aiPanelTab = ref<'summary' | null>(null)
+const annotating = ref(false)
 const aiLoading = ref(false)
 const aiResult = ref('')
 const aiError = ref('')
@@ -253,11 +255,28 @@ async function handleTranslate() {
           <Star class="h-3.5 w-3.5" :class="article.starred ? 'fill-amber-500' : ''" />
           {{ article.starred ? t('reading.unstar') : t('reading.star') }}
         </button>
+
+        <!-- 批注 -->
+        <button
+          class="flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors"
+          :class="annotating ? 'bg-red-50 text-red-600 border-red-300 dark:bg-red-950/30 dark:text-red-400' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+          @click="annotating = !annotating"
+        >
+          <MessageSquarePlus class="h-3.5 w-3.5" />
+          {{ t('reading.annotate') }}
+        </button>
       </div>
     </div>
 
-    <!-- 可滚动文章内容 -->
-    <div class="flex-1 overflow-y-auto">
+    <!-- 批注模式：ArticleAnnotator -->
+    <ArticleAnnotator
+      v-if="annotating"
+      :article="article"
+      :content="sanitize(fullTextContent || article.content || article.summary)"
+    />
+
+    <!-- 正常模式：可滚动文章内容 -->
+    <div v-else class="flex-1 overflow-y-auto">
       <div class="mx-auto max-w-3xl px-8 pb-32">
         <!-- 完整标题 -->
         <h1 class="pt-8 pb-3 text-[1.7rem] font-bold leading-snug text-neutral-900 dark:text-neutral-100 select-text">
