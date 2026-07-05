@@ -329,6 +329,17 @@ function highlightAnn(ann: Annotation) {
   }
 }
 
+function scrollToAnn(id: string) {
+  activeAnnId.value = id
+  const span = contentRef.value?.querySelector(`[data-ann-id="${id}"]`) as HTMLElement
+  if (span) {
+    // 移除旧的 active 高亮
+    contentRef.value?.querySelectorAll('.ann-highlight-active').forEach(el => el.classList.remove('ann-highlight-active'))
+    span.classList.add('ann-highlight-active')
+    span.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+}
+
 function highlightAllAnnotations() {
   nextTick(() => annotations.value.forEach(a => highlightAnn(a)))
 }
@@ -476,7 +487,7 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
             :key="ann.id"
             class="group mx-2 mb-2 rounded-lg p-2 cursor-pointer transition-all"
             :class="activeAnnId === ann.id ? 'bg-white dark:bg-neutral-800 ring-1 ring-red-300 shadow-sm' : 'hover:bg-white dark:hover:bg-neutral-800'"
-            @click="activeAnnId = ann.id"
+            @click="activeAnnId = ann.id; scrollToAnn(ann.id)"
           >
             <div class="flex items-start justify-between gap-2">
               <p class="text-[11px] text-neutral-600 dark:text-neutral-400 flex-1 line-clamp-2">
@@ -600,5 +611,11 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
 }
 .article-body-content :deep(.ann-highlight:hover) {
   background: rgba(239, 68, 68, 0.2);
+}
+.article-body-content :deep(.ann-highlight-active) {
+  background: rgba(239, 68, 68, 0.25);
+  border-bottom-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+  transition: all 0.3s;
 }
 </style>
