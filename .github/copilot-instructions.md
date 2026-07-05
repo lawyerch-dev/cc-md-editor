@@ -30,12 +30,14 @@ This repository is a pnpm monorepo containing a Vue 3 web application, a VSCode 
 
 ### Key Technologies
 - **Frontend Framework:** Vue 3 (Composition API)
-- **Build System:** Vite
+- **Build System:** Vite 8
 - **State Management:** Pinia
-- **Styling:** Tailwind CSS + Custom CSS Variables for themes.
+- **Styling:** Tailwind CSS 4 + PostCSS + Custom CSS Variables for themes.
 - **Markdown Parsing:** `marked` (in `@md/core`)
 - **Editor Component:** CodeMirror 6
 - **Extension Framework:** WXT (Web Extension Tools)
+- **IndexedDB:** `idb` library (reading module direct persistence)
+- **Internationalization:** `vue-i18n` (composition API, `legacy: false`)
 
 ## Key Conventions
 
@@ -68,40 +70,97 @@ apps/web/src/
 │   │   ├── PreviewPanel.vue
 │   │   └── dialogs/             # 编辑器对话框
 │   ├── reading/                 # 资讯阅读工作区
-│   │   ├── ReadingView.vue      # 主视图（三栏布局）
+│   │   ├── ReadingView.vue      # 主视图（自适应布局）
 │   │   ├── ArticleReader.vue    # 文章阅读器
+│   │   ├── MediaArticleReader.vue # 多媒体文章阅读器
 │   │   ├── ArticleAnnotator.vue # 批注系统
-│   │   ├── SourceConfigDialog.vue # 数据源管理（列表）
-│   │   └── AddSourceDialog.vue  # 添加/编辑数据源（统一）
+│   │   ├── SourceConfigDialog.vue # 数据源管理（列表 + 导入/导出）
+│   │   ├── AddSourceDialog.vue  # 添加/编辑数据源（统一）
+│   │   ├── CSSImportDialog.vue  # CSS 选择器采集规则导入
+│   │   └── views/               # 多媒体视图组件
+│   │       ├── ArticleListView.vue   # 文章列表视图
+│   │       ├── PictureGridView.vue   # 图片网格视图
+│   │       ├── PictureMasonryView.vue # 图片瀑布流视图
+│   │       ├── VideoGridView.vue     # 视频网格视图
+│   │       ├── AudioPlayerView.vue   # 音频播放器列表
+│   │       ├── PodcastInlinePlayer.vue # 播客内联播放器
+│   │       ├── CornerPlayer.vue      # 全局角落音频播放器
+│   │       ├── SocialMediaView.vue   # 社交媒体视图
+│   │       ├── ImageLightbox.vue     # 图片灯箱预览
+│   │       └── MediaRenderer.vue     # 多媒体内容渲染
 │   ├── idea-board/              # 想法库工作区
 │   │   ├── IdeaBoard.vue        # 主视图
-│   │   └── ExcalidrawWrapper.vue
+│   │   ├── ExcalidrawWrapper.vue # Excalidraw 画布
+│   │   ├── MermaidAIDialog.vue  # AI 生成 Mermaid 图表
+│   │   ├── AIDraftDialog.vue    # AI 草稿生成
+│   │   └── StickyNoteCard.vue   # 便签卡片
+│   ├── landing/                 # 首页相关组件
+│   │   ├── ChangelogDialog.vue  # 更新日志弹窗
+│   │   └── changelog-data.ts    # 版本日志数据
 │   ├── shared/                  # 跨工作区共享组件
 │   │   ├── ViewNav.vue          # 顶部导航栏
 │   │   └── SyncButton.vue       # 同步按钮
+│   ├── ai/                      # AI 功能组件
+│   │   ├── SidebarAIToolbar.vue # 侧边栏 AI 工具栏
+│   │   ├── chat-box/            # AI 对话组件
+│   │   │   ├── AIConfig.vue     # AI 配置面板
+│   │   │   ├── FloatingAIPanel.vue # 浮动 AI 对话面板
+│   │   │   ├── AIAssistantPanel.vue # AI 助手面板
+│   │   │   └── QuickCommandManager.vue # 快捷指令管理
+│   │   ├── image-generator/     # AI 图片生成
+│   │   │   ├── AIImageGeneratorPanel.vue # 图片生成面板
+│   │   │   └── AIImageConfig.vue # 图片生成配置
+│   │   └── tool-box/            # AI 工具箱
+│   │       └── ToolBoxPopover.vue
 │   └── ui/                      # Shadcn-Vue 基础组件
+│       ├── back-top/            # 返回顶部
+│       ├── sonner/              # Toast 通知
+│       └── ...                  # 其他 UI 组件（dialog, button, tabs 等）
 ├── stores/                      # Pinia 状态管理
 │   ├── ui.ts                    # 全局 UI 状态（视图切换、暗色模式）
-│   ├── reading.ts               # 资讯阅读数据（→ reading/index.ts）
+│   ├── reading.ts               # 资讯阅读数据（向后兼容入口）
 │   └── reading/                 # 资讯阅读模块
 │       ├── index.ts             # useReadingStore + re-exports
-│       ├── types.ts             # Source, Article, FetchStrategy 等接口
-│       ├── fetch-strategies.ts  # RSS / CSS / JSON API 获取策略
-│       └── persistence.ts       # localStorage + V1→V2 迁移
+│       ├── types.ts             # Source, Article, FeedViewType, MediaItem 等接口
+│       ├── fetch-strategies.ts  # RSS / CSS / Folo / CORS 代理策略
+│       ├── persistence.ts       # localStorage + V1→V2 迁移
+│       ├── indexeddb-persistence.ts # IndexedDB 直接持久化（idb 库）
+│       └── folo-import.ts       # OPML + Folo SQLite follow.db 导入
 │   ├── ideaBoard.ts             # 想法库数据
 │   ├── editor.ts                # 编辑器状态
 │   ├── aiConfig.ts              # AI 模型配置
+│   ├── aiPanel.ts               # AI 面板状态
+│   ├── aiImageConfig.ts         # AI 图片生成配置
+│   ├── githubSync.ts            # GitHub 同步状态
+│   ├── export.ts                # 导出功能
+│   ├── template.ts              # 模板管理
+│   ├── quickCommands.ts         # 快捷指令
+│   ├── auth.ts                  # 认证状态
+│   ├── folderSource.ts          # 文件夹数据源集成
+│   ├── mpAccounts.ts            # 微信公众号账号
+│   ├── confirm.ts               # 全局确认对话框
 │   └── locale.ts                # 语言设置
 ├── composables/                 # 组合式函数
+│   ├── useAudioPlayer.ts        # 全局音频播放器单例
+│   ├── useBackgroundRefresh.ts  # 后台自动刷新
+│   ├── useSyncStatusMeta.ts     # 同步状态元数据
 │   ├── useCollectorAI.ts        # 采集器 AI 分析
+│   ├── useDynamicAIModels.ts    # 动态 AI 模型列表
 │   └── useAIFetch.ts            # AI API 调用
 └── i18n/                        # 国际化
     ├── messages/
     │   ├── zh-CN/               # 中文翻译
     │   │   ├── index.ts         # 注册所有模块
     │   │   ├── common.ts        # 通用文本
+    │   │   ├── editor.ts        # 编辑器
+    │   │   ├── dialog.ts        # 对话框
+    │   │   ├── store.ts         # Store 提示
+    │   │   ├── upload.ts        # 上传
+    │   │   ├── chrome.ts        # 浏览器扩展
+    │   │   ├── ai.ts            # AI 功能
     │   │   ├── reading.ts       # 资讯阅读
-    │   │   └── ideaBoard.ts     # 想法库
+    │   │   ├── ideaBoard.ts     # 想法库
+    │   │   └── changelog.ts     # 更新日志
     │   └── en-US/               # 英文翻译（同结构）
     └── index.ts
 ```

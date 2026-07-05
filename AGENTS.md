@@ -136,7 +136,7 @@ CodeMirror 编辑器 → debounce → post store (Pinia) → @md/core renderer
 
 ### 状态管理
 
-约 18 个 Pinia store，按领域划分，位于 `apps/web/src/stores/`：`useEditorStore`（CodeMirror 实例）、`useRenderStore`（渲染管线）、`useThemeStore`（主题设置）、`useUiStore`（暗色模式/视图/对话框）、`usePostStore`（文档 CRUD + 持久化）、`useSyncStore`（云同步）、`useCustomComponentStore`（自定义组件）、`useLocaleStore`（i18n）等。
+约 21 个 Pinia store，按领域划分，位于 `apps/web/src/stores/`：`useEditorStore`（CodeMirror 实例）、`useRenderStore`（渲染管线）、`useThemeStore`（主题设置）、`useUiStore`（暗色模式/视图/对话框）、`usePostStore`（文档 CRUD + 持久化）、`useSyncStore`（云同步）、`useCustomComponentStore`（自定义组件）、`useLocaleStore`（i18n）等。
 
 - UI 组件遵循 Shadcn-Vue 模式，位于 `apps/web/src/components/ui`
 - 跨 feature 通用组件位于 `apps/web/src/components/shared`
@@ -147,7 +147,7 @@ CodeMirror 编辑器 → debounce → post store (Pinia) → @md/core renderer
 Web 主应用与部分浏览器扩展 UI 支持 **zh-CN**、**en-US**；VS Code 扩展、uTools、CLI、MCP **未**国际化。
 
 - **库**：`vue-i18n`（composition API，`legacy: false`），在 `apps/web/vite.config.ts` 中通过 `unplugin-auto-import` 自动导入 `useI18n`
-- **文案**：`apps/web/src/i18n/messages/{zh-CN,en-US}/`（`common`、`editor`、`dialog`、`store`、`ai`、`upload`、`chrome`）
+- **文案**：`apps/web/src/i18n/messages/{zh-CN,en-US}/`（`common`、`editor`、`dialog`、`store`、`ai`、`upload`、`chrome`、`reading`、`ideaBoard`、`changelog`）
 - **组件内**：`useI18n()` + `t('key')`；**Store / 工具函数**：`@/i18n/translate` 的 `t()` / `getLocale()` / `formatLocalDateTime()`
 - **语言状态**：`useLocaleStore`（持久化 key：`locale`）；用户可在 **偏好设置**（`Ctrl+,`）→ General 切换
 - **启动**：`await initStorage()` → `setupI18n(detectInitialLocale())` → Pinia → `useLocaleStore()`（见 `apps/web/src/bootstrap.ts`）；`index.html` 启动屏从 `localStorage` 读取 locale
@@ -261,14 +261,22 @@ export * from './utils'
 | `netlify.toml` | 根目录 Netlify 配置（functions 路径指向 `apps/web/netlify/functions`） |
 | `apps/web/netlify.toml` | Web 应用 Netlify 配置（build command、SPA 重定向） |
 
-### Netlify 分享预览系统
+### Netlify Functions
 
-部署到 Netlify 时，分享预览功能使用 Netlify Functions + Blobs 实现，无需依赖 doocs 后端：
+部署到 Netlify 时，多个后端功能通过 Netlify Functions 实现（分享预览、RSS 代理、数据导入、OAuth 等），无需依赖 doocs 后端：
 
 | 文件 | 用途 |
 | --- | --- |
 | `apps/web/netlify/functions/share-create.ts` | POST 端点：接收 HTML 快照，存入 Blobs，返回短 ID |
 | `apps/web/netlify/functions/share-get.ts` | GET 端点：根据 ID 读取 Blobs，渲染完整分享页面 |
+| `apps/web/netlify/functions/share-delete.ts` | DELETE 端点：删除已分享内容 |
+| `apps/web/netlify/functions/rss-feed-proxy.ts` | RSS 服务端代理（解决 CORS，支持 GBK 编码） |
+| `apps/web/netlify/functions/rss-fetch.ts` | RSS 抓取端点 |
+| `apps/web/netlify/functions/fulltext-extract.ts` | 全文提取代理 |
+| `apps/web/netlify/functions/folo-proxy.ts` | Folo API 代理（解决 CORS） |
+| `apps/web/netlify/functions/folo-import.ts` | Folo 数据导入端点 |
+| `apps/web/netlify/functions/rsshub-discover.ts` | RSSHub 路由发现 |
+| `apps/web/netlify/functions/github-device-flow.ts` | GitHub OAuth Device Flow 代理 |
 | `apps/web/src/services/share/client.ts` | 客户端：`isNetlifyMode()` 检测 + `NetlifyShareClient` 匿名调用 |
 | `apps/web/src/components/editor/editor-header/ShareDialog.vue` | 对话框：Netlify 模式跳过登录，直接调用 Function |
 
@@ -398,3 +406,6 @@ After clone, create the link once:
 | `wechat-svg` | WeChat SVG whitelist, bubbling-group interaction, paste compatibility (`/wechat-svg`) |
 
 Invoke manually: `/skill-name` in Cursor or Claude Code; OpenCode uses the `skill` tool.
+
+
+始终记住，使用中文回复。
