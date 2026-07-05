@@ -150,7 +150,26 @@ export async function importAllData(data: ReadingDataExport): Promise<void> {
   if (!data || data.version !== 1)
     throw new Error('Unsupported backup format')
   const { sources, articles, lists } = data
-  saveSources(sources)
+  // 按 URL 去重，防止导入重复源
+  const seen = new Set<string>()
+  const dedupedSources = sources.filter((s) => {
+    try {
+      const u = new URL(s.url)
+      const norm = `${u.origin}${u.pathname.replace(/\/$/, '')}`.toLowerCase()
+      if (seen.has(norm))
+        return false
+      seen.add(norm)
+      return true
+    }
+    catch {
+      const norm = s.url.toLowerCase().replace(/\/$/, '')
+      if (seen.has(norm))
+        return false
+      seen.add(norm)
+      return true
+    }
+  })
+  saveSources(dedupedSources)
   saveArticles(articles)
   saveLists(lists)
 }

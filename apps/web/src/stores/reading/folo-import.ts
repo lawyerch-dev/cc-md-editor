@@ -1,6 +1,5 @@
 import type { Article, Source } from './types'
 import initSqlJs from 'sql.js'
-import * as idb from './indexeddb-persistence'
 import { saveArticles, saveLists, saveSources } from './persistence'
 import { FeedViewType } from './types'
 
@@ -344,20 +343,30 @@ export async function importFoloClientSide(
  * 同时写入 localStorage 和 IndexedDB，确保两种持久化后端都可用。
  * 调用方需要自行调用 store.reloadFromStorage() 更新响应式状态。
  */
+function normalizeUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    return `${u.origin}${u.pathname.replace(/\/$/, '')}`.toLowerCase()
+  }
+  catch {
+    return url.toLowerCase().replace(/\/$/, '')
+  }
+}
+
 export async function applyImport(sources: Source[], articles: Article[]): Promise<void> {
+  // 按 URL 去重
+  const seen = new Set<string>()
+  const deduped = sources.filter((s) => {
+    const norm = normalizeUrl(s.url)
+    if (seen.has(norm))
+      return false
+    seen.add(norm)
+    return true
+  })
   localStorage.removeItem('reading_sources_v4')
   localStorage.removeItem('reading_articles')
   localStorage.removeItem('reading_lists')
-  saveSources(sources)
+  saveSources(deduped)
   saveArticles(articles)
   saveLists([])
-
-  try {
-    await Promise.all([
-      idb.saveSources(sources),
-      idb.saveArticles(articles),
-      idb.saveLists([]),
-    ])
-  }
-  catch { /* IndexedDB 不可用时 localStorage 已写入 */ }
 }

@@ -221,12 +221,18 @@ export const useReadingStore = defineStore('reading', () => {
   function updateSource(id: string, updates: Partial<Pick<Source, 'title' | 'refreshInterval' | 'selectors' | 'description' | 'url' | 'view' | 'rsshubPath' | 'foloFeedId'>>) {
     const src = sources.value.find(s => s.id === id)
     if (src) {
+      const urlChanged = updates.url && updates.url !== src.url
       Object.assign(src, updates)
       // 用户手动设置 view 时，清除自动检测标志
       if (updates.view !== undefined) {
         src.autoDetectedView = false
       }
       saveSources(sources.value)
+      // URL 变更后重新抓取
+      if (urlChanged) {
+        src.health = { status: 'pending' }
+        void fetchSingleSource(id)
+      }
     }
   }
 
