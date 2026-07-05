@@ -385,121 +385,124 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
       </div>
     </div>
 
-    <!-- 可滚动文章内容 -->
-    <div ref="contentRef" class="flex-1 overflow-y-auto relative" @mouseup="handleAnnMouseUp">
-      <div class="mx-auto max-w-3xl px-8 pb-32">
-        <!-- 完整标题 -->
-        <h1 class="pt-8 pb-3 text-[1.7rem] font-bold leading-snug text-neutral-900 dark:text-neutral-100 select-text">
-          {{ article.title }}
-        </h1>
-        <!-- 元信息 -->
-        <div class="pb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
-          <div class="flex items-center gap-1.5">
-            <span class="size-4 rounded bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[7px] font-bold text-neutral-500 shrink-0">{{ article.sourceTitle.charAt(0) }}</span>
-            <span>{{ article.sourceTitle }}</span>
+    <!-- 内容区 + 批注面板 -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- 可滚动文章内容 -->
+      <div ref="contentRef" class="flex-1 overflow-y-auto relative" @mouseup="handleAnnMouseUp">
+        <div class="mx-auto max-w-3xl px-8 pb-32">
+          <!-- 完整标题 -->
+          <h1 class="pt-8 pb-3 text-[1.7rem] font-bold leading-snug text-neutral-900 dark:text-neutral-100 select-text">
+            {{ article.title }}
+          </h1>
+          <!-- 元信息 -->
+          <div class="pb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
+            <div class="flex items-center gap-1.5">
+              <span class="size-4 rounded bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[7px] font-bold text-neutral-500 shrink-0">{{ article.sourceTitle.charAt(0) }}</span>
+              <span>{{ article.sourceTitle }}</span>
+            </div>
+            <span v-if="article.author">{{ article.author }}</span>
+            <span>{{ formatDate(article.publishedAt) }}</span>
           </div>
-          <span v-if="article.author">{{ article.author }}</span>
-          <span>{{ formatDate(article.publishedAt) }}</span>
+
+          <!-- 播客音频播放器 -->
+          <div
+            v-if="(article.media || []).some(m => m.type === 'audio') || article.attachments?.some(a => a.mimeType?.startsWith('audio/') || /\.(?:mp3|wav|ogg|m4a|aac|flac)(?:\?|$)/i.test(a.url))"
+            class="mb-6 mx-auto max-w-md rounded-xl border border-neutral-200 dark:border-neutral-700 bg-gradient-to-b from-orange-50/80 to-amber-50/50 dark:from-orange-950/30 dark:to-amber-950/20 p-5"
+          >
+            <PodcastInlinePlayer :article="article" />
+          </div>
+
+          <!-- 正文 -->
+          <div class="mt-4">
+            <div v-if="translationActive">
+              <div v-for="(block, i) in bilingualBlocks" :key="i">
+                <div v-html="sanitize(block.html)" />
+                <div v-if="translatedParagraphs[i] !== undefined" class="my-2 rounded bg-orange-50 dark:bg-orange-950/30 px-4 py-2 text-sm text-orange-800 dark:text-orange-200 italic border-l-2 border-orange-300">
+                  {{ translatedParagraphs[i] || '...' }}
+                </div>
+              </div>
+            </div>
+            <div v-else-if="fullTextError" class="flex flex-col items-center justify-center py-16 gap-3 text-neutral-500">
+              <BookOpen class="h-8 w-8 opacity-30" />
+              <p class="text-xs">
+                {{ fullTextError }}
+              </p>
+              <a :href="article.link" target="_blank" class="text-xs text-primary hover:underline">
+                {{ t('reading.openInBrowser') }}
+              </a>
+            </div>
+            <div v-else class="article-body-content article-content prose prose-neutral dark:prose-invert max-w-none">
+              <div v-html="sanitize(fullTextContent || article.content || article.summary)" />
+            </div>
+          </div>
         </div>
 
-        <!-- 播客音频播放器 -->
+        <!-- 选中弹窗 -->
         <div
-          v-if="(article.media || []).some(m => m.type === 'audio') || article.attachments?.some(a => a.mimeType?.startsWith('audio/') || /\.(?:mp3|wav|ogg|m4a|aac|flac)(?:\?|$)/i.test(a.url))"
-          class="mb-6 mx-auto max-w-md rounded-xl border border-neutral-200 dark:border-neutral-700 bg-gradient-to-b from-orange-50/80 to-amber-50/50 dark:from-orange-950/30 dark:to-amber-950/20 p-5"
+          v-if="annPopup"
+          class="fixed z-50"
+          :style="{ left: `${annPopup.x}px`, top: `${annPopup.y}px` }"
         >
-          <PodcastInlinePlayer :article="article" />
+          <button
+            class="flex items-center gap-1 rounded-md bg-red-500 px-2.5 py-1.5 text-xs text-white shadow-lg hover:bg-red-600 transition-colors"
+            @click.stop="createAnnotation"
+          >
+            <Sparkles class="h-3.5 w-3.5" />
+            {{ t('reading.addAnnotation') }}
+          </button>
         </div>
 
-        <!-- 正文 -->
-        <div class="mt-4">
-          <div v-if="translationActive">
-            <div v-for="(block, i) in bilingualBlocks" :key="i">
-              <div v-html="sanitize(block.html)" />
-              <div v-if="translatedParagraphs[i] !== undefined" class="my-2 rounded bg-orange-50 dark:bg-orange-950/30 px-4 py-2 text-sm text-orange-800 dark:text-orange-200 italic border-l-2 border-orange-300">
-                {{ translatedParagraphs[i] || '...' }}
+        <!-- 右侧批注面板（可折叠） -->
+        <div
+          v-if="annPanelOpen && annotations.length"
+          class="w-64 border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden shrink-0"
+        >
+          <div class="flex items-center justify-between px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">
+            <span class="text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ t('reading.annotations') }} ({{ annotations.length }})</span>
+            <button class="text-neutral-400 hover:text-neutral-600" @click="annPanelOpen = false">
+              <X class="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto py-2">
+            <div
+              v-for="ann in annotations"
+              :key="ann.id"
+              class="group mx-2 mb-2 rounded-lg p-2 cursor-pointer transition-all"
+              :class="activeAnnId === ann.id ? 'bg-white dark:bg-neutral-800 ring-1 ring-red-300 shadow-sm' : 'hover:bg-white dark:hover:bg-neutral-800'"
+              @click="activeAnnId = ann.id"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-[11px] text-neutral-600 dark:text-neutral-400 flex-1 line-clamp-2">
+                  <span class="text-red-400 mr-1">●</span>
+                  {{ ann.comment || ann.text.slice(0, 50) }}
+                </p>
+                <button class="shrink-0 opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500" @click.stop="removeAnnotation(ann.id)">
+                  <X class="h-3 w-3" />
+                </button>
+              </div>
+              <div v-if="activeAnnId === ann.id" class="mt-2">
+                <textarea
+                  :value="ann.comment"
+                  :placeholder="t('reading.writingAnnotation')"
+                  class="w-full min-h-[50px] text-xs resize-none rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-300"
+                  @input="updateAnnComment(ann.id, ($event.target as HTMLTextAreaElement).value)"
+                />
               </div>
             </div>
           </div>
-          <div v-else-if="fullTextError" class="flex flex-col items-center justify-center py-16 gap-3 text-neutral-500">
-            <BookOpen class="h-8 w-8 opacity-30" />
-            <p class="text-xs">
-              {{ fullTextError }}
-            </p>
-            <a :href="article.link" target="_blank" class="text-xs text-primary hover:underline">
-              {{ t('reading.openInBrowser') }}
-            </a>
-          </div>
-          <div v-else class="article-body-content article-content prose prose-neutral dark:prose-invert max-w-none">
-            <div v-html="sanitize(fullTextContent || article.content || article.summary)" />
-          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- 选中弹窗 -->
-    <div
-      v-if="annPopup"
-      class="fixed z-50"
-      :style="{ left: `${annPopup.x}px`, top: `${annPopup.y}px` }"
-    >
-      <button
-        class="flex items-center gap-1 rounded-md bg-red-500 px-2.5 py-1.5 text-xs text-white shadow-lg hover:bg-red-600 transition-colors"
-        @click.stop="createAnnotation"
-      >
-        <Sparkles class="h-3.5 w-3.5" />
-        {{ t('reading.addAnnotation') }}
-      </button>
-    </div>
-
-    <!-- 右侧批注面板（可折叠） -->
-    <div
-      v-if="annPanelOpen && annotations.length"
-      class="w-64 border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden shrink-0"
-    >
-      <div class="flex items-center justify-between px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">
-        <span class="text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ t('reading.annotations') }} ({{ annotations.length }})</span>
-        <button class="text-neutral-400 hover:text-neutral-600" @click="annPanelOpen = false">
-          <X class="h-3.5 w-3.5" />
+        <!-- 批注数量角标（面板关闭时显示） -->
+        <button
+          v-if="!annPanelOpen && annotations.length"
+          class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white shadow-md hover:bg-red-600 transition-colors"
+          @click="annPanelOpen = true"
+        >
+          <MessageSquarePlus class="h-3 w-3" />
+          {{ annotations.length }}
         </button>
       </div>
-      <div class="flex-1 overflow-y-auto py-2">
-        <div
-          v-for="ann in annotations"
-          :key="ann.id"
-          class="group mx-2 mb-2 rounded-lg p-2 cursor-pointer transition-all"
-          :class="activeAnnId === ann.id ? 'bg-white dark:bg-neutral-800 ring-1 ring-red-300 shadow-sm' : 'hover:bg-white dark:hover:bg-neutral-800'"
-          @click="activeAnnId = ann.id"
-        >
-          <div class="flex items-start justify-between gap-2">
-            <p class="text-[11px] text-neutral-600 dark:text-neutral-400 flex-1 line-clamp-2">
-              <span class="text-red-400 mr-1">●</span>
-              {{ ann.comment || ann.text.slice(0, 50) }}
-            </p>
-            <button class="shrink-0 opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500" @click.stop="removeAnnotation(ann.id)">
-              <X class="h-3 w-3" />
-            </button>
-          </div>
-          <div v-if="activeAnnId === ann.id" class="mt-2">
-            <textarea
-              :value="ann.comment"
-              :placeholder="t('reading.writingAnnotation')"
-              class="w-full min-h-[50px] text-xs resize-none rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-300"
-              @input="updateAnnComment(ann.id, ($event.target as HTMLTextAreaElement).value)"
-            />
-          </div>
-        </div>
-      </div>
     </div>
-
-    <!-- 批注数量角标（面板关闭时显示） -->
-    <button
-      v-if="!annPanelOpen && annotations.length"
-      class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white shadow-md hover:bg-red-600 transition-colors"
-      @click="annPanelOpen = true"
-    >
-      <MessageSquarePlus class="h-3 w-3" />
-      {{ annotations.length }}
-    </button>
   </div>
 </template>
 
