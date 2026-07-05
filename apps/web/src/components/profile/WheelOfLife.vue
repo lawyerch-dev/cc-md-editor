@@ -78,7 +78,7 @@ function average() {
       </p>
     </div>
 
-    <div class="flex items-start gap-12">
+    <div class="flex items-center gap-12">
       <!-- 雷达图 -->
       <svg viewBox="-20 -20 440 440" class="w-[420px] h-[420px] shrink-0">
         <!-- 网格线 -->
