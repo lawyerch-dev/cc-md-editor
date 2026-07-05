@@ -110,11 +110,52 @@ function loadVisibility(): VisibilityAudit {
 }
 
 const visibility = ref<VisibilityAudit>(loadVisibility())
+const aiSuggestions = ref<string[]>([])
+const sugLoading = ref(false)
+const sugError = ref('')
 
 function saveVisibility() {
   localStorage.setItem('reading_visibility_audit', JSON.stringify(visibility.value))
   saved.value = true
   setTimeout(() => { saved.value = false }, 1500)
+}
+
+async function generateVisibilitySuggestions() {
+  sugLoading.value = true
+  sugError.value = ''
+  aiSuggestions.value = []
+  try {
+    const aiConfigRaw = localStorage.getItem('ai-config')
+    if (!aiConfigRaw) { sugError.value = '请先配置 AI 服务'; return }
+    const aiConfig = JSON.parse(aiConfigRaw)
+    const endpoint = aiConfig.textEndpoint || aiConfig.endpoint
+    const apiKey = aiConfig.textApiKey || aiConfig.apiKey
+    if (!endpoint || !apiKey) { sugError.value = '请先配置 AI 服务'; return }
+
+    const v = visibility.value
+    const prompt = `用户是职业人士，以下是他的外部可见性审计结果：
+百度搜索：${v.baidu || '未填写'}
+微信搜索：${v.wechat || '未填写'}
+知乎搜索：${v.zhihu || '未填写'}
+ChatGPT/Claude：${v.aiChatgpt || '未填写'}
+Kimi/通义：${v.aiKimi || '未填写'}
+裁判文书：${v.courtRecords} 个案件
+知网论文：${v.papers} 篇
+请给出 3-5 条提升外部可见性的具体建议，直接返回建议列表，每条一行。`
+
+    const res = await window.fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: aiConfig.textModel || aiConfig.model, messages: [{ role: 'user', content: prompt }], temperature: 0.3 }),
+      signal: AbortSignal.timeout(30000),
+    })
+    if (!res.ok) { sugError.value = `AI 请求失败：${res.status}`; return }
+    const result = await res.json()
+    const content = result.choices?.[0]?.message?.content || ''
+    aiSuggestions.value = content.split('\n').filter((l: string) => l.trim()).map((l: string) => l.replace(/^\d+[.、]\s*/, '').trim())
+  }
+  catch (e) { sugError.value = e instanceof Error ? e.message : '生成失败' }
+  finally { sugLoading.value = false }
 }
 
 // ── 工具函数 ──────────────────────────────────────
@@ -590,12 +631,29 @@ function trendColor(change: number): string {
             </div>
           </div>
 
-          <!-- 保存 -->
+          <!-- 保存 + AI 建议 -->
           <div class="flex items-center gap-3">
             <Button @click="saveVisibility">
               保存审计
             </Button>
+            <Button variant="outline" :disabled="sugLoading" @click="generateVisibilitySuggestions">
+              <Brain v-if="!sugLoading" class="h-4 w-4 mr-1" />
+              <Loader2 v-else class="h-4 w-4 mr-1 animate-spin" />
+              AI 建议
+            </Button>
             <span v-if="saved" class="text-sm text-green-600">✓ 已保存</span>
+            <span v-if="sugError" class="text-xs text-destructive">{{ sugError }}</span>
+          </div>
+
+          <!-- AI 建议结果 -->
+          <div v-if="aiSuggestions.length" class="rounded-xl border bg-muted/30 p-5 space-y-3">
+            <h3 class="text-sm font-semibold">
+              💡 AI 建议
+            </h3>
+            <div v-for="(s, i) in aiSuggestions" :key="i" class="flex items-start gap-2 text-sm">
+              <span class="text-primary font-bold shrink-0">{{ i + 1 }}.</span>
+              <span class="text-muted-foreground">{{ s }}</span>
+            </div>
           </div>
         </div>
       </div>
