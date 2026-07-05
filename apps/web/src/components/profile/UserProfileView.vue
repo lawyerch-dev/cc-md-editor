@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { ArrowLeft, Save } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, Check } from '@lucide/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/stores/ui'
+import AbilityGap from './AbilityGap.vue'
 import IkigaiDiagram from './IkigaiDiagram.vue'
+import ProfileReport from './ProfileReport.vue'
+import ValuesSort from './ValuesSort.vue'
+import WheelOfLife from './WheelOfLife.vue'
 
 const uiStore = useUIStore()
 const { t } = useI18n()
@@ -20,6 +24,9 @@ interface IkigaiData {
 
 interface UserProfile {
   ikigai: IkigaiData
+  wheelOfLife: Record<string, number>
+  values: string[]
+  abilities: Array<{ name: string, current: number, target: number }>
   whoAmI: string
   goals: string
   interests: string
@@ -30,20 +37,23 @@ function loadProfile(): UserProfile {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const data = JSON.parse(raw)
-      if (!data.ikigai) {
-        return {
-          ikigai: { love: [], goodAt: [], worldNeeds: [], paidFor: [] },
-          whoAmI: data.whoAmI || '',
-          goals: data.goals || '',
-          interests: data.interests || '',
-        }
+      return {
+        ikigai: data.ikigai || { love: [], goodAt: [], worldNeeds: [], paidFor: [] },
+        wheelOfLife: data.wheelOfLife || {},
+        values: data.values || [],
+        abilities: data.abilities || [],
+        whoAmI: data.whoAmI || '',
+        goals: data.goals || '',
+        interests: data.interests || '',
       }
-      return data
     }
   }
   catch { /* ignore */ }
   return {
     ikigai: { love: [], goodAt: [], worldNeeds: [], paidFor: [] },
+    wheelOfLife: {},
+    values: [],
+    abilities: [],
     whoAmI: '',
     goals: '',
     interests: '',
@@ -51,12 +61,50 @@ function loadProfile(): UserProfile {
 }
 
 const profile = ref<UserProfile>(loadProfile())
-const saved = ref(false)
 
+const steps = [
+  { key: 'ikigai', title: 'Ikigai 探索', desc: '找到你的核心定位' },
+  { key: 'wheel', title: '生命之轮', desc: '评估生活各维度' },
+  { key: 'values', title: '价值观排序', desc: '明确你的决策准则' },
+  { key: 'abilities', title: '能力图谱', desc: '发现成长方向' },
+  { key: 'report', title: '画像报告', desc: '查看你的完整画像' },
+]
+
+const currentStep = ref(0)
+
+function nextStep() {
+  if (currentStep.value < steps.length - 1) {
+    currentStep.value++
+    save()
+  }
+}
+
+function prevStep() {
+  if (currentStep.value > 0)
+    currentStep.value--
+}
+
+function goToStep(index: number) {
+  currentStep.value = index
+}
+
+const saved = ref(false)
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(profile.value))
   saved.value = true
-  setTimeout(() => { saved.value = false }, 2000)
+  setTimeout(() => { saved.value = false }, 1500)
+}
+
+// 完成度检查
+function isStepComplete(index: number): boolean {
+  switch (index) {
+    case 0: return profile.value.ikigai.love.length > 0
+    case 1: return Object.keys(profile.value.wheelOfLife).length > 0
+    case 2: return profile.value.values.length > 0
+    case 3: return profile.value.abilities.length > 0
+    case 4: return true
+    default: return false
+  }
 }
 </script>
 
@@ -70,70 +118,129 @@ function save() {
       <h1 class="text-lg font-semibold">
         {{ t('reading.userProfileTitle') }}
       </h1>
+      <span v-if="saved" class="text-xs text-green-600 ml-2">✓ 已保存</span>
     </div>
 
-    <!-- 内容 -->
-    <div class="flex-1 overflow-y-auto">
-      <div class="mx-auto max-w-3xl px-8 py-10 space-y-12">
-        <!-- Ikigai 探索 -->
-        <section>
-          <IkigaiDiagram v-model="profile.ikigai" />
-        </section>
-
-        <!-- 分隔线 -->
-        <div class="border-t" />
-
-        <!-- 补充描述 -->
-        <section class="space-y-6">
-          <h2 class="text-lg font-semibold">
-            补充描述
-          </h2>
-          <p class="text-xs text-muted-foreground">
-            {{ t('reading.userProfileDesc') }}
-          </p>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">{{ t('reading.profileWhoAmI') }}</label>
-            <textarea
-              v-model="profile.whoAmI"
-              rows="3"
-              class="w-full rounded-lg border bg-background px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-              :placeholder="t('reading.profileWhoAmIPlaceholder')"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">{{ t('reading.profileGoals') }}</label>
-            <textarea
-              v-model="profile.goals"
-              rows="3"
-              class="w-full rounded-lg border bg-background px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-              :placeholder="t('reading.profileGoalsPlaceholder')"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">{{ t('reading.profileInterests') }}</label>
-            <textarea
-              v-model="profile.interests"
-              rows="3"
-              class="w-full rounded-lg border bg-background px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-              :placeholder="t('reading.profileInterestsPlaceholder')"
-            />
-          </div>
-        </section>
-
-        <!-- 保存按钮 -->
-        <div class="flex items-center gap-3 pt-4 pb-16">
-          <Button class="gap-2" @click="save">
-            <Save class="h-4 w-4" />
-            {{ t('common.save') }}
-          </Button>
-          <span v-if="saved" class="text-sm text-green-600">
-            {{ t('reading.profileSaved') }}
+    <!-- 步骤进度条 -->
+    <div class="border-b px-6 py-3">
+      <div class="flex items-center gap-2 max-w-3xl mx-auto">
+        <button
+          v-for="(s, i) in steps"
+          :key="s.key"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
+          :class="[
+            i === currentStep
+              ? 'bg-primary text-primary-foreground font-medium'
+              : isStepComplete(i)
+                ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400'
+                : 'text-muted-foreground hover:bg-muted',
+          ]"
+          @click="goToStep(i)"
+        >
+          <span
+            class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border"
+            :class="[
+              i === currentStep
+                ? 'border-primary-foreground/30'
+                : isStepComplete(i)
+                  ? 'border-green-300 bg-green-100 dark:border-green-800 dark:bg-green-900'
+                  : 'border-muted-foreground/30',
+            ]"
+          >
+            <Check v-if="isStepComplete(i) && i !== currentStep" class="h-3 w-3" />
+            <span v-else>{{ i + 1 }}</span>
           </span>
+          <span class="hidden sm:inline">{{ s.title }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 步骤内容 -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="py-10 px-8">
+        <transition name="fade" mode="out-in">
+          <!-- Step 1: Ikigai -->
+          <div v-if="currentStep === 0" key="ikigai">
+            <IkigaiDiagram v-model="profile.ikigai" />
+          </div>
+
+          <!-- Step 2: Wheel of Life -->
+          <div v-else-if="currentStep === 1" key="wheel">
+            <WheelOfLife v-model="profile.wheelOfLife" />
+          </div>
+
+          <!-- Step 3: Values -->
+          <div v-else-if="currentStep === 2" key="values">
+            <ValuesSort v-model="profile.values" />
+          </div>
+
+          <!-- Step 4: Abilities -->
+          <div v-else-if="currentStep === 3" key="abilities">
+            <AbilityGap v-model="profile.abilities" />
+          </div>
+
+          <!-- Step 5: Report -->
+          <div v-else-if="currentStep === 4" key="report">
+            <ProfileReport
+              :ikigai="profile.ikigai"
+              :wheel-of-life="profile.wheelOfLife"
+              :values="profile.values"
+              :abilities="profile.abilities"
+              :who-am-i="profile.whoAmI"
+              :goals="profile.goals"
+              :interests="profile.interests"
+            />
+          </div>
+        </transition>
+      </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <div class="border-t px-6 py-3">
+      <div class="flex items-center justify-between max-w-3xl mx-auto">
+        <Button
+          v-if="currentStep > 0"
+          variant="ghost"
+          class="gap-1"
+          @click="prevStep"
+        >
+          <ArrowLeft class="h-4 w-4" />
+          {{ steps[currentStep - 1]?.title }}
+        </Button>
+        <div v-else />
+
+        <div class="flex items-center gap-2">
+          <span v-if="currentStep < steps.length - 1" class="text-xs text-muted-foreground">
+            {{ currentStep + 1 }} / {{ steps.length }}
+          </span>
+          <Button
+            v-if="currentStep < steps.length - 1"
+            class="gap-1"
+            @click="nextStep"
+          >
+            {{ steps[currentStep + 1]?.title }}
+            <ArrowRight class="h-4 w-4" />
+          </Button>
+          <Button
+            v-else
+            class="gap-1"
+            @click="save"
+          >
+            保存画像
+          </Button>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
