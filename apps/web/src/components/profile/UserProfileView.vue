@@ -662,40 +662,45 @@ function trendColor(change: number): string {
               <span class="text-muted-foreground">{{ s }}</span>
             </div>
           </div>
-          <!-- Tab 5: 深度分析 -->
-          <div v-if="activeTab === 'deep'" class="space-y-6">
-            <div class="flex items-center justify-center gap-2">
-              <button
-                v-for="(s, i) in deepSteps"
-                :key="s"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all"
-                :class="deepStep === i ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'"
-                @click="deepStep = i"
-              >
-                <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border" :class="deepStep === i ? 'border-primary-foreground/30' : 'border-muted-foreground/30'">{{ i + 1 }}</span>
-                {{ s }}
-              </button>
-            </div>
-            <div>
-              <IkigaiDiagram v-if="deepStep === 0" v-model="profile.ikigai" />
-              <WheelOfLife v-if="deepStep === 1" v-model="profile.wheelOfLife" />
-              <ValuesSort v-if="deepStep === 2" v-model="profile.values" />
-              <AbilityGap v-if="deepStep === 3" v-model="profile.abilities" />
-            </div>
-            <div class="flex items-center justify-between">
-              <Button v-if="deepStep > 0" variant="ghost" size="sm" @click="deepStep--">
-                上一步
+        </div>
+
+        <!-- Tab 5: 深度分析 -->
+        <div v-if="activeTab === 'deep'" class="space-y-6">
+          <!-- 步骤导航 -->
+          <div class="flex items-center justify-center gap-2">
+            <button
+              v-for="(s, i) in deepSteps"
+              :key="s"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all"
+              :class="deepStep === i ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'"
+              @click="deepStep = i"
+            >
+              <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border" :class="deepStep === i ? 'border-primary-foreground/30' : 'border-muted-foreground/30'">{{ i + 1 }}</span>
+              {{ s }}
+            </button>
+          </div>
+
+          <div>
+            <IkigaiDiagram v-if="deepStep === 0" v-model="profile.ikigai" />
+            <WheelOfLife v-if="deepStep === 1" v-model="profile.wheelOfLife" />
+            <ValuesSort v-if="deepStep === 2" v-model="profile.values" />
+            <AbilityGap v-if="deepStep === 3" v-model="profile.abilities" />
+          </div>
+
+          <!-- 底部导航 -->
+          <div class="flex items-center justify-between">
+            <Button v-if="deepStep > 0" variant="ghost" size="sm" @click="deepStep--">
+              上一步
+            </Button>
+            <div v-else />
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-muted-foreground">{{ deepStep + 1 }} / {{ deepSteps.length }}</span>
+              <Button v-if="deepStep < deepSteps.length - 1" size="sm" @click="deepStep++">
+                下一步
               </Button>
-              <div v-else />
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-muted-foreground">{{ deepStep + 1 }} / {{ deepSteps.length }}</span>
-                <Button v-if="deepStep < deepSteps.length - 1" size="sm" @click="deepStep++">
-                  下一步
-                </Button>
-                <Button v-else size="sm" @click="save">
-                  保存
-                </Button>
-              </div>
+              <Button v-else size="sm" @click="save">
+                保存
+              </Button>
             </div>
           </div>
         </div>
