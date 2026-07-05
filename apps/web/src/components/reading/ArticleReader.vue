@@ -6,6 +6,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
+import { useIdeaBoardStore } from '@/stores/ideaBoard'
 import { useReadingStore } from '@/stores/reading'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 
