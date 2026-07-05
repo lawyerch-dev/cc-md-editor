@@ -361,16 +361,14 @@ function updateLine() {
   if (!highlight || !wrapper) { lineCoords.value = null; return }
   const card = wrapper.querySelector(`[data-card-id="${id}"]`) as HTMLElement
   if (!card) { lineCoords.value = null; return }
-  const wrapperRect = wrapper.getBoundingClientRect()
   const hlRect = highlight.getBoundingClientRect()
   const cardRect = card.getBoundingClientRect()
-  // 高亮坐标需要加上滚动偏移（因为 SVG 是 absolute 定位，不随内容滚动）
-  const scrollTop = contentRef.value.scrollTop
+  // 直接用视口坐标（SVG 是 fixed 定位）
   lineCoords.value = {
-    x1: hlRect.right - wrapperRect.left,
-    y1: hlRect.top - wrapperRect.top + scrollTop + hlRect.height / 2,
-    x2: cardRect.left - wrapperRect.left,
-    y2: cardRect.top - wrapperRect.top + 12,
+    x1: hlRect.right + 4,
+    y1: hlRect.top + hlRect.height / 2,
+    x2: cardRect.left - 4,
+    y2: cardRect.top + 12,
   }
 }
 
@@ -566,11 +564,11 @@ onMounted(() => nextTick(highlightAllAnnotations))
         {{ annotations.length }}
       </button>
 
-      <!-- 连接线 SVG -->
+      <!-- 连接线 SVG（fixed 定位，覆盖视口） -->
       <svg
         v-if="lineCoords"
-        class="absolute inset-0 pointer-events-none overflow-visible"
-        style="z-index: 5;"
+        class="fixed inset-0 pointer-events-none"
+        style="z-index: 50; width: 100vw; height: 100vh;"
       >
         <line
           :x1="lineCoords.x1"
