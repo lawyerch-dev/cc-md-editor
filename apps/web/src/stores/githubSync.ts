@@ -131,6 +131,15 @@ function collectReadingData(): { sources: unknown[], articles: unknown[] } {
 }
 
 function applyReadingData(data: { sources: unknown[], articles: unknown[] }): void {
+  // 按 URL 去重，防止其他路径写入重复数据
+  const seen = new Set<string>()
+  data.sources = data.sources.filter((s) => {
+    const url = normalizeUrl((s as Record<string, unknown>).url as string)
+    if (seen.has(url))
+      return false
+    seen.add(url)
+    return true
+  })
   lsSet(LS_READING_SOURCES, JSON.stringify(data.sources))
   lsSet(LS_READING_ARTICLES, JSON.stringify(data.articles))
   void saveIDBSources(data.sources as Source[]).catch(() => {})
@@ -164,15 +173,31 @@ function extractTitle(content: string): string {
 // ── merge helpers ──
 
 /** 阅读数据：按 ID 去重，本地版本优先（保留已读/收藏状态） */
+function normalizeUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    return `${u.origin}${u.pathname.replace(/\/$/, '')}`.toLowerCase()
+  }
+  catch {
+    return url.toLowerCase().replace(/\/$/, '')
+  }
+}
+
 function mergeReadingData(
   local: { sources: unknown[], articles: unknown[] },
   remote: { sources: unknown[], articles: unknown[] },
 ): { sources: unknown[], articles: unknown[] } {
-  const localSrc = new Map(local.sources.map(s => [(s as Record<string, unknown>).id, s]))
+  const localSrcById = new Map(local.sources.map(s => [(s as Record<string, unknown>).id, s]))
+  const localUrls = new Set(local.sources.map(s => normalizeUrl((s as Record<string, unknown>).url as string)))
   for (const rs of remote.sources) {
-    const id = (rs as Record<string, unknown>).id as string
-    if (!localSrc.has(id))
-      local.sources.push(rs)
+    const rec = rs as Record<string, unknown>
+    if (localSrcById.has(rec.id as string))
+      continue
+    const norm = normalizeUrl(rec.url as string)
+    if (localUrls.has(norm))
+      continue
+    local.sources.push(rs)
+    localUrls.add(norm)
   }
   const localArt = new Map(local.articles.map(a => [(a as Record<string, unknown>).id, a]))
   for (const ra of remote.articles) {
