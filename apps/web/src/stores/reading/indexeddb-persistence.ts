@@ -64,6 +64,7 @@ export async function getAllSources(): Promise<Source[]> {
 export async function saveSources(sources: Source[]): Promise<void> {
   const db = await openDB()
   const tx = db.transaction('sources', 'readwrite')
+  await tx.store.clear()
   for (const source of sources)
     tx.store.put(source)
   await tx.done
@@ -79,6 +80,7 @@ export async function getAllArticles(): Promise<Article[]> {
 export async function saveArticles(articles: Article[]): Promise<void> {
   const db = await openDB()
   const tx = db.transaction('articles', 'readwrite')
+  await tx.store.clear()
   for (const article of articles)
     tx.store.put(article)
   await tx.done
@@ -94,6 +96,7 @@ export async function getAllLists(): Promise<ReadingList[]> {
 export async function saveLists(lists: ReadingList[]): Promise<void> {
   const db = await openDB()
   const tx = db.transaction('lists', 'readwrite')
+  await tx.store.clear()
   for (const list of lists)
     tx.store.put(list)
   await tx.done

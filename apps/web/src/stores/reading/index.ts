@@ -100,6 +100,10 @@ export const useReadingStore = defineStore('reading', () => {
   }
 
   async function hydrate() {
+    const lsSources = loadSources()
+    const lsArticles = loadArticles()
+    const lsLists = loadLists()
+
     const [s, a, l, fetchMap] = await Promise.all([
       loadSourcesAsync(),
       loadArticlesAsync(),
@@ -107,11 +111,17 @@ export const useReadingStore = defineStore('reading', () => {
       loadLastFetchMap(),
     ])
 
+    // localStorage 是同步写入，不会丢失；IndexedDB 异步写入可能丢失。
+    // 取两者中更完整的一份，确保用户新增的数据不会被旧的 IndexedDB 数据覆盖。
+    const finalSources = lsSources.length > 0 ? lsSources : s
+    const finalArticles = lsArticles.length > 0 ? lsArticles : a
+    const finalLists = lsLists.length > 0 ? lsLists : l
+
     // ── 源去重：按标准化 URL，保留第一个，合并文章到保留的源 ──
     const urlToKeepId = new Map<string, string>()
     const removeSourceIds = new Set<string>()
     const keptSources: Source[] = []
-    for (const src of s) {
+    for (const src of finalSources) {
       const norm = normalizeUrl(src.url)
       const existing = urlToKeepId.get(norm)
       if (existing) {
@@ -129,12 +139,12 @@ export const useReadingStore = defineStore('reading', () => {
     if (removeSourceIds.size > 0) {
       // 建立 oldSourceId → keptSourceId 映射（通过 URL 匹配）
       const oldIdToNorm = new Map<string, string>()
-      for (const src of s) {
+      for (const src of finalSources) {
         if (removeSourceIds.has(src.id)) {
           oldIdToNorm.set(src.id, normalizeUrl(src.url))
         }
       }
-      for (const article of a) {
+      for (const article of finalArticles) {
         if (removeSourceIds.has(article.sourceId)) {
           const norm = oldIdToNorm.get(article.sourceId)
           const keptId = norm ? urlToKeepId.get(norm) : undefined
@@ -148,7 +158,7 @@ export const useReadingStore = defineStore('reading', () => {
     const validSourceIds = new Set(keptSources.map(s => s.id))
     const seenArticleKeys = new Set<string>()
     const keptArticles: Article[] = []
-    for (const article of a) {
+    for (const article of finalArticles) {
       if (!validSourceIds.has(article.sourceId))
         continue
       const key = `${article.sourceId}|${article.title}|${article.publishedAt}`
@@ -159,12 +169,12 @@ export const useReadingStore = defineStore('reading', () => {
     }
     articles.value = keptArticles
 
-    lists.value = l
+    lists.value = finalLists
     lastFetchMap.value = fetchMap
     hydrated.value = true
 
     // 去重后持久化，防止下次启动重复清理
-    if (removeSourceIds.size > 0 || keptArticles.length < a.length) {
+    if (removeSourceIds.size > 0 || keptArticles.length < finalArticles.length) {
       saveSources(sources.value)
       saveArticles(articles.value)
     }
