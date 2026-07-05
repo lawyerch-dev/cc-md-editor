@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, Globe, Lightbulb, Moon, Newspaper, ScrollText, Settings, Sun, X } from '@lucide/vue'
+import { FileText, Globe, Lightbulb, Moon, Newspaper, ScrollText, Settings, Sun, User, X } from '@lucide/vue'
 import { defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ChangelogDialog from '@/components/landing/ChangelogDialog.vue'
@@ -112,6 +112,22 @@ const showChangelog = ref(false)
             </h2>
             <p class="mt-1 text-sm text-muted-foreground">
               写作、排版、预览
+            </p>
+          </div>
+        </button>
+
+        <!-- 我的画像 -->
+        <button
+          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all hover:border-emerald-500 hover:shadow-md"
+          @click="uiStore.setCurrentView('profile')"
+        >
+          <User class="h-10 w-10 text-emerald-500 transition-transform group-hover:scale-110" />
+          <div class="text-center">
+            <h2 class="text-lg font-semibold">
+              我的画像
+            </h2>
+            <p class="mt-1 text-sm text-muted-foreground">
+              自我剖析与职业规划
             </p>
           </div>
         </button>

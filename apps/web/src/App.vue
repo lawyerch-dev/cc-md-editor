@@ -9,6 +9,7 @@ import { useUIStore } from '@/stores/ui'
 const CodemirrorEditor = defineAsyncComponent(() => import('@/components/editor/CodemirrorEditor.vue'))
 const IdeaBoard = defineAsyncComponent(() => import('@/components/idea-board/IdeaBoard.vue'))
 const ReadingView = defineAsyncComponent(() => import('@/components/reading/ReadingView.vue'))
+const UserProfileView = defineAsyncComponent(() => import('@/components/profile/UserProfileView.vue'))
 const CommandPalette = defineAsyncComponent(() => import('@/components/editor/dialogs/CommandPalette.vue'))
 const ConfirmDialog = defineAsyncComponent(() => import('@/components/shared/confirm-dialog/ConfirmDialog.vue'))
 const PreferencesDialog = defineAsyncComponent(() => import('@/components/editor/dialogs/PreferencesDialog.vue'))
@@ -33,6 +34,7 @@ usePreferencesHotkey()
   <ReadingView
     v-else-if="currentView === 'reading'"
   />
+  <UserProfileView v-else-if="currentView === 'profile'" />
 
   <CommandPalette />
 
