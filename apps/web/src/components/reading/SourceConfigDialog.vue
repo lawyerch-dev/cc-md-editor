@@ -5,9 +5,10 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCollectorAI } from '@/composables/useCollectorAI'
-import { useReadingStore } from '@/stores/reading'
+import { useReadingStore, VIEW_TYPE_OPTIONS } from '@/stores/reading'
 import { applyImport, importFromOpml } from '@/stores/reading/folo-import'
 import { exportAllData, importAllData } from '@/stores/reading/persistence'
 import CSSImportDialog from './CSSImportDialog.vue'
@@ -33,6 +34,7 @@ const fullDataFileInput = ref<HTMLInputElement | null>(null)
 const fullDataImporting = ref(false)
 const showCSSImport = ref(false)
 const editingSource = ref<Source | null>(null)
+const expandedSourceId = ref<string | null>(null)
 const rsshubRoutes = ref<Array<{ name: string, path: string }>>([])
 const rsshubChecking = ref(false)
 const inlineError = ref('')
@@ -50,8 +52,28 @@ function removeSource(src: Source) {
   store.removeSource(src.id)
 }
 
+const expandedTitle = ref('')
+const expandedView = ref<FeedViewType>(0)
+
 function openEdit(src: Source) {
-  editingSource.value = src
+  if (src.strategy === 'css-selector') {
+    // CSS 源保留弹窗
+    editingSource.value = src
+    return
+  }
+  if (expandedSourceId.value === src.id) {
+    expandedSourceId.value = null
+    return
+  }
+  expandedSourceId.value = src.id
+  expandedTitle.value = src.title
+  expandedView.value = src.view ?? 0
+}
+
+function saveExpandedSource(src: Source) {
+  store.updateSource(src.id, { title: expandedTitle.value, view: expandedView.value })
+  expandedSourceId.value = null
+  toast.success(t('reading.saved'))
 }
 
 /** 行内添加数据源 */
@@ -547,6 +569,35 @@ async function importFullDataFromFile(e: Event) {
               </Button>
               <Button variant="ghost" size="icon" class="h-6 w-6 text-destructive" @click="removeSource(src)">
                 <Trash2 class="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          <!-- 折叠编辑区 -->
+          <div v-if="expandedSourceId === src.id" class="border-t bg-muted/30 px-4 py-3 space-y-2">
+            <div class="flex items-center gap-2">
+              <Label class="text-[10px] text-muted-foreground w-10 shrink-0">标题</Label>
+              <Input v-model="expandedTitle" class="h-7 text-xs flex-1" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Label class="text-[10px] text-muted-foreground w-10 shrink-0">视图</Label>
+              <select
+                v-model="expandedView"
+                class="flex h-7 rounded-md border border-input bg-background px-2 text-xs"
+              >
+                <option v-for="opt in VIEW_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
+                  {{ t(opt.i18nKey) }}
+                </option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+              <Button size="sm" class="h-6 text-[10px]" @click="saveExpandedSource(src)">
+                {{ t('common.save') }}
+              </Button>
+              <Button v-if="src.strategy === 'css-selector'" variant="outline" size="sm" class="h-6 text-[10px]" @click="editingSource = src">
+                {{ t('reading.advancedEdit') }}
+              </Button>
+              <Button variant="ghost" size="sm" class="h-6 text-[10px]" @click="expandedSourceId = null">
+                {{ t('common.cancel') }}
               </Button>
             </div>
           </div>
