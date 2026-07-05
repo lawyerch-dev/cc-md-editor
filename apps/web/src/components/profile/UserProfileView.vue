@@ -122,7 +122,7 @@ function isStepComplete(index: number): boolean {
     </div>
 
     <!-- 步骤进度条 -->
-    <div class="border-b px-6 py-3">
+    <div class="border-b px-6 py-3 flex justify-center">
       <div class="flex items-center justify-center gap-2">
         <button
           v-for="(s, i) in steps"
