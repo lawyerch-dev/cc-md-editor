@@ -2,9 +2,10 @@
 import type { Article } from '@/stores/reading'
 import { BookOpen, ExternalLink, Languages, MessageSquarePlus, Sparkles, Star, X } from '@lucide/vue'
 import DOMPurify from 'dompurify'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
+import { endReading, startReading, trackAnnotate, trackExtractIdea, trackFavorite } from '@/composables/useBehaviorTracking'
 import { useAIConfigStore } from '@/stores/aiConfig'
 import { useReadingStore } from '@/stores/reading'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
@@ -93,6 +94,7 @@ function getUserProfileContext(): string {
 watch(() => props.article.id, async (id, oldId) => {
   if (id === oldId)
     return
+  endReading()
   if (currentAIAbort) { currentAIAbort.abort(); currentAIAbort = null }
   fullTextContent.value = ''
   fullTextError.value = ''
@@ -127,6 +129,7 @@ watch(() => props.article.id, async (id, oldId) => {
     }
     finally { fullTextLoading.value = false }
   }
+  startReading(props.article.id, props.article.sourceId)
 }, { immediate: true })
 
 async function callAIStream(
@@ -296,6 +299,7 @@ function createAnnotation() {
     createdAt: Date.now(),
   }
   saveAnnotations([...annotations.value, ann])
+  trackAnnotate(props.article.id)
   annPopup.value = null
   activeAnnId.value = ann.id
   annPanelOpen.value = true
@@ -344,6 +348,7 @@ function extractToIdea(ann: Annotation) {
       updatedAt: now,
     })
     localStorage.setItem(SCENES_KEY, JSON.stringify(scenes))
+    trackExtractIdea(props.article.id)
     toast.success(t('reading.ideaCreated'))
   }
   catch (e) {
@@ -433,7 +438,8 @@ function highlightAllAnnotations() {
 loadAnnotations()
 watch(() => props.article.id, () => { loadAnnotations(); activeAnnId.value = null; nextTick(highlightAllAnnotations) })
 watch(() => fullTextContent.value, () => highlightAllAnnotations())
-onMounted(() => nextTick(highlightAllAnnotations))
+onMounted(() => { nextTick(highlightAllAnnotations); startReading(props.article.id, props.article.sourceId) })
+onUnmounted(() => endReading())
 </script>
 
 <template>
@@ -476,7 +482,7 @@ onMounted(() => nextTick(highlightAllAnnotations))
           {{ t('reading.openOriginal') }}
         </a>
 
-        <button class="flex items-center gap-1 rounded-md border border-neutral-200 dark:border-neutral-700 px-2 py-1 text-[11px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :class="article.starred ? 'text-amber-600 border-amber-300 dark:border-amber-700' : 'text-neutral-500'" @click="readingStore.toggleStar(article.id)">
+        <button class="flex items-center gap-1 rounded-md border border-neutral-200 dark:border-neutral-700 px-2 py-1 text-[11px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800" :class="article.starred ? 'text-amber-600 border-amber-300 dark:border-amber-700' : 'text-neutral-500'" @click="readingStore.toggleStar(article.id); trackFavorite(article.id)">
           <Star class="h-3.5 w-3.5" :class="article.starred ? 'fill-amber-500' : ''" />
           {{ article.starred ? t('reading.unstar') : t('reading.star') }}
         </button>
