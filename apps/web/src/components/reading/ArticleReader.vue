@@ -2,7 +2,7 @@
 import type { Article } from '@/stores/reading'
 import { BookOpen, ExternalLink, Languages, MessageSquarePlus, Sparkles, Star, X } from '@lucide/vue'
 import DOMPurify from 'dompurify'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
@@ -368,8 +368,9 @@ function highlightAllAnnotations() {
 }
 
 loadAnnotations()
-watch(() => props.article.id, () => { loadAnnotations(); activeAnnId.value = null })
+watch(() => props.article.id, () => { loadAnnotations(); activeAnnId.value = null; nextTick(highlightAllAnnotations) })
 watch(() => fullTextContent.value, () => highlightAllAnnotations())
+onMounted(() => nextTick(highlightAllAnnotations))
 </script>
 
 <template>
