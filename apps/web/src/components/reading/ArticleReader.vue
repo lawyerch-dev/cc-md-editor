@@ -436,78 +436,78 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- 选中弹窗 -->
-        <div
-          v-if="annPopup"
-          class="fixed z-50"
-          :style="{ left: `${annPopup.x}px`, top: `${annPopup.y}px` }"
-        >
-          <button
-            class="flex items-center gap-1 rounded-md bg-red-500 px-2.5 py-1.5 text-xs text-white shadow-lg hover:bg-red-600 transition-colors"
-            @click.stop="createAnnotation"
-          >
-            <Sparkles class="h-3.5 w-3.5" />
-            {{ t('reading.addAnnotation') }}
-          </button>
-        </div>
-
-        <!-- 右侧批注面板 -->
-        <div
-          v-if="annPanelOpen"
-          class="w-64 border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden shrink-0"
-        >
-          <div class="flex items-center justify-between px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">
-            <span class="text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ t('reading.annotations') }} ({{ annotations.length }})</span>
-            <button class="text-neutral-400 hover:text-neutral-600" @click="annPanelOpen = false">
-              <X class="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <div class="flex-1 overflow-y-auto py-2">
-            <!-- 空状态 -->
-            <div v-if="!annotations.length" class="flex flex-col items-center justify-center h-32 text-neutral-400">
-              <MessageSquarePlus class="h-6 w-6 mb-2 opacity-40" />
-              <span class="text-[10px]">{{ t('reading.noAnnotations') }}</span>
-              <span class="text-[9px] text-neutral-300 mt-1">{{ t('reading.selectToAnnotate') }}</span>
-            </div>
-            <div
-              v-for="ann in annotations"
-              :key="ann.id"
-              class="group mx-2 mb-2 rounded-lg p-2 cursor-pointer transition-all"
-              :class="activeAnnId === ann.id ? 'bg-white dark:bg-neutral-800 ring-1 ring-red-300 shadow-sm' : 'hover:bg-white dark:hover:bg-neutral-800'"
-              @click="activeAnnId = ann.id"
-            >
-              <div class="flex items-start justify-between gap-2">
-                <p class="text-[11px] text-neutral-600 dark:text-neutral-400 flex-1 line-clamp-2">
-                  <span class="text-red-400 mr-1">●</span>
-                  {{ ann.comment || ann.text.slice(0, 50) }}
-                </p>
-                <button class="shrink-0 opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500" @click.stop="removeAnnotation(ann.id)">
-                  <X class="h-3 w-3" />
-                </button>
-              </div>
-              <div v-if="activeAnnId === ann.id" class="mt-2">
-                <textarea
-                  :value="ann.comment"
-                  :placeholder="t('reading.writingAnnotation')"
-                  class="w-full min-h-[50px] text-xs resize-none rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-300"
-                  @input="updateAnnComment(ann.id, ($event.target as HTMLTextAreaElement).value)"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 批注数量角标（面板关闭时显示） -->
+      <!-- 选中弹窗 -->
+      <div
+        v-if="annPopup"
+        class="fixed z-50"
+        :style="{ left: `${annPopup.x}px`, top: `${annPopup.y}px` }"
+      >
         <button
-          v-if="!annPanelOpen && annotations.length"
-          class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white shadow-md hover:bg-red-600 transition-colors"
-          @click="annPanelOpen = true"
+          class="flex items-center gap-1 rounded-md bg-red-500 px-2.5 py-1.5 text-xs text-white shadow-lg hover:bg-red-600 transition-colors"
+          @click.stop="createAnnotation"
         >
-          <MessageSquarePlus class="h-3 w-3" />
-          {{ annotations.length }}
+          <Sparkles class="h-3.5 w-3.5" />
+          {{ t('reading.addAnnotation') }}
         </button>
       </div>
+
+      <!-- 右侧批注面板 -->
+      <div
+        v-if="annPanelOpen"
+        class="w-64 border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden shrink-0"
+      >
+        <div class="flex items-center justify-between px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">
+          <span class="text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ t('reading.annotations') }} ({{ annotations.length }})</span>
+          <button class="text-neutral-400 hover:text-neutral-600" @click="annPanelOpen = false">
+            <X class="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto py-2">
+          <!-- 空状态 -->
+          <div v-if="!annotations.length" class="flex flex-col items-center justify-center h-32 text-neutral-400">
+            <MessageSquarePlus class="h-6 w-6 mb-2 opacity-40" />
+            <span class="text-[10px]">{{ t('reading.noAnnotations') }}</span>
+            <span class="text-[9px] text-neutral-300 mt-1">{{ t('reading.selectToAnnotate') }}</span>
+          </div>
+          <div
+            v-for="ann in annotations"
+            :key="ann.id"
+            class="group mx-2 mb-2 rounded-lg p-2 cursor-pointer transition-all"
+            :class="activeAnnId === ann.id ? 'bg-white dark:bg-neutral-800 ring-1 ring-red-300 shadow-sm' : 'hover:bg-white dark:hover:bg-neutral-800'"
+            @click="activeAnnId = ann.id"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-[11px] text-neutral-600 dark:text-neutral-400 flex-1 line-clamp-2">
+                <span class="text-red-400 mr-1">●</span>
+                {{ ann.comment || ann.text.slice(0, 50) }}
+              </p>
+              <button class="shrink-0 opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500" @click.stop="removeAnnotation(ann.id)">
+                <X class="h-3 w-3" />
+              </button>
+            </div>
+            <div v-if="activeAnnId === ann.id" class="mt-2">
+              <textarea
+                :value="ann.comment"
+                :placeholder="t('reading.writingAnnotation')"
+                class="w-full min-h-[50px] text-xs resize-none rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-300"
+                @input="updateAnnComment(ann.id, ($event.target as HTMLTextAreaElement).value)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 批注数量角标（面板关闭时显示） -->
+      <button
+        v-if="!annPanelOpen && annotations.length"
+        class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white shadow-md hover:bg-red-600 transition-colors"
+        @click="annPanelOpen = true"
+      >
+        <MessageSquarePlus class="h-3 w-3" />
+        {{ annotations.length }}
+      </button>
     </div>
   </div>
 </template>
