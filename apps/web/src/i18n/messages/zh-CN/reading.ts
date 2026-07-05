@@ -43,7 +43,7 @@ export default {
     noCSSSources: '暂无网页采集源',
     tabRSS: '订阅源',
     tabCSS: '网页采集',
-    resetDefaults: '恢复默认源',
+    resetDefaults: '清空重置',
     resetConfirm: '确定清空所有数据源和文章？此操作不可撤销。',
     refreshInterval: '刷新间隔',
     collector: '采集',

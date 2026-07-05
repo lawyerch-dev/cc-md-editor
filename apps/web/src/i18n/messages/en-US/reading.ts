@@ -43,7 +43,7 @@ export default {
     noCSSSources: 'No web scraping sources',
     tabRSS: 'RSS',
     tabCSS: 'Web Scraping',
-    resetDefaults: 'Reset Defaults',
+    resetDefaults: 'Clear & Reset',
     resetConfirm: 'Are you sure you want to clear all sources and articles? This cannot be undone.',
     refreshInterval: 'Interval',
     collector: 'Collect',
