@@ -222,7 +222,7 @@ const ANN_STORAGE_KEY = 'reading_annotations'
 const annotations = ref<Annotation[]>([])
 const annPopup = ref<{ x: number, y: number, text: string } | null>(null)
 const activeAnnId = ref<string | null>(null)
-const annPanelOpen = ref(false)
+const annPanelOpen = ref(true)
 const contentRef = ref<HTMLElement | null>(null)
 
 function loadAnnotations() {
@@ -452,9 +452,9 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
           </button>
         </div>
 
-        <!-- 右侧批注面板（可折叠） -->
+        <!-- 右侧批注面板 -->
         <div
-          v-if="annPanelOpen && annotations.length"
+          v-if="annPanelOpen"
           class="w-64 border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden shrink-0"
         >
           <div class="flex items-center justify-between px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">
@@ -464,6 +464,12 @@ watch(() => fullTextContent.value, () => highlightAllAnnotations())
             </button>
           </div>
           <div class="flex-1 overflow-y-auto py-2">
+            <!-- 空状态 -->
+            <div v-if="!annotations.length" class="flex flex-col items-center justify-center h-32 text-neutral-400">
+              <MessageSquarePlus class="h-6 w-6 mb-2 opacity-40" />
+              <span class="text-[10px]">{{ t('reading.noAnnotations') }}</span>
+              <span class="text-[9px] text-neutral-300 mt-1">{{ t('reading.selectToAnnotate') }}</span>
+            </div>
             <div
               v-for="ann in annotations"
               :key="ann.id"

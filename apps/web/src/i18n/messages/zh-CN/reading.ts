@@ -48,6 +48,8 @@ export default {
     extractToIdea: '提炼为想法',
     ideaCreated: '已提炼到想法库',
     annotate: '批注',
+    noAnnotations: '暂无批注',
+    selectToAnnotate: '选中文字添加批注',
     refreshInterval: '刷新间隔',
     collector: '采集',
     api: 'API',

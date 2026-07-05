@@ -48,6 +48,8 @@ export default {
     extractToIdea: 'Extract to Idea',
     ideaCreated: 'Extracted to Idea Board',
     annotate: 'Annotate',
+    noAnnotations: 'No annotations yet',
+    selectToAnnotate: 'Select text to annotate',
     refreshInterval: 'Interval',
     collector: 'Collect',
     api: 'API',
