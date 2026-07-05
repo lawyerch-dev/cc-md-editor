@@ -346,16 +346,18 @@ function updateLine() {
   const id = activeAnnId.value
   if (!id || !contentRef.value) { lineCoords.value = null; return }
   const highlight = contentRef.value.querySelector(`[data-ann-id="${id}"]`) as HTMLElement
-  const card = contentRef.value.closest('.flex.flex-1.overflow-hidden')?.querySelector(`[data-card-id="${id}"]`) as HTMLElement
-  if (!highlight || !card) { lineCoords.value = null; return }
   const wrapper = contentRef.value.closest('.flex.flex-1.overflow-hidden') as HTMLElement
-  if (!wrapper) { lineCoords.value = null; return }
+  if (!highlight || !wrapper) { lineCoords.value = null; return }
+  const card = wrapper.querySelector(`[data-card-id="${id}"]`) as HTMLElement
+  if (!card) { lineCoords.value = null; return }
   const wrapperRect = wrapper.getBoundingClientRect()
   const hlRect = highlight.getBoundingClientRect()
   const cardRect = card.getBoundingClientRect()
+  // 高亮坐标需要加上滚动偏移（因为 SVG 是 absolute 定位，不随内容滚动）
+  const scrollTop = contentRef.value.scrollTop
   lineCoords.value = {
     x1: hlRect.right - wrapperRect.left,
-    y1: hlRect.top - wrapperRect.top + hlRect.height / 2,
+    y1: hlRect.top - wrapperRect.top + scrollTop + hlRect.height / 2,
     x2: cardRect.left - wrapperRect.left,
     y2: cardRect.top - wrapperRect.top + 12,
   }
@@ -421,7 +423,7 @@ onMounted(() => nextTick(highlightAllAnnotations))
     </div>
 
     <!-- 内容区 + 批注面板 -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
       <!-- 可滚动文章内容 -->
       <div ref="contentRef" class="flex-1 overflow-y-auto relative" @mouseup="handleAnnMouseUp" @scroll="updateLine">
         <div class="mx-auto max-w-3xl px-8 pb-32">
