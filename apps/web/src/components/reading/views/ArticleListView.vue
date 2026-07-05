@@ -75,7 +75,7 @@ function extraMediaCount(article: Article): number {
 
 /** 摘要行 — 截断到 80 字符 */
 const summaryLine = computed(() => (article: Article) => {
-  const s = article.summary?.trim()
+  const s = article.summary?.replace(/\[!--begin:\w+--\][\s\S]*?\[!--end:\w+--\]/g, '').trim()
   if (s) {
     return s.length > 80 ? `${s.slice(0, 80)}…` : s
   }

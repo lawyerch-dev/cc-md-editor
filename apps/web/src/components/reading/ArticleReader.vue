@@ -17,7 +17,7 @@ const readingStore = useReadingStore()
 const aiConfig = useAIConfigStore()
 const { t } = useI18n()
 
-const sanitize = (html: string) => DOMPurify.sanitize(html, { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling'] })
+const sanitize = (html: string) => DOMPurify.sanitize(html.replace(/\[!--begin:\w+--\][\s\S]*?\[!--end:\w+--\]/g, ''), { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling'] })
 
 function formatDate(ts: number) {
   const diff = Date.now() - ts
