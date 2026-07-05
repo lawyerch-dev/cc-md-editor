@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCollectorAI } from '@/composables/useCollectorAI'
 import { useReadingStore } from '@/stores/reading'
-import { applyImport, importFromOpml } from '@/stores/reading/folo-import'
+import { applyImport } from '@/stores/reading/folo-import'
 import { exportAllData, importAllData } from '@/stores/reading/persistence'
 import CSSImportDialog from './CSSImportDialog.vue'
 
@@ -27,8 +27,6 @@ const activeTab = ref<FetchStrategy>('rss')
 const newUrl = ref('')
 const addingSource = ref(false)
 const progressMsg = ref('')
-const opmlImporting = ref(false)
-const opmlFileInput = ref<HTMLInputElement | null>(null)
 const jsonFileInput = ref<HTMLInputElement | null>(null)
 const jsonImporting = ref(false)
 const fullDataFileInput = ref<HTMLInputElement | null>(null)
@@ -189,34 +187,6 @@ function formatHealthTime(timestamp: number | undefined): string {
   return new Date(timestamp).toLocaleTimeString()
 }
 
-/** OPML 文件选择后直接导入 */
-async function onOpmlFileSelected(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file)
-    return
-  opmlImporting.value = true
-  try {
-    const text = await file.text()
-    const result = importFromOpml(text)
-    if (result.sources.length === 0) {
-      toast.error(t('reading.importNoSources'))
-      return
-    }
-    await applyImport(result.sources, [])
-    await store.reloadFromStorage()
-    toast.success(t('reading.importStats', { sources: result.sources.length, articles: 0 }))
-  }
-  catch (e) {
-    toast.error(e instanceof Error ? e.message : t('reading.importFailed'))
-  }
-  finally {
-    opmlImporting.value = false
-    if (opmlFileInput.value)
-      opmlFileInput.value.value = ''
-  }
-}
-
 /** 导出所有数据源为 JSON 文件 */
 function exportSources() {
   const data = store.sources.map((s) => {
@@ -369,7 +339,6 @@ async function importFullDataFromFile(e: Event) {
           </Button>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input ref="opmlFileInput" type="file" accept=".opml,.xml" class="hidden" @change="onOpmlFileSelected">
           <Button v-if="activeTab === 'css-selector'" size="sm" variant="outline" class="h-8 gap-1 text-xs" @click="showCSSImport = true">
             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             JSON
@@ -537,9 +506,6 @@ async function importFullDataFromFile(e: Event) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem @click="opmlFileInput?.click()">
-                OPML
-              </DropdownMenuItem>
               <DropdownMenuItem @click="jsonFileInput?.click()">
                 JSON {{ t('reading.importSources') }}
               </DropdownMenuItem>
