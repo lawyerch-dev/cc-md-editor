@@ -92,8 +92,8 @@ const circles = [
       </div>
 
       <!-- 中央：Ikigai 图 -->
-      <div class="absolute inset-0 flex items-center justify-center">
-        <svg :viewBox="`0 0 ${size} ${size}`" :width="size" :height="size">
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <svg :viewBox="`0 0 ${size} ${size}`" :width="size" :height="size" class="pointer-events-none">
           <!-- 非激活的圆 -->
           <circle
             v-for="c in circles.filter(c => c.key !== editing)"
@@ -101,7 +101,7 @@ const circles = [
             :cx="c.cx" :cy="c.cy" :r="r"
             :fill="c.color" fill-opacity="0.1"
             :stroke="c.color" stroke-width="1" stroke-opacity="0.25"
-            class="cursor-pointer transition-all hover:fill-opacity-20"
+            class="cursor-pointer transition-all hover:fill-opacity-20 pointer-events-auto"
             @click="startEdit(c.key)"
           />
           <!-- 激活的圆（最上层，高亮） -->
@@ -116,7 +116,7 @@ const circles = [
             :stroke="circles.find(c => c.key === editing)!.color"
             stroke-width="3"
             stroke-opacity="0.7"
-            class="cursor-pointer"
+            class="cursor-pointer pointer-events-auto"
             @click="startEdit(editing!)"
           />
           <text :x="cx" :y="cy - 6" text-anchor="middle" class="text-sm font-bold fill-foreground pointer-events-none">IKIGAI</text>
