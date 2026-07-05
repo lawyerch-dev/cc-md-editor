@@ -44,6 +44,7 @@ export default {
     tabRSS: '订阅源',
     tabCSS: '网页采集',
     resetDefaults: '恢复默认源',
+    resetConfirm: '确定清空所有数据源和文章？此操作不可撤销。',
     refreshInterval: '刷新间隔',
     collector: '采集',
     api: 'API',

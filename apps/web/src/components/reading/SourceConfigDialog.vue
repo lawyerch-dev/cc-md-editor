@@ -3,7 +3,9 @@ import type { FetchStrategy, Source } from '@/stores/reading'
 import { AlertCircle, CheckCircle2, Loader2, RefreshCcw, Rss, Search, Settings2, Trash2, X } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCollectorAI } from '@/composables/useCollectorAI'
@@ -45,6 +47,10 @@ const filteredSources = computed(() => {
 
 const rssCount = computed(() => store.sources.filter(s => s.strategy === 'rss' || s.strategy === 'folo-rsshub').length)
 const cssCount = computed(() => store.sources.filter(s => s.strategy === 'css-selector').length)
+
+function handleReset() {
+  store.resetToDefaults()
+}
 
 function removeSource(src: Source) {
   store.removeSource(src.id)
@@ -308,33 +314,6 @@ async function importFullDataFromFile(e: Event) {
         <div class="flex items-center gap-1.5">
           <input ref="jsonFileInput" type="file" accept=".json" class="hidden" @change="importSourcesFromFile">
           <input ref="fullDataFileInput" type="file" accept=".json" class="hidden" @change="importFullDataFromFile">
-          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" @click="exportSources()">
-            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-            {{ t('reading.exportSources') }}
-          </Button>
-          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" :disabled="jsonImporting" @click="jsonFileInput?.click()">
-            <template v-if="jsonImporting">
-              <Loader2 class="h-3.5 w-3.5 animate-spin" />
-            </template>
-            <template v-else>
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            </template>
-            {{ t('reading.importSources') }}
-          </Button>
-          <div class="mx-1 h-5 w-px bg-border" />
-          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" @click="exportFullData()">
-            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-            {{ t('reading.exportAll') }}
-          </Button>
-          <Button size="sm" variant="outline" class="h-7 gap-1 text-xs" :disabled="fullDataImporting" @click="fullDataFileInput?.click()">
-            <template v-if="fullDataImporting">
-              <Loader2 class="h-3.5 w-3.5 animate-spin" />
-            </template>
-            <template v-else>
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            </template>
-            {{ t('reading.importAll') }}
-          </Button>
           <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
             <X class="h-4 w-4" />
           </Button>
@@ -391,15 +370,6 @@ async function importFullDataFromFile(e: Event) {
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <input ref="opmlFileInput" type="file" accept=".opml,.xml" class="hidden" @change="onOpmlFileSelected">
-          <Button v-if="activeTab === 'rss'" size="sm" variant="outline" class="h-8 gap-1 text-xs" :disabled="opmlImporting" @click="opmlFileInput?.click()">
-            <template v-if="opmlImporting">
-              <Loader2 class="h-3.5 w-3.5 animate-spin" />
-            </template>
-            <template v-else>
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            </template>
-            OPML
-          </Button>
           <Button v-if="activeTab === 'css-selector'" size="sm" variant="outline" class="h-8 gap-1 text-xs" @click="showCSSImport = true">
             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             JSON
@@ -558,9 +528,62 @@ async function importFullDataFromFile(e: Event) {
         <span class="text-xs text-muted-foreground">
           {{ filteredSources.length }} / {{ store.sources.length }} {{ t('reading.sourcesCount') }}
         </span>
-        <Button variant="ghost" size="sm" class="h-7 text-xs" @click="store.resetToDefaults()">
-          {{ t('reading.resetDefaults') }}
-        </Button>
+        <div class="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button size="sm" variant="outline" class="h-7 gap-1 text-xs">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                {{ t('reading.importSources') }}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem @click="opmlFileInput?.click()">
+                OPML
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="jsonFileInput?.click()">
+                JSON {{ t('reading.importSources') }}
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="fullDataFileInput?.click()">
+                {{ t('reading.importAll') }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button size="sm" variant="outline" class="h-7 gap-1 text-xs">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                {{ t('reading.exportSources') }}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem @click="exportSources()">
+                JSON {{ t('reading.exportSources') }}
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="exportFullData()">
+                {{ t('reading.exportAll') }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <AlertDialog>
+            <AlertDialogTrigger as-child>
+              <Button variant="destructive" size="sm" class="h-7 text-xs">
+                {{ t('reading.resetDefaults') }}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{{ t('reading.resetDefaults') }}</AlertDialogTitle>
+                <AlertDialogDescription>{{ t('reading.resetConfirm') }}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{{ t('common.cancel') }}</AlertDialogCancel>
+                <AlertDialogAction @click="handleReset()">
+                  {{ t('common.confirm') || '确定' }}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </div>
 

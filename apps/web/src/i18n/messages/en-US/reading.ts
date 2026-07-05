@@ -44,6 +44,7 @@ export default {
     tabRSS: 'RSS',
     tabCSS: 'Web Scraping',
     resetDefaults: 'Reset Defaults',
+    resetConfirm: 'Are you sure you want to clear all sources and articles? This cannot be undone.',
     refreshInterval: 'Interval',
     collector: 'Collect',
     api: 'API',
