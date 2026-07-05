@@ -29,7 +29,6 @@ const { analyzePage } = useCollectorAI()
 
 const url = ref(props.source?.url || '')
 const title = ref(props.source?.title || '')
-const refreshInterval = ref(props.source?.refreshInterval ?? 30)
 const rsshubPath = ref(props.source?.rsshubPath || '')
 const strategy = ref<FetchStrategy>(props.source?.strategy || props.strategy || 'rss')
 const view = ref<FeedViewType>(props.source?.view ?? 0)
@@ -53,18 +52,9 @@ const discoveredRoutes = ref<Array<{ name: string, path: string }>>([])
 
 const isEdit = !!props.source
 
-const REFRESH_OPTIONS = [
-  { value: 0, label: () => t('common.close') },
-  { value: 15, label: () => t('reading.minutes', { n: 15 }) },
-  { value: 30, label: () => t('reading.minutes', { n: 30 }) },
-  { value: 60, label: () => t('reading.hours', { n: 1 }) },
-  { value: 120, label: () => t('reading.hours', { n: 2 }) },
-  { value: 360, label: () => t('reading.hours', { n: 6 }) },
-  { value: 1440, label: () => t('reading.hours', { n: 24 }) },
-]
-
 const STRATEGY_OPTIONS: Array<{ value: FetchStrategy, label: string }> = [
   { value: 'rss', label: t('reading.strategyRss') },
+  { value: 'folo-rsshub', label: t('reading.strategyRss') },
   { value: 'css-selector', label: t('reading.strategyCssSelector') },
 ]
 
@@ -267,7 +257,7 @@ function handleSave() {
   const data = {
     url: trimmedUrl,
     title: title.value.trim() || trimmedUrl,
-    refreshInterval: refreshInterval.value,
+    refreshInterval: 30,
     strategy: effectiveStrategy,
     view: view.value,
     selectors: strategy.value === 'css-selector' ? selectors.value : undefined,
@@ -396,7 +386,7 @@ watch(url, () => {
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
             <Label class="text-xs">{{ t('reading.strategyLabel') }}</Label>
             <select
@@ -416,17 +406,6 @@ watch(url, () => {
             >
               <option v-for="opt in VIEW_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
                 {{ t(opt.i18nKey) }}
-              </option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <Label class="text-xs">{{ t('reading.refreshInterval') }}</Label>
-            <select
-              v-model="refreshInterval"
-              class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option v-for="opt in REFRESH_OPTIONS" :key="opt.value" :value="opt.value">
-                {{ opt.label() }}
               </option>
             </select>
           </div>
