@@ -6,7 +6,6 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
-import { useIdeaBoardStore } from '@/stores/ideaBoard'
 import { useReadingStore } from '@/stores/reading'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 
@@ -16,7 +15,6 @@ const props = defineProps<{
 
 const readingStore = useReadingStore()
 const aiConfig = useAIConfigStore()
-const ideaBoardStore = useIdeaBoardStore()
 const { t } = useI18n()
 
 const sanitize = (html: string) => DOMPurify.sanitize(html.replace(/\[!--begin:\w+--\][\s\S]*?\[!--end:\w+--\]/g, ''), { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling'] })
@@ -296,8 +294,34 @@ function extractToIdea(ann: Annotation) {
   if (ann.comment)
     parts.push('', ann.comment)
   parts.push('', `📎 ${props.article.title}${props.article.link ? ` (${props.article.link})` : ''}`)
-  ideaBoardStore.addNote(parts.join('\n'), 'blue', '阅读笔记')
-  toast.success(t('reading.ideaCreated'))
+  const content = parts.join('\n')
+  // IdeaBoard 使用 scenes 数据（idea-board-notes 和 idea-board-scenes 是不同数据源）
+  const SCENES_KEY = 'idea-board-scenes'
+  try {
+    const raw = localStorage.getItem(SCENES_KEY)
+    const scenes: Array<{ id: string, title: string, desc: string, color: number, group: string, x: number, y: number, w: number, h: number, elements: unknown[], createdAt: number, updatedAt: number }> = raw ? JSON.parse(raw) : []
+    const now = Date.now()
+    scenes.push({
+      id: now.toString(36) + Math.random().toString(36).slice(2, 8),
+      title: ann.text.slice(0, 30),
+      desc: content,
+      color: 1,
+      group: '阅读笔记',
+      x: 20 + (scenes.length % 5) * 20,
+      y: 20 + (scenes.length % 5) * 20,
+      w: 200,
+      h: 120,
+      elements: [],
+      createdAt: now,
+      updatedAt: now,
+    })
+    localStorage.setItem(SCENES_KEY, JSON.stringify(scenes))
+    toast.success(t('reading.ideaCreated'))
+  }
+  catch (e) {
+    console.error('提炼为想法失败:', e)
+    toast.error(t('reading.ideaCreateFailed'))
+  }
 }
 
 function highlightAnn(ann: Annotation) {

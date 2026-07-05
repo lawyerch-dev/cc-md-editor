@@ -47,6 +47,7 @@ export default {
     resetConfirm: '确定清空所有数据源和文章？此操作不可撤销。',
     extractToIdea: '提炼为想法',
     ideaCreated: '已提炼到想法库',
+    ideaCreateFailed: '提炼失败',
     annotate: '批注',
     noAnnotations: '暂无批注',
     selectToAnnotate: '选中文字添加批注',

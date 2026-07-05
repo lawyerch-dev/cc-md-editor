@@ -47,6 +47,7 @@ export default {
     resetConfirm: 'Are you sure you want to clear all sources and articles? This cannot be undone.',
     extractToIdea: 'Extract to Idea',
     ideaCreated: 'Extracted to Idea Board',
+    ideaCreateFailed: 'Extract failed',
     annotate: 'Annotate',
     noAnnotations: 'No annotations yet',
     selectToAnnotate: 'Select text to annotate',
