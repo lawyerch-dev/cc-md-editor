@@ -157,7 +157,7 @@ function isStepComplete(index: number): boolean {
 
     <!-- 步骤内容 -->
     <div class="flex-1 overflow-y-auto">
-      <div class="py-10 px-8">
+      <div class="py-6 px-8">
         <transition name="fade" mode="out-in">
           <!-- Step 1: Ikigai -->
           <div v-if="currentStep === 0" key="ikigai">
