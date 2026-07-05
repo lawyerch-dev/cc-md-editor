@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ArrowLeft, BarChart3, Brain, Globe, Loader2, Settings } from '@lucide/vue'
+import { ArrowLeft, BarChart3, Brain, ChevronDown, ChevronUp, Globe, Loader2, Settings } from '@lucide/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { useAIInference } from '@/composables/useAIInference'
 import { useBehaviorAnalysis } from '@/composables/useBehaviorAnalysis'
 import { useUIStore } from '@/stores/ui'
+import AbilityGap from './AbilityGap.vue'
+import IkigaiDiagram from './IkigaiDiagram.vue'
+import ValuesSort from './ValuesSort.vue'
+import WheelOfLife from './WheelOfLife.vue'
 
 const uiStore = useUIStore()
 const { t } = useI18n()
@@ -113,6 +117,7 @@ const visibility = ref<VisibilityAudit>(loadVisibility())
 const aiSuggestions = ref<string[]>([])
 const sugLoading = ref(false)
 const sugError = ref('')
+const showDeepAnalysis = ref(false)
 
 function saveVisibility() {
   localStorage.setItem('reading_visibility_audit', JSON.stringify(visibility.value))
@@ -561,6 +566,38 @@ function trendColor(change: number): string {
               保存配置
             </Button>
             <span v-if="saved" class="text-sm text-green-600">✓ 已保存</span>
+          </div>
+
+          <!-- 深度分析 -->
+          <div class="border-t pt-6">
+            <button
+              class="flex items-center gap-2 w-full text-left text-sm font-semibold hover:text-primary transition-colors"
+              @click="showDeepAnalysis = !showDeepAnalysis"
+            >
+              <component :is="showDeepAnalysis ? ChevronUp : ChevronDown" class="h-4 w-4" />
+              深度分析（Ikigai · 生命之轮 · 价值观 · 能力图谱）
+            </button>
+            <p class="text-xs text-muted-foreground mt-1 mb-4">
+              基于科学框架的自我剖析工具
+            </p>
+
+            <div v-if="showDeepAnalysis" class="space-y-10">
+              <section>
+                <IkigaiDiagram v-model="profile.ikigai" />
+              </section>
+              <div class="border-t" />
+              <section>
+                <WheelOfLife v-model="profile.wheelOfLife" />
+              </section>
+              <div class="border-t" />
+              <section>
+                <ValuesSort v-model="profile.values" />
+              </section>
+              <div class="border-t" />
+              <section>
+                <AbilityGap v-model="profile.abilities" />
+              </section>
+            </div>
           </div>
         </div>
 
