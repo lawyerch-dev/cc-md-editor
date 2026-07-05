@@ -55,7 +55,7 @@ function getRank(label: string) {
 </script>
 
 <template>
-  <div class="flex items-start gap-8">
+  <div class="flex items-start gap-6 max-w-4xl mx-auto">
     <!-- 左侧：已选 Top 5 -->
     <div class="w-48 shrink-0 space-y-4">
       <div>
