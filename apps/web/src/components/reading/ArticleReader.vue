@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
-import { ExternalLink, Languages, MessageSquarePlus, Sparkles, Star } from '@lucide/vue'
+import { ExternalLink, Languages, MessageSquarePlus, Sparkles, Star, X } from '@lucide/vue'
 import DOMPurify from 'dompurify'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'
 import { useReadingStore } from '@/stores/reading'
-import ArticleAnnotator from './ArticleAnnotator.vue'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 
 const props = defineProps<{
@@ -50,7 +49,6 @@ const bilingualBlocks = computed(() => {
 
 // ── AI 摘要 + 翻译 ──────────────────────────────────────
 const aiPanelTab = ref<'summary' | null>(null)
-const annotating = ref(false)
 const aiLoading = ref(false)
 const aiResult = ref('')
 const aiError = ref('')
@@ -209,6 +207,135 @@ async function handleTranslate() {
   }
   finally { translating.value = false; currentAIAbort = null }
 }
+
+// ── 批注 ──────────────────────────────────────────────
+
+interface Annotation {
+  id: string
+  articleId: string
+  text: string
+  comment: string
+  createdAt: number
+}
+
+const ANN_STORAGE_KEY = 'reading_annotations'
+const annotations = ref<Annotation[]>([])
+const annPopup = ref<{ x: number, y: number, text: string } | null>(null)
+const activeAnnId = ref<string | null>(null)
+const annPanelOpen = ref(false)
+const contentRef = ref<HTMLElement | null>(null)
+
+function loadAnnotations() {
+  try {
+    const raw = localStorage.getItem(ANN_STORAGE_KEY)
+    const all: Annotation[] = raw ? JSON.parse(raw) : []
+    annotations.value = all.filter(a => a.articleId === props.article.id)
+  }
+  catch { annotations.value = [] }
+}
+
+function saveAnnotations(updated: Annotation[]) {
+  annotations.value = updated
+  try {
+    const raw = localStorage.getItem(ANN_STORAGE_KEY)
+    const all: Annotation[] = raw ? JSON.parse(raw) : []
+    const others = all.filter(a => a.articleId !== props.article.id)
+    localStorage.setItem(ANN_STORAGE_KEY, JSON.stringify([...others, ...updated]))
+  }
+  catch { /* ignore */ }
+}
+
+function handleAnnMouseUp(_e: MouseEvent) {
+  const sel = window.getSelection()
+  const text = sel?.toString().trim()
+  if (!text || text.length < 2) { annPopup.value = null; return }
+  const range = sel?.getRangeAt(0)
+  if (!range || !contentRef.value?.contains(range.commonAncestorContainer))
+    return
+  const rect = range.getBoundingClientRect()
+  annPopup.value = { x: rect.right + 8, y: rect.top, text }
+}
+
+function createAnnotation() {
+  if (!annPopup.value)
+    return
+  const ann: Annotation = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    articleId: props.article.id,
+    text: annPopup.value.text,
+    comment: '',
+    createdAt: Date.now(),
+  }
+  saveAnnotations([...annotations.value, ann])
+  annPopup.value = null
+  activeAnnId.value = ann.id
+  annPanelOpen.value = true
+  nextTick(() => highlightAnn(ann))
+}
+
+function removeAnnotation(id: string) {
+  const spans = contentRef.value?.querySelectorAll(`[data-ann-id="${id}"]`)
+  spans?.forEach((span) => {
+    const parent = span.parentNode
+    if (parent) { while (span.firstChild) parent.insertBefore(span.firstChild, span); parent.removeChild(span) }
+  })
+  saveAnnotations(annotations.value.filter(a => a.id !== id))
+  if (activeAnnId.value === id)
+    activeAnnId.value = null
+}
+
+function updateAnnComment(id: string, value: string) {
+  saveAnnotations(annotations.value.map(a => a.id === id ? { ...a, comment: value } : a))
+}
+
+function highlightAnn(ann: Annotation) {
+  if (!contentRef.value)
+    return
+  const body = contentRef.value.querySelector('.article-body-content')
+  if (!body || body.querySelector(`[data-ann-id="${ann.id}"]`))
+    return
+  const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT)
+  let remaining = ann.text
+  let startNode: Node | null = null
+  let startOffset = 0
+  let currentPos = 0
+  while (walker.nextNode() && remaining) {
+    const node = walker.currentNode as Text
+    const nodeText = node.textContent || ''
+    if (!startNode) {
+      const idx = nodeText.indexOf(remaining[0])
+      if (idx === -1)
+        continue
+      startNode = node; startOffset = idx; currentPos = idx
+    }
+    while (currentPos < nodeText.length && remaining) {
+      if (nodeText[currentPos] === remaining[0]) { remaining = remaining.slice(1); currentPos++ }
+      else { remaining = ann.text; startNode = null; break }
+    }
+    if (!remaining && startNode) {
+      const range = document.createRange()
+      range.setStart(startNode, startOffset)
+      range.setEnd(node, currentPos)
+      const span = document.createElement('span')
+      span.className = 'ann-highlight'
+      span.dataset.annId = ann.id
+      span.addEventListener('click', () => { activeAnnId.value = ann.id; annPanelOpen.value = true })
+      try { range.surroundContents(span) }
+      catch { /* skip cross-element */ }
+      return
+    }
+    if (!startNode)
+      currentPos = 0
+  }
+}
+
+function highlightAllAnnotations() {
+  nextTick(() => annotations.value.forEach(a => highlightAnn(a)))
+}
+
+loadAnnotations()
+watch(() => props.article.id, () => { loadAnnotations(); activeAnnId.value = null })
+watch(() => fullTextContent.value, () => highlightAllAnnotations())
 </script>
 
 <template>
@@ -255,28 +382,11 @@ async function handleTranslate() {
           <Star class="h-3.5 w-3.5" :class="article.starred ? 'fill-amber-500' : ''" />
           {{ article.starred ? t('reading.unstar') : t('reading.star') }}
         </button>
-
-        <!-- 批注 -->
-        <button
-          class="flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors"
-          :class="annotating ? 'bg-red-50 text-red-600 border-red-300 dark:bg-red-950/30 dark:text-red-400' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
-          @click="annotating = !annotating"
-        >
-          <MessageSquarePlus class="h-3.5 w-3.5" />
-          {{ t('reading.annotate') }}
-        </button>
       </div>
     </div>
 
-    <!-- 批注模式：ArticleAnnotator -->
-    <ArticleAnnotator
-      v-if="annotating"
-      :article="article"
-      :content="sanitize(fullTextContent || article.content || article.summary)"
-    />
-
-    <!-- 正常模式：可滚动文章内容 -->
-    <div v-else class="flex-1 overflow-y-auto">
+    <!-- 可滚动文章内容 -->
+    <div ref="contentRef" class="flex-1 overflow-y-auto relative" @mouseup="handleAnnMouseUp">
       <div class="mx-auto max-w-3xl px-8 pb-32">
         <!-- 完整标题 -->
         <h1 class="pt-8 pb-3 text-[1.7rem] font-bold leading-snug text-neutral-900 dark:text-neutral-100 select-text">
@@ -319,12 +429,77 @@ async function handleTranslate() {
               {{ t('reading.openInBrowser') }}
             </a>
           </div>
-          <div v-else class="article-content prose prose-neutral dark:prose-invert max-w-none">
+          <div v-else class="article-body-content article-content prose prose-neutral dark:prose-invert max-w-none">
             <div v-html="sanitize(fullTextContent || article.content || article.summary)" />
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 选中弹窗 -->
+    <div
+      v-if="annPopup"
+      class="fixed z-50"
+      :style="{ left: `${annPopup.x}px`, top: `${annPopup.y}px` }"
+    >
+      <button
+        class="flex items-center gap-1 rounded-md bg-red-500 px-2.5 py-1.5 text-xs text-white shadow-lg hover:bg-red-600 transition-colors"
+        @click.stop="createAnnotation"
+      >
+        <Sparkles class="h-3.5 w-3.5" />
+        {{ t('reading.addAnnotation') }}
+      </button>
+    </div>
+
+    <!-- 右侧批注面板（可折叠） -->
+    <div
+      v-if="annPanelOpen && annotations.length"
+      class="w-64 border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden shrink-0"
+    >
+      <div class="flex items-center justify-between px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">
+        <span class="text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ t('reading.annotations') }} ({{ annotations.length }})</span>
+        <button class="text-neutral-400 hover:text-neutral-600" @click="annPanelOpen = false">
+          <X class="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto py-2">
+        <div
+          v-for="ann in annotations"
+          :key="ann.id"
+          class="group mx-2 mb-2 rounded-lg p-2 cursor-pointer transition-all"
+          :class="activeAnnId === ann.id ? 'bg-white dark:bg-neutral-800 ring-1 ring-red-300 shadow-sm' : 'hover:bg-white dark:hover:bg-neutral-800'"
+          @click="activeAnnId = ann.id"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-[11px] text-neutral-600 dark:text-neutral-400 flex-1 line-clamp-2">
+              <span class="text-red-400 mr-1">●</span>
+              {{ ann.comment || ann.text.slice(0, 50) }}
+            </p>
+            <button class="shrink-0 opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500" @click.stop="removeAnnotation(ann.id)">
+              <X class="h-3 w-3" />
+            </button>
+          </div>
+          <div v-if="activeAnnId === ann.id" class="mt-2">
+            <textarea
+              :value="ann.comment"
+              :placeholder="t('reading.writingAnnotation')"
+              class="w-full min-h-[50px] text-xs resize-none rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-300"
+              @input="updateAnnComment(ann.id, ($event.target as HTMLTextAreaElement).value)"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批注数量角标（面板关闭时显示） -->
+    <button
+      v-if="!annPanelOpen && annotations.length"
+      class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white shadow-md hover:bg-red-600 transition-colors"
+      @click="annPanelOpen = true"
+    >
+      <MessageSquarePlus class="h-3 w-3" />
+      {{ annotations.length }}
+    </button>
   </div>
 </template>
 
@@ -404,5 +579,17 @@ async function handleTranslate() {
 }
 .article-content ::selection {
   background: hsl(var(--primary) / 0.15);
+}
+
+.article-body-content :deep(.ann-highlight) {
+  background: rgba(239, 68, 68, 0.1);
+  border-bottom: 2px dashed #ef4444;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.article-body-content :deep(.ann-highlight:hover) {
+  background: rgba(239, 68, 68, 0.2);
 }
 </style>
