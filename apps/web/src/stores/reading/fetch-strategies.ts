@@ -1,5 +1,10 @@
 import type { Article, CollectorSelectors, FeedViewType, MediaItem, Source } from './types'
 
+/** 清理内容中的视频/音频短代码 */
+function cleanShortcodes(html: string): string {
+  return html.replace(/\[!--begin:\w+--\][\s\S]*?\[!--end:\w+--\]/g, '')
+}
+
 /** 基于内容的简易哈希，用于无 guid/link 时生成稳定 ID */
 function hashContent(s: string): string {
   let h = 0
@@ -310,7 +315,7 @@ function parseRSSWithDOMParser(xml: string): { title: string, items: FeedItem[] 
       }
     }
     const description = getText(getEl(item, 'description'))
-    const content = encodedContent || description
+    const content = cleanShortcodes(encodedContent || description)
     const encEl = getEl(item, 'enclosure')
     let mediaContent: FeedItem['media:content']
     for (let i = 0; i < item.children.length; i++) {
@@ -549,7 +554,7 @@ async function fetchRSSSource(source: Source): Promise<Article[]> {
         sourceTitle: srcTitle,
         title: item.title || '无标题',
         link: item.link || '',
-        content: item.content || item.contentSnippet || '',
+        content: cleanShortcodes(item.content || item.contentSnippet || ''),
         summary: item.contentSnippet?.slice(0, 200) || item.content?.replace(/<[^>]*>/g, '').slice(0, 200) || '',
         author: item.creator || item.author || '',
         publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
@@ -568,6 +573,8 @@ async function fetchRSSSource(source: Source): Promise<Article[]> {
 
   return items.map(item => ({
     ...item,
+    content: cleanShortcodes(item.content),
+    summary: cleanShortcodes(item.summary),
     id: `art-${source.id}-${item.id.slice(5)}`,
     sourceId: source.id,
     sourceTitle: srcTitle,
@@ -777,7 +784,7 @@ function mapFoloEntry(entry: FoloFeedResponse['data']['entries'][0], sourceId: s
     sizeInBytes: a.size_in_bytes,
     title: a.title,
   }))
-  const content = entry.content || entry.description || ''
+  const content = cleanShortcodes(entry.content || entry.description || '')
   const summary = entry.summary || content.replace(/<[^>]*>/g, '').slice(0, 200) || ''
   return {
     id: `folo-${sourceId}-${entry.id}`,
