@@ -15,6 +15,7 @@ const props = defineProps<{
 
 const readingStore = useReadingStore()
 const aiConfig = useAIConfigStore()
+const ideaBoardStore = useIdeaBoardStore()
 const { t } = useI18n()
 
 const sanitize = (html: string) => DOMPurify.sanitize(html.replace(/\[!--begin:\w+--\][\s\S]*?\[!--end:\w+--\]/g, ''), { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling'] })
@@ -289,6 +290,15 @@ function updateAnnComment(id: string, value: string) {
   saveAnnotations(annotations.value.map(a => a.id === id ? { ...a, comment: value } : a))
 }
 
+function extractToIdea(ann: Annotation) {
+  const parts = [`> ${ann.text}`]
+  if (ann.comment)
+    parts.push('', ann.comment)
+  parts.push('', `📎 ${props.article.title}${props.article.link ? ` (${props.article.link})` : ''}`)
+  ideaBoardStore.addNote(parts.join('\n'), 'blue', '阅读笔记')
+  toast.success(t('reading.ideaCreated'))
+}
+
 function highlightAnn(ann: Annotation) {
   if (!contentRef.value)
     return
@@ -533,6 +543,13 @@ onMounted(() => nextTick(highlightAllAnnotations))
                 class="w-full min-h-[50px] text-xs resize-none rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-300"
                 @input="updateAnnComment(ann.id, ($event.target as HTMLTextAreaElement).value)"
               />
+              <button
+                class="mt-1.5 flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"
+                @click.stop="extractToIdea(ann)"
+              >
+                <Sparkles class="h-3 w-3" />
+                {{ t('reading.extractToIdea') }}
+              </button>
             </div>
           </div>
         </div>
