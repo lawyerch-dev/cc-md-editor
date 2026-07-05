@@ -92,7 +92,7 @@ function removeAbility(i: number) {
 
           <!-- 进度条 -->
           <div class="relative h-5 bg-muted rounded-full overflow-hidden">
-            <div class="absolute top-0 left-0 h-full bg-primary/25 rounded-full transition-all" :style="{ width: `${a.current * 10}%` }" />
+            <div class="absolute top-0 left-0 h-full bg-emerald-400/40 rounded-full transition-all" :style="{ width: `${a.current * 10}%` }" />
             <div class="absolute top-0 left-0 h-full border-2 border-dashed border-primary/40 rounded-full transition-all" :style="{ width: `${a.target * 10}%` }" />
             <div class="absolute top-0 h-full bg-destructive/6 transition-all" :style="{ left: `${a.current * 10}%`, width: `${(a.target - a.current) * 10}%` }" />
           </div>
