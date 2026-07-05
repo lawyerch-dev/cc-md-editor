@@ -37,16 +37,6 @@ const rsshubRoutes = ref<Array<{ name: string, path: string }>>([])
 const rsshubChecking = ref(false)
 const inlineError = ref('')
 
-const REFRESH_OPTIONS = [
-  { value: 0, label: () => t('common.close') },
-  { value: 15, label: () => t('reading.minutes', { n: 15 }) },
-  { value: 30, label: () => t('reading.minutes', { n: 30 }) },
-  { value: 60, label: () => t('reading.hours', { n: 1 }) },
-  { value: 120, label: () => t('reading.hours', { n: 2 }) },
-  { value: 360, label: () => t('reading.hours', { n: 6 }) },
-  { value: 1440, label: () => t('reading.hours', { n: 24 }) },
-]
-
 const filteredSources = computed(() => {
   if (activeTab.value === 'rss')
     return store.sources.filter(s => s.strategy === 'rss' || s.strategy === 'folo-rsshub')
@@ -55,10 +45,6 @@ const filteredSources = computed(() => {
 
 const rssCount = computed(() => store.sources.filter(s => s.strategy === 'rss' || s.strategy === 'folo-rsshub').length)
 const cssCount = computed(() => store.sources.filter(s => s.strategy === 'css-selector').length)
-
-function updateInterval(src: Source, minutes: number) {
-  store.updateSource(src.id, { refreshInterval: minutes })
-}
 
 function removeSource(src: Source) {
   store.removeSource(src.id)
@@ -559,17 +545,6 @@ async function importFullDataFromFile(e: Event) {
                 <Settings2 class="h-3 w-3" />
                 {{ t('reading.editSource') }}
               </Button>
-              <div class="flex items-center gap-1">
-                <select
-                  class="rounded border bg-background px-1.5 py-0.5 text-[10px]"
-                  :value="src.refreshInterval"
-                  @change="updateInterval(src, Number(($event.target as HTMLSelectElement).value))"
-                >
-                  <option v-for="opt in REFRESH_OPTIONS" :key="opt.value" :value="opt.value">
-                    {{ opt.label() }}
-                  </option>
-                </select>
-              </div>
               <Button variant="ghost" size="icon" class="h-6 w-6 text-destructive" @click="removeSource(src)">
                 <Trash2 class="h-3.5 w-3.5" />
               </Button>
