@@ -55,65 +55,67 @@ function removeAbility(i: number) {
     </div>
 
     <!-- 差距图 -->
-    <div class="w-full max-w-lg space-y-3">
-      <div
-        v-for="(a, i) in abilities"
-        :key="i"
-        class="rounded-xl border p-4 transition-all cursor-pointer"
-        :class="editingIndex === i ? 'ring-1 ring-primary/30 shadow-sm' : 'hover:bg-muted/30'"
-        @click="toggleEdit(i)"
+    <div class="w-full max-w-2xl space-y-3 relative">
+      <!-- 添加按钮固定右上角 -->
+      <button
+        class="absolute -top-1 right-0 rounded-lg border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+        @click="addAbility"
       >
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium">{{ a.name || '未命名能力' }}</span>
-            <button
-              v-if="abilities.length > 1"
-              class="text-muted-foreground hover:text-destructive text-xs opacity-0 group-hover:opacity-100"
-              @click.stop="removeAbility(i)"
-            >
-              ×
-            </button>
-          </div>
-          <span class="text-xs text-muted-foreground">
-            当前 <span class="font-mono font-medium text-foreground">{{ a.current }}</span>
-            → 目标 <span class="font-mono font-medium text-primary">{{ a.target }}</span>
-            <span class="ml-1 text-destructive">差距 {{ a.target - a.current }}</span>
-          </span>
-        </div>
+        + 添加能力维度
+      </button>
 
-        <!-- 进度条 -->
-        <div class="relative h-5 bg-muted rounded-full overflow-hidden">
-          <div class="absolute top-0 left-0 h-full bg-primary/25 rounded-full transition-all" :style="{ width: `${a.current * 10}%` }" />
-          <div class="absolute top-0 left-0 h-full border-2 border-dashed border-primary/40 rounded-full transition-all" :style="{ width: `${a.target * 10}%` }" />
-          <div class="absolute top-0 h-full bg-destructive/6 transition-all" :style="{ left: `${a.current * 10}%`, width: `${(a.target - a.current) * 10}%` }" />
-        </div>
+      <div class="grid grid-cols-2 gap-3 pt-8">
+        <div
+          v-for="(a, i) in abilities"
+          :key="i"
+          class="rounded-xl border p-4 transition-all cursor-pointer"
+          :class="editingIndex === i ? 'ring-1 ring-primary/30 shadow-sm' : 'hover:bg-muted/30'"
+          @click="toggleEdit(i)"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium">{{ a.name || '未命名能力' }}</span>
+              <button
+                v-if="abilities.length > 1"
+                class="text-muted-foreground hover:text-destructive text-xs opacity-0 group-hover:opacity-100"
+                @click.stop="removeAbility(i)"
+              >
+                ×
+              </button>
+            </div>
+            <span class="text-xs text-muted-foreground">
+              当前 <span class="font-mono font-medium text-foreground">{{ a.current }}</span>
+              → 目标 <span class="font-mono font-medium text-primary">{{ a.target }}</span>
+              <span class="ml-1 text-destructive">差距 {{ a.target - a.current }}</span>
+            </span>
+          </div>
 
-        <!-- 展开编辑 -->
-        <div v-if="editingIndex === i" class="mt-3 space-y-3" @click.stop>
-          <div class="flex items-center gap-3">
-            <label class="text-[10px] text-muted-foreground w-10 shrink-0">名称</label>
-            <input v-model="a.name" class="flex-1 text-xs bg-transparent border-none outline-none" placeholder="能力名称">
+          <!-- 进度条 -->
+          <div class="relative h-5 bg-muted rounded-full overflow-hidden">
+            <div class="absolute top-0 left-0 h-full bg-primary/25 rounded-full transition-all" :style="{ width: `${a.current * 10}%` }" />
+            <div class="absolute top-0 left-0 h-full border-2 border-dashed border-primary/40 rounded-full transition-all" :style="{ width: `${a.target * 10}%` }" />
+            <div class="absolute top-0 h-full bg-destructive/6 transition-all" :style="{ left: `${a.current * 10}%`, width: `${(a.target - a.current) * 10}%` }" />
           </div>
-          <div class="flex items-center gap-3">
-            <label class="text-[10px] text-muted-foreground w-10 shrink-0">当前</label>
-            <input v-model.number="a.current" type="range" min="1" max="10" class="flex-1 h-1 cursor-pointer">
-            <span class="text-xs font-mono w-4 text-center">{{ a.current }}</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <label class="text-[10px] text-primary w-10 shrink-0">目标</label>
-            <input v-model.number="a.target" type="range" min="1" max="10" class="flex-1 h-1 cursor-pointer accent-primary">
-            <span class="text-xs font-mono w-4 text-center text-primary">{{ a.target }}</span>
+
+          <!-- 展开编辑 -->
+          <div v-if="editingIndex === i" class="mt-3 space-y-3" @click.stop>
+            <div class="flex items-center gap-3">
+              <label class="text-[10px] text-muted-foreground w-10 shrink-0">名称</label>
+              <input v-model="a.name" class="flex-1 text-xs bg-transparent border-none outline-none" placeholder="能力名称">
+            </div>
+            <div class="flex items-center gap-3">
+              <label class="text-[10px] text-muted-foreground w-10 shrink-0">当前</label>
+              <input v-model.number="a.current" type="range" min="1" max="10" class="flex-1 h-1 cursor-pointer">
+              <span class="text-xs font-mono w-4 text-center">{{ a.current }}</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <label class="text-[10px] text-primary w-10 shrink-0">目标</label>
+              <input v-model.number="a.target" type="range" min="1" max="10" class="flex-1 h-1 cursor-pointer accent-primary">
+              <span class="text-xs font-mono w-4 text-center text-primary">{{ a.target }}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- 添加按钮 -->
-    <button
-      class="rounded-lg border border-dashed px-6 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-      @click="addAbility"
-    >
-      + 添加能力维度
-    </button>
   </div>
 </template>
