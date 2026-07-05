@@ -67,6 +67,7 @@ export default {
     tabInsights: 'AI 洞察',
     tabConfig: '我的配置',
     tabVisibility: '外部可见性',
+    tabDeepAnalysis: '深度分析',
     refreshInterval: '刷新间隔',
     collector: '采集',
     api: 'API',

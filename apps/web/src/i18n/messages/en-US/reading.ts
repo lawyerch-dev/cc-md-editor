@@ -67,6 +67,7 @@ export default {
     tabInsights: 'AI Insights',
     tabConfig: 'My Config',
     tabVisibility: 'Visibility',
+    tabDeepAnalysis: 'Deep Analysis',
     refreshInterval: 'Interval',
     collector: 'Collect',
     api: 'API',

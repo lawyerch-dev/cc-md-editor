@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, BarChart3, Brain, ChevronDown, ChevronUp, Globe, Loader2, Settings } from '@lucide/vue'
+import { ArrowLeft, BarChart3, Brain, ChevronDown, Globe, Loader2, Settings } from '@lucide/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
@@ -16,13 +16,14 @@ const { t } = useI18n()
 
 const STORAGE_KEY = 'reading_user_profile'
 
-const activeTab = ref<'behavior' | 'insights' | 'config' | 'visibility'>('behavior')
+const activeTab = ref<'behavior' | 'insights' | 'config' | 'visibility' | 'deep'>('behavior')
 
 const tabs = computed(() => [
   { key: 'behavior' as const, label: t('reading.tabBehavior'), icon: BarChart3 },
   { key: 'insights' as const, label: t('reading.tabInsights'), icon: Brain },
   { key: 'config' as const, label: t('reading.tabConfig'), icon: Settings },
   { key: 'visibility' as const, label: t('reading.tabVisibility'), icon: Globe },
+  { key: 'deep' as const, label: t('reading.tabDeepAnalysis'), icon: ChevronDown },
 ])
 
 // ── 行为数据 ──────────────────────────────────────
@@ -117,7 +118,8 @@ const visibility = ref<VisibilityAudit>(loadVisibility())
 const aiSuggestions = ref<string[]>([])
 const sugLoading = ref(false)
 const sugError = ref('')
-const showDeepAnalysis = ref(false)
+const deepStep = ref(0)
+const deepSteps = ['Ikigai', '生命之轮', '价值观', '能力图谱']
 
 function saveVisibility() {
   localStorage.setItem('reading_visibility_audit', JSON.stringify(visibility.value))
@@ -568,128 +570,137 @@ function trendColor(change: number): string {
             <span v-if="saved" class="text-sm text-green-600">✓ 已保存</span>
           </div>
 
-          <!-- 深度分析 -->
-          <div class="border-t pt-6">
-            <button
-              class="flex items-center gap-2 w-full text-left text-sm font-semibold hover:text-primary transition-colors"
-              @click="showDeepAnalysis = !showDeepAnalysis"
-            >
-              <component :is="showDeepAnalysis ? ChevronUp : ChevronDown" class="h-4 w-4" />
-              深度分析（Ikigai · 生命之轮 · 价值观 · 能力图谱）
-            </button>
-            <p class="text-xs text-muted-foreground mt-1 mb-4">
-              基于科学框架的自我剖析工具
-            </p>
+          <!-- Tab 4: 外部可见性 -->
+          <div v-if="activeTab === 'visibility'" class="space-y-6">
+            <!-- 搜索引擎 -->
+            <div class="rounded-xl border p-5 space-y-4">
+              <h3 class="text-sm font-semibold">
+                🔍 搜索引擎可见性
+              </h3>
+              <p class="text-xs text-muted-foreground">
+                搜索你的名字，看看能找到什么
+              </p>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs text-muted-foreground">百度搜索结果</label>
+                  <textarea v-model="visibility.baidu" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="搜索结果描述，例如：找到 3 条，律所官网排第一" />
+                </div>
+                <div>
+                  <label class="text-xs text-muted-foreground">微信搜索结果</label>
+                  <textarea v-model="visibility.wechat" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="例如：公众号文章 2 篇" />
+                </div>
+                <div>
+                  <label class="text-xs text-muted-foreground">知乎搜索结果</label>
+                  <textarea v-model="visibility.zhihu" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="例如：回答 5 个，关注者 120" />
+                </div>
+              </div>
+            </div>
 
-            <div v-if="showDeepAnalysis" class="space-y-10">
-              <section>
-                <IkigaiDiagram v-model="profile.ikigai" />
-              </section>
-              <div class="border-t" />
-              <section>
-                <WheelOfLife v-model="profile.wheelOfLife" />
-              </section>
-              <div class="border-t" />
-              <section>
-                <ValuesSort v-model="profile.values" />
-              </section>
-              <div class="border-t" />
-              <section>
-                <AbilityGap v-model="profile.abilities" />
-              </section>
+            <!-- AI 平台 -->
+            <div class="rounded-xl border p-5 space-y-4">
+              <h3 class="text-sm font-semibold">
+                🤖 AI 平台可见性
+              </h3>
+              <p class="text-xs text-muted-foreground">
+                问 AI 助手你的领域专家，看看会不会提到你
+              </p>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs text-muted-foreground">ChatGPT / Claude</label>
+                  <textarea v-model="visibility.aiChatgpt" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="例如：问'AI 法律专家推荐'未提及我" />
+                </div>
+                <div>
+                  <label class="text-xs text-muted-foreground">Kimi / 通义</label>
+                  <textarea v-model="visibility.aiKimi" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="例如：搜'数据隐私律师'找到 1 条相关" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 行业平台 -->
+            <div class="rounded-xl border p-5 space-y-4">
+              <h3 class="text-sm font-semibold">
+                📋 行业平台
+              </h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-muted-foreground">裁判文书网（案件数）</label>
+                  <input v-model.number="visibility.courtRecords" type="number" class="w-full mt-1 rounded border bg-background px-3 py-2 text-sm">
+                </div>
+                <div>
+                  <label class="text-xs text-muted-foreground">知网论文（篇数）</label>
+                  <input v-model.number="visibility.papers" type="number" class="w-full mt-1 rounded border bg-background px-3 py-2 text-sm">
+                </div>
+              </div>
+              <div>
+                <label class="text-xs text-muted-foreground">其他备注</label>
+                <textarea v-model="visibility.notes" rows="3" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="其他可见性相关的信息" />
+              </div>
+            </div>
+
+            <!-- 保存 + AI 建议 -->
+            <div class="flex items-center gap-3">
+              <Button @click="saveVisibility">
+                保存审计
+              </Button>
+              <Button variant="outline" :disabled="sugLoading" @click="generateVisibilitySuggestions">
+                <Brain v-if="!sugLoading" class="h-4 w-4 mr-1" />
+                <Loader2 v-else class="h-4 w-4 mr-1 animate-spin" />
+                AI 建议
+              </Button>
+              <span v-if="saved" class="text-sm text-green-600">✓ 已保存</span>
+              <span v-if="sugError" class="text-xs text-destructive">{{ sugError }}</span>
+            </div>
+
+            <!-- AI 建议结果 -->
+            <div v-if="aiSuggestions.length" class="rounded-xl border bg-muted/30 p-5 space-y-3">
+              <h3 class="text-sm font-semibold">
+                💡 AI 建议
+              </h3>
+              <div v-for="(s, i) in aiSuggestions" :key="i" class="flex items-start gap-2 text-sm">
+                <span class="text-primary font-bold shrink-0">{{ i + 1 }}.</span>
+                <span class="text-muted-foreground">{{ s }}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Tab 4: 外部可见性 -->
-        <div v-if="activeTab === 'visibility'" class="space-y-6">
-          <!-- 搜索引擎 -->
-          <div class="rounded-xl border p-5 space-y-4">
-            <h3 class="text-sm font-semibold">
-              🔍 搜索引擎可见性
-            </h3>
-            <p class="text-xs text-muted-foreground">
-              搜索你的名字，看看能找到什么
-            </p>
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs text-muted-foreground">百度搜索结果</label>
-                <textarea v-model="visibility.baidu" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="搜索结果描述，例如：找到 3 条，律所官网排第一" />
-              </div>
-              <div>
-                <label class="text-xs text-muted-foreground">微信搜索结果</label>
-                <textarea v-model="visibility.wechat" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="例如：公众号文章 2 篇" />
-              </div>
-              <div>
-                <label class="text-xs text-muted-foreground">知乎搜索结果</label>
-                <textarea v-model="visibility.zhihu" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="例如：回答 5 个，关注者 120" />
-              </div>
+          <!-- Tab 5: 深度分析 -->
+          <div v-if="activeTab === 'deep'" class="space-y-6">
+            <!-- 步骤导航 -->
+            <div class="flex items-center justify-center gap-2">
+              <button
+                v-for="(s, i) in deepSteps"
+                :key="s"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all"
+                :class="deepStep === i ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'"
+                @click="deepStep = i"
+              >
+                <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border" :class="deepStep === i ? 'border-primary-foreground/30' : 'border-muted-foreground/30'">{{ i + 1 }}</span>
+                {{ s }}
+              </button>
             </div>
-          </div>
 
-          <!-- AI 平台 -->
-          <div class="rounded-xl border p-5 space-y-4">
-            <h3 class="text-sm font-semibold">
-              🤖 AI 平台可见性
-            </h3>
-            <p class="text-xs text-muted-foreground">
-              问 AI 助手你的领域专家，看看会不会提到你
-            </p>
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs text-muted-foreground">ChatGPT / Claude</label>
-                <textarea v-model="visibility.aiChatgpt" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="例如：问'AI 法律专家推荐'未提及我" />
-              </div>
-              <div>
-                <label class="text-xs text-muted-foreground">Kimi / 通义</label>
-                <textarea v-model="visibility.aiKimi" rows="2" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="例如：搜'数据隐私律师'找到 1 条相关" />
-              </div>
-            </div>
-          </div>
-
-          <!-- 行业平台 -->
-          <div class="rounded-xl border p-5 space-y-4">
-            <h3 class="text-sm font-semibold">
-              📋 行业平台
-            </h3>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-xs text-muted-foreground">裁判文书网（案件数）</label>
-                <input v-model.number="visibility.courtRecords" type="number" class="w-full mt-1 rounded border bg-background px-3 py-2 text-sm">
-              </div>
-              <div>
-                <label class="text-xs text-muted-foreground">知网论文（篇数）</label>
-                <input v-model.number="visibility.papers" type="number" class="w-full mt-1 rounded border bg-background px-3 py-2 text-sm">
-              </div>
-            </div>
             <div>
-              <label class="text-xs text-muted-foreground">其他备注</label>
-              <textarea v-model="visibility.notes" rows="3" class="w-full mt-1 rounded border bg-background px-3 py-2 text-xs resize-none" placeholder="其他可见性相关的信息" />
+              <IkigaiDiagram v-if="deepStep === 0" v-model="profile.ikigai" />
+              <WheelOfLife v-if="deepStep === 1" v-model="profile.wheelOfLife" />
+              <ValuesSort v-if="deepStep === 2" v-model="profile.values" />
+              <AbilityGap v-if="deepStep === 3" v-model="profile.abilities" />
             </div>
-          </div>
 
-          <!-- 保存 + AI 建议 -->
-          <div class="flex items-center gap-3">
-            <Button @click="saveVisibility">
-              保存审计
-            </Button>
-            <Button variant="outline" :disabled="sugLoading" @click="generateVisibilitySuggestions">
-              <Brain v-if="!sugLoading" class="h-4 w-4 mr-1" />
-              <Loader2 v-else class="h-4 w-4 mr-1 animate-spin" />
-              AI 建议
-            </Button>
-            <span v-if="saved" class="text-sm text-green-600">✓ 已保存</span>
-            <span v-if="sugError" class="text-xs text-destructive">{{ sugError }}</span>
-          </div>
-
-          <!-- AI 建议结果 -->
-          <div v-if="aiSuggestions.length" class="rounded-xl border bg-muted/30 p-5 space-y-3">
-            <h3 class="text-sm font-semibold">
-              💡 AI 建议
-            </h3>
-            <div v-for="(s, i) in aiSuggestions" :key="i" class="flex items-start gap-2 text-sm">
-              <span class="text-primary font-bold shrink-0">{{ i + 1 }}.</span>
-              <span class="text-muted-foreground">{{ s }}</span>
+            <!-- 底部导航 -->
+            <div class="flex items-center justify-between">
+              <Button v-if="deepStep > 0" variant="ghost" size="sm" @click="deepStep--">
+                上一步
+              </Button>
+              <div v-else />
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground">{{ deepStep + 1 }} / {{ deepSteps.length }}</span>
+                <Button v-if="deepStep < deepSteps.length - 1" size="sm" @click="deepStep++">
+                  下一步
+                </Button>
+                <Button v-else size="sm" @click="save">
+                  保存
+                </Button>
+              </div>
             </div>
           </div>
         </div>
