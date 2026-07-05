@@ -61,6 +61,34 @@ const translationActive = ref(false)
 
 let currentAIAbort: AbortController | null = null
 
+/** 读取用户画像，构建 AI context */
+function getUserProfileContext(): string {
+  try {
+    const raw = localStorage.getItem('reading_user_profile')
+    if (!raw)
+      return ''
+    const p = JSON.parse(raw)
+    const parts: string[] = []
+    if (p.whoAmI)
+      parts.push(`用户背景：${p.whoAmI}`)
+    if (p.goals)
+      parts.push(`用户目标：${p.goals}`)
+    if (p.interests)
+      parts.push(`关注领域：${p.interests}`)
+    if (p.ikigai) {
+      const ik = p.ikigai
+      if (ik.love?.length)
+        parts.push(`热爱：${ik.love.join('、')}`)
+      if (ik.goodAt?.length)
+        parts.push(`擅长：${ik.goodAt.join('、')}`)
+    }
+    if (p.values?.length)
+      parts.push(`核心价值观：${p.values.join('、')}`)
+    return parts.length ? `\n\n【用户画像】\n${parts.join('\n')}\n请基于以上用户背景，提供更贴合该用户需求的分析。` : ''
+  }
+  catch { return '' }
+}
+
 // 切换文章时，如果内容为空，自动提取全文
 watch(() => props.article.id, async (id, oldId) => {
   if (id === oldId)
@@ -119,7 +147,7 @@ async function callAIStream(
   const payload = {
     model,
     messages: [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: systemPrompt + getUserProfileContext() },
       { role: 'user', content: userContent },
     ],
     temperature: 0.3,
