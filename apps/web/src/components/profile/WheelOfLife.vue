@@ -31,7 +31,7 @@ dimensions.forEach((d) => {
 watch(scores, v => emit('update:modelValue', { ...v }), { deep: true })
 
 // SVG 雷达图计算
-const cx = 160; const cy = 160; const maxR = 120
+const cx = 200; const cy = 200; const maxR = 155
 
 function getPoint(index: number, value: number) {
   const angle = (Math.PI * 2 * index) / dimensions.length - Math.PI / 2
@@ -80,7 +80,7 @@ function average() {
 
     <div class="flex items-start gap-8">
       <!-- 雷达图 -->
-      <svg viewBox="0 0 320 320" class="w-80 h-80 shrink-0">
+      <svg viewBox="0 0 400 400" class="w-[400px] h-[400px] shrink-0">
         <!-- 网格线 -->
         <polygon
           v-for="level in gridLevels"
