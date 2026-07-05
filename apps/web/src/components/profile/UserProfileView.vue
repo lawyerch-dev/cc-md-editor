@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ArrowLeft, BarChart3, Brain, Globe, Settings } from '@lucide/vue'
+import { ArrowLeft, BarChart3, Brain, Globe, Loader2, Settings } from '@lucide/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
+import { useAIInference } from '@/composables/useAIInference'
 import { useBehaviorAnalysis } from '@/composables/useBehaviorAnalysis'
 import { useUIStore } from '@/stores/ui'
 
@@ -23,6 +24,7 @@ const tabs = computed(() => [
 // ── 行为数据 ──────────────────────────────────────
 
 const { analysis } = useBehaviorAnalysis(30)
+const { inference, generating, error: inferError, hasData, lastUpdated, generate: generateInference } = useAIInference()
 
 // ── 用户配置 ──────────────────────────────────────
 
@@ -309,15 +311,102 @@ function trendColor(change: number): string {
 
         <!-- Tab 2: AI 洞察 -->
         <div v-if="activeTab === 'insights'" class="space-y-6">
-          <div class="rounded-xl border p-5 text-center text-muted-foreground">
+          <!-- 无数据提示 -->
+          <div v-if="!hasData" class="rounded-xl border p-5 text-center text-muted-foreground">
             <Brain class="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p class="text-sm">
-              AI 洞察功能即将上线
+              需要先阅读一些文章才能生成洞察
             </p>
             <p class="text-xs mt-1">
-              基于你的行为数据，AI 将自动生成性格推断、专业画像和成长建议
+              去资讯阅读模块阅读几篇文章，行为数据会自动积累
             </p>
           </div>
+
+          <template v-else>
+            <div class="flex items-center gap-3">
+              <Button :disabled="generating" @click="generateInference">
+                <Brain v-if="!generating" class="h-4 w-4 mr-1.5" />
+                <Loader2 v-else class="h-4 w-4 mr-1.5 animate-spin" />
+                {{ generating ? '分析中...' : '生成 AI 洞察' }}
+              </Button>
+              <span v-if="lastUpdated" class="text-xs text-muted-foreground">上次更新：{{ lastUpdated }}</span>
+              <span v-if="inferError" class="text-xs text-destructive">{{ inferError }}</span>
+            </div>
+
+            <template v-if="inference">
+              <div class="rounded-xl border p-5 space-y-3">
+                <h3 class="text-sm font-semibold">
+                  🧠 性格推断
+                </h3>
+                <div class="space-y-2 text-sm">
+                  <div class="flex items-start gap-2">
+                    <span class="text-muted-foreground w-20 shrink-0">深度偏好</span>
+                    <span>{{ inference.personality.depthPreference }}</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-muted-foreground w-20 shrink-0">决策风格</span>
+                    <span>{{ inference.personality.decisionStyle }}</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-muted-foreground w-20 shrink-0">学习模式</span>
+                    <span>{{ inference.personality.learningMode }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-xl border p-5 space-y-3">
+                <h3 class="text-sm font-semibold">
+                  📊 专业画像
+                </h3>
+                <div class="space-y-2 text-sm">
+                  <div>
+                    <span class="text-muted-foreground">核心领域：</span>
+                    <span v-for="(d, i) in inference.expertise.coreDomains" :key="i" class="inline-block rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs mr-1">{{ d }}</span>
+                  </div>
+                  <div v-if="inference.expertise.weakAreas.length">
+                    <span class="text-muted-foreground">待提升：</span>
+                    <span v-for="(d, i) in inference.expertise.weakAreas" :key="i" class="inline-block rounded-full bg-orange-500/10 text-orange-600 px-2 py-0.5 text-xs mr-1">{{ d }}</span>
+                  </div>
+                  <div v-if="inference.expertise.blindSpots.length">
+                    <span class="text-muted-foreground">知识盲区：</span>
+                    <span v-for="(d, i) in inference.expertise.blindSpots" :key="i" class="inline-block rounded-full bg-red-500/10 text-red-500 px-2 py-0.5 text-xs mr-1">{{ d }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-xl border p-5 space-y-3">
+                <h3 class="text-sm font-semibold">
+                  📈 成长趋势
+                </h3>
+                <div class="space-y-2 text-sm">
+                  <div>
+                    <span class="text-muted-foreground">趋势：</span>
+                    <span>{{ inference.growth.trend }}</span>
+                  </div>
+                  <div v-if="inference.growth.bottlenecks.length">
+                    <span class="text-muted-foreground">瓶颈：</span>
+                    <span v-for="(b, i) in inference.growth.bottlenecks" :key="i" class="text-destructive">{{ b }}{{ i < inference.growth.bottlenecks.length - 1 ? '、' : '' }}</span>
+                  </div>
+                  <div v-if="inference.growth.recommendations.length" class="mt-2 space-y-1">
+                    <span class="text-muted-foreground font-medium">AI 建议：</span>
+                    <div v-for="(r, i) in inference.growth.recommendations" :key="i" class="flex items-start gap-2 pl-2">
+                      <span class="text-primary font-bold">{{ i + 1 }}.</span>
+                      <span>{{ r }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="inference.benchmarks" class="rounded-xl border p-5 space-y-3">
+                <h3 class="text-sm font-semibold">
+                  🏁 标杆对比
+                </h3>
+                <p class="text-sm text-muted-foreground leading-relaxed">
+                  {{ inference.benchmarks }}
+                </p>
+              </div>
+            </template>
+          </template>
         </div>
 
         <!-- Tab 3: 我的配置 -->
