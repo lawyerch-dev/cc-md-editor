@@ -26,6 +26,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const ideaBoardStore = useIdeaBoardStore()
 
 const STORAGE_KEY = 'reading_annotations'
 
@@ -170,6 +171,15 @@ function removeAnnotation(id: string) {
   save(annotations.value.filter(a => a.id !== id))
   if (activeId.value === id)
     activeId.value = null
+}
+
+function extractToIdea(ann: Annotation) {
+  const parts = [`> ${ann.text}`]
+  if (ann.comment)
+    parts.push('', ann.comment)
+  parts.push('', `📎 ${props.article.title}${props.article.link ? ` (${props.article.link})` : ''}`)
+  ideaBoardStore.addNote(parts.join('\n'), 'blue', '阅读笔记')
+  toast.success(t('reading.ideaCreated'))
 }
 
 // ── 高亮文字 ──────────────────────────────────────────
@@ -378,9 +388,18 @@ watch([hoveredId, activeId], () => { nextTick(updateLine) })
               class="w-full min-h-[60px] mt-2 text-xs resize-none rounded-md border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
               @input="handleInput(ann.id, ($event.target as HTMLTextAreaElement).value)"
             />
-            <p class="text-[9px] text-muted-foreground/30 mt-1">
-              {{ new Date(ann.createdAt).toLocaleString() }}
-            </p>
+            <div class="flex items-center justify-between mt-1">
+              <p class="text-[9px] text-muted-foreground/30">
+                {{ new Date(ann.createdAt).toLocaleString() }}
+              </p>
+              <button
+                class="text-[10px] text-primary hover:text-primary/80 transition-colors"
+                @click.stop="extractToIdea(ann)"
+              >
+                <Sparkles class="h-3 w-3 inline mr-0.5" />
+                {{ t('reading.extractToIdea') }}
+              </button>
+            </div>
           </div>
         </div>
 

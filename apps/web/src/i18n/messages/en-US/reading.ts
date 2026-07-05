@@ -45,6 +45,8 @@ export default {
     tabCSS: 'Web Scraping',
     resetDefaults: 'Clear & Reset',
     resetConfirm: 'Are you sure you want to clear all sources and articles? This cannot be undone.',
+    extractToIdea: 'Extract to Idea',
+    ideaCreated: 'Extracted to Idea Board',
     refreshInterval: 'Interval',
     collector: 'Collect',
     api: 'API',
