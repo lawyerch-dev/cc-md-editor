@@ -665,9 +665,9 @@ function trendColor(change: number): string {
         </div>
 
         <!-- Tab 5: 深度分析 -->
-        <div v-if="activeTab === 'deep'" class="space-y-6">
+        <div v-if="activeTab === 'deep'" class="flex flex-col" style="height: calc(100vh - 120px);">
           <!-- 步骤导航 -->
-          <div class="flex items-center justify-center gap-2">
+          <div class="flex items-center justify-center gap-2 py-4 shrink-0">
             <button
               v-for="(s, i) in deepSteps"
               :key="s"
@@ -680,15 +680,16 @@ function trendColor(change: number): string {
             </button>
           </div>
 
-          <div>
+          <!-- 内容区（可滚动） -->
+          <div class="flex-1 overflow-y-auto">
             <IkigaiDiagram v-if="deepStep === 0" v-model="profile.ikigai" />
             <WheelOfLife v-if="deepStep === 1" v-model="profile.wheelOfLife" />
             <ValuesSort v-if="deepStep === 2" v-model="profile.values" />
             <AbilityGap v-if="deepStep === 3" v-model="profile.abilities" />
           </div>
 
-          <!-- 底部导航 -->
-          <div class="flex items-center justify-between">
+          <!-- 底部导航（固定） -->
+          <div class="flex items-center justify-between border-t px-4 py-3 shrink-0">
             <Button v-if="deepStep > 0" variant="ghost" size="sm" @click="deepStep--">
               上一步
             </Button>
