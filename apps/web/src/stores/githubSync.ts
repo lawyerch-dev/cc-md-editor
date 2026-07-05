@@ -1,3 +1,4 @@
+import type { Article, Source } from '@/stores/reading/types'
 import type { Post } from '@/types/post'
 import { watch } from 'vue'
 import { formatLocalDateTime } from '@/i18n/translate'
@@ -8,6 +9,7 @@ import { addPrefix } from '@/storage/prefix'
 import { useIdeaBoardStore } from '@/stores/ideaBoard'
 import { usePostStore } from '@/stores/post'
 import { useReadingStore } from '@/stores/reading'
+import { saveArticles as saveIDBArticles, saveSources as saveIDBSources } from '@/stores/reading/indexeddb-persistence'
 
 const GITHUB_TOKEN_KEY = addPrefix('github_token')
 const LAST_SYNC_KEY = addPrefix('github_last_sync')
@@ -25,7 +27,7 @@ const PATH_IDEA_BOARD_SCENES = 'idea-board/scenes.json'
 const PATH_CONFIG = 'config.json'
 
 // ── localStorage keys ──
-const LS_READING_SOURCES = 'reading_sources'
+const LS_READING_SOURCES = 'reading_sources_v4'
 const LS_READING_ARTICLES = 'reading_articles'
 const LS_IDEA_BOARD = 'idea-board-notes'
 const LS_IDEA_BOARD_SCENES = 'idea-board-scenes'
@@ -131,6 +133,8 @@ function collectReadingData(): { sources: unknown[], articles: unknown[] } {
 function applyReadingData(data: { sources: unknown[], articles: unknown[] }): void {
   lsSet(LS_READING_SOURCES, JSON.stringify(data.sources))
   lsSet(LS_READING_ARTICLES, JSON.stringify(data.articles))
+  void saveIDBSources(data.sources as Source[]).catch(() => {})
+  void saveIDBArticles(data.articles as Article[]).catch(() => {})
 }
 
 function collectIdeaBoardData(): unknown[] {

@@ -41,9 +41,8 @@ export const SYNC_SETTING_KEYS: string[] = [
   addPrefix(`custom_components`),
   `quick_commands`,
   // 资讯阅读
-  `reading_sources`,
+  `reading_sources_v4`,
   `reading_articles`,
-  `reading_collectors`,
   `reading_lists`,
   // 想法库
   `idea-board-notes`,
