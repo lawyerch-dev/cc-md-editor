@@ -70,18 +70,31 @@ function getUserProfileContext(): string {
       return ''
     const p = JSON.parse(raw)
     const parts: string[] = []
+    // 新格式：goals / constraints / trustStrategy / topics
+    if (p.goals?.shortTerm)
+      parts.push(`短期目标：${p.goals.shortTerm}`)
+    if (p.goals?.midTerm)
+      parts.push(`中期目标：${p.goals.midTerm}`)
+    if (p.constraints?.bottleneck)
+      parts.push(`当前瓶颈：${p.constraints.bottleneck}`)
+    if (p.trustStrategy?.targetAudience)
+      parts.push(`目标受众：${p.trustStrategy.targetAudience}`)
+    if (p.trustStrategy?.differentiation)
+      parts.push(`差异化定位：${p.trustStrategy.differentiation}`)
+    const highTopics = (p.topics || []).filter((t: { priority: string }) => t.priority === 'high').map((t: { name: string }) => t.name)
+    if (highTopics.length)
+      parts.push(`重点关注：${highTopics.join('、')}`)
+    // 兼容旧格式
     if (p.whoAmI)
       parts.push(`用户背景：${p.whoAmI}`)
-    if (p.goals)
-      parts.push(`用户目标：${p.goals}`)
     if (p.interests)
       parts.push(`关注领域：${p.interests}`)
+    // Ikigai
     if (p.ikigai) {
-      const ik = p.ikigai
-      if (ik.love?.length)
-        parts.push(`热爱：${ik.love.join('、')}`)
-      if (ik.goodAt?.length)
-        parts.push(`擅长：${ik.goodAt.join('、')}`)
+      if (p.ikigai.love?.length)
+        parts.push(`热爱：${p.ikigai.love.join('、')}`)
+      if (p.ikigai.goodAt?.length)
+        parts.push(`擅长：${p.ikigai.goodAt.join('、')}`)
     }
     if (p.values?.length)
       parts.push(`核心价值观：${p.values.join('、')}`)
@@ -326,6 +339,20 @@ function extractToIdea(ann: Annotation) {
   if (ann.comment)
     parts.push('', ann.comment)
   parts.push('', `📎 ${props.article.title}${props.article.link ? ` (${props.article.link})` : ''}`)
+  // 自动匹配画像话题标签
+  try {
+    const profileRaw = localStorage.getItem('reading_user_profile')
+    if (profileRaw) {
+      const profile = JSON.parse(profileRaw)
+      const topics: Array<{ name: string }> = profile.topics || []
+      const matched = topics.filter(t =>
+        ann.text.includes(t.name) || ann.comment?.includes(t.name) || props.article.title.includes(t.name),
+      ).map(t => t.name)
+      if (matched.length)
+        parts.push('', `🏷️ ${matched.join('、')}`)
+    }
+  }
+  catch { /* ignore */ }
   const content = parts.join('\n')
   // IdeaBoard 使用 scenes 数据（idea-board-notes 和 idea-board-scenes 是不同数据源）
   const SCENES_KEY = 'idea-board-scenes'
