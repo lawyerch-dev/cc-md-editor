@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import type { ImageServiceOption, ServiceOption } from '@md/shared/types'
-import { Check, ChevronDown, Info, Loader2, RefreshCw, X } from '@lucide/vue'
-import { DEFAULT_SERVICE_TYPE } from '@md/shared/constants'
+import type { ModelRole, Provider } from '@md/shared/types'
 import {
-  AccordionContent,
-  AccordionHeader,
-  AccordionItem,
-  AccordionRoot,
-  AccordionTrigger,
-} from 'reka-ui'
+  Brain,
+  Check,
+  Eye,
+  Image,
+  Info,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Settings,
+  Star,
+  Trash2,
+  Wand2,
+  X,
+} from '@lucide/vue'
+import { providerTemplates } from '@md/shared/configs/ai-provider-templates'
+import { MODEL_ROLES } from '@md/shared/types'
+import { inferRole } from '@/ai/role-inference'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,9 +26,11 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import {
   Tabs,
@@ -33,586 +44,724 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import { useDynamicAIModels } from '@/composables/useDynamicAIModels'
-import { useLocalizedAIServiceOptions } from '@/composables/useLocalizedAIServices'
-import { useAIStore } from '@/stores/ai'
+import { useAIProviderStore } from '@/stores/aiProvider'
 
-const emit = defineEmits([`saved`])
-const aiStore = useAIStore()
+const emit = defineEmits<{ saved: [] }>()
 const { t } = useI18n()
+const providerStore = useAIProviderStore()
 
-const { fetchJSON } = useAIFetch()
-const localizedAIServices = useLocalizedAIServiceOptions()
+// ── Local state ──
+const showTemplatePicker = ref(false)
+const newManualModel = ref<Record<string, string>>({})
+const apiKeyInputs = ref<Record<string, string>>({})
 
-/* ------------------------------------------------------------------ */
-/*  Service resolution                                                 */
-/* ------------------------------------------------------------------ */
-
-function getCurrentService<T extends ServiceOption | ImageServiceOption>(
-  svcType: string,
-  options: T[],
-): T {
-  return options.find(s => s.value === svcType) ?? options[0]
+// ── Role display helpers ──
+const ROLE_META: Record<ModelRole, { icon: string, color: string }> = {
+  reasoning: { icon: '🧠', color: 'text-purple-500' },
+  fast: { icon: '⚡', color: 'text-yellow-500' },
+  vision: { icon: '👁', color: 'text-blue-500' },
+  image: { icon: '🎨', color: 'text-pink-500' },
 }
 
-const textService = computed(() =>
-  getCurrentService(aiStore.textType, localizedAIServices.value.serviceOptions),
-)
-const visionService = computed(() =>
-  getCurrentService(aiStore.visionType, localizedAIServices.value.serviceOptions),
-)
-const imageService = computed(() =>
-  getCurrentService(aiStore.imageType, localizedAIServices.value.imageServiceOptions),
-)
-
-/* ------------------------------------------------------------------ */
-/*  Dynamic model fetching                                             */
-/* ------------------------------------------------------------------ */
-
-const textDynamic = useDynamicAIModels(textService, () => aiStore.textApiKey)
-const visionDynamic = useDynamicAIModels(visionService, () => aiStore.visionApiKey)
-
-function isImageModel(modelId: string): boolean {
-  const imageKeywords = [
-    `image`,
-    `flux`,
-    `dall-e`,
-    `stable-diffusion`,
-    `sd`,
-    `kolors`,
-    `qwen-image`,
-    `wanx`,
-    `cogview`,
-    `ideogram`,
-    `midjourney`,
-    `mj`,
-    `recraft`,
-    `gpt-image`,
-    `seedream`,
-    `kontext`,
-  ]
-  const lower = modelId.toLowerCase()
-  return imageKeywords.some(kw => lower.includes(kw))
+const ROLE_BADGE_COLORS: Record<ModelRole, string> = {
+  reasoning: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  fast: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  vision: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  image: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
 }
-const imageDynamic = useDynamicAIModels(imageService, () => aiStore.imageApiKey, isImageModel)
 
-/* ------------------------------------------------------------------ */
-/*  Test connection                                                    */
-/* ------------------------------------------------------------------ */
+// ── Providers tab helpers ──
+function maskKey(key: string): string {
+  if (!key)
+    return ''
+  if (key.length <= 8)
+    return '••••••••'
+  return `${key.slice(0, 4)}••••${key.slice(-4)}`
+}
 
-const textTesting = ref(false)
-const visionTesting = ref(false)
-const imageTesting = ref(false)
-const textTestResult = ref<{ ok: boolean, msg: string } | null>(null)
-const visionTestResult = ref<{ ok: boolean, msg: string } | null>(null)
-const imageTestResult = ref<{ ok: boolean, msg: string } | null>(null)
-
-async function testConn(
-  endpoint: string,
-  apiKey: string,
-  type: string,
-  modelName: string,
-  resultRef: typeof textTestResult,
-  testingRef: typeof textTesting,
-  kind: `chat` | `image` = `chat`,
-) {
-  resultRef.value = null
-  testingRef.value = true
-  const headers = buildAIHeaders(apiKey, type)
-  try {
-    const url = resolveEndpointUrl(endpoint, kind)
-    const payload = kind === `image`
-      ? { model: modelName, prompt: `test`, n: 1, size: `1024x1024` }
-      : { model: modelName, messages: [{ role: `user`, content: `ping` }], temperature: 0, max_tokens: 1, stream: false }
-    const res = await fetchJSON(url, headers, payload)
-    if (res.ok) {
-      resultRef.value = { ok: true, msg: t('ai.settings.connectionSuccess') }
-      emit(`saved`)
-    }
-    else {
-      resultRef.value = { ok: false, msg: `${res.status} ${res.statusText}` }
-    }
-  }
-  catch (e: unknown) {
-    resultRef.value = { ok: false, msg: e instanceof Error ? e.message : String(e) }
-  }
-  finally {
-    testingRef.value = false
+function getFetchStatusIcon(status: Provider['fetchStatus']) {
+  switch (status) {
+    case 'loading': return Loader2
+    case 'ok': return Check
+    case 'error': return X
+    default: return RefreshCw
   }
 }
 
-function testText() {
-  testConn(aiStore.textEndpoint, aiStore.textApiKey, aiStore.textType, aiStore.textModel, textTestResult, textTesting)
-}
-function testVision() {
-  testConn(aiStore.visionEndpoint, aiStore.visionApiKey, aiStore.visionType, aiStore.visionModel, visionTestResult, visionTesting)
-}
-function testImage() {
-  testConn(aiStore.imageEndpoint, aiStore.imageApiKey, aiStore.imageType, aiStore.imageModel, imageTestResult, imageTesting, `image`)
+function getModelCount(provider: Provider): number {
+  return provider.models.length + provider.manualModels.length
 }
 
-/* ------------------------------------------------------------------ */
-/*  Actions                                                            */
-/* ------------------------------------------------------------------ */
-
-function saveConfig() {
-  emit(`saved`)
+function addFromTemplate(templateId: string) {
+  providerStore.addProvider(templateId)
+  showTemplatePicker.value = false
 }
 
-function clearConfig() {
-  aiStore.reset()
-  aiStore.reset()
-  emit(`saved`)
+function handleApiKeyEnter(provider: Provider) {
+  const key = apiKeyInputs.value[provider.id]
+  if (key) {
+    provider.apiKey = key
+    providerStore.fetchModels(provider.id)
+    delete apiKeyInputs.value[provider.id]
+  }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Image-specific options                                             */
-/* ------------------------------------------------------------------ */
+function addManualModel(provider: Provider) {
+  const model = newManualModel.value[provider.id]?.trim()
+  if (model && !provider.manualModels.includes(model)) {
+    provider.manualModels.push(model)
+    newManualModel.value[provider.id] = ''
+  }
+}
 
-const sizeOptions = computed(() => [
-  { label: t('ai.settings.sizeSquare'), value: `1024x1024` },
-  { label: t('ai.settings.sizeLandscape'), value: `1792x1024` },
-  { label: t('ai.settings.sizePortrait'), value: `1024x1792` },
-])
+function _removeManualModel(provider: Provider, modelId: string) {
+  const idx = provider.manualModels.indexOf(modelId)
+  if (idx !== -1)
+    provider.manualModels.splice(idx, 1)
+}
 
-const qualityOptions = computed(() => [
-  { label: t('ai.settings.qualityStandard'), value: `standard` },
-  { label: t('ai.settings.qualityHd'), value: `hd` },
-])
+function isExcluded(modelId: string): boolean {
+  return inferRole(modelId) === null
+}
 
-const styleOptions = computed(() => [
-  { label: t('ai.settings.styleNatural'), value: `natural` },
-  { label: t('ai.settings.styleVivid'), value: `vivid` },
-])
+// ── Roles tab helpers ──
+function getAssignmentDisplay(role: ModelRole): string {
+  const assignment = providerStore.roleAssignments[role]
+  if (!assignment)
+    return ''
+  const provider = providerStore.providers.find(p => p.id === assignment.providerId)
+  return provider ? `${provider.name} / ${assignment.modelId}` : assignment.modelId
+}
 
-/* ------------------------------------------------------------------ */
-/*  Expose                                                             */
-/* ------------------------------------------------------------------ */
+function getAssignmentStatus(role: ModelRole): 'manual' | 'auto' | 'none' {
+  const assignment = providerStore.roleAssignments[role]
+  if (assignment)
+    return 'manual'
+  const resolved = providerStore.resolveRole(role)
+  if (resolved)
+    return 'auto'
+  return 'none'
+}
 
-defineExpose({ saveConfig, clearConfig })
+function getResolvedModel(role: ModelRole): string | null {
+  const resolved = providerStore.resolveRole(role)
+  return resolved?.model ?? null
+}
+
+// ── Triggers tab helpers ──
+function getTriggerModel(role: ModelRole): string | null {
+  const resolved = providerStore.resolveRole(role)
+  return resolved?.model ?? null
+}
+
+// ── Image role check ──
+const hasImageRole = computed(() => {
+  return providerStore.resolveRole('image') !== null
+})
+
+// ── Save ──
+function save() {
+  emit('saved')
+}
 </script>
 
 <template>
-  <div class="flex flex-col">
-    <Tabs default-value="models" class="flex flex-col">
-      <TabsList class="w-full justify-start">
-        <TabsTrigger value="models">
-          {{ t('ai.settings.models') }}
+  <div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <Settings class="h-4 w-4" />
+        <h3 class="text-sm font-medium">
+          {{ t('ai.settings.title') }}
+        </h3>
+      </div>
+      <Button size="sm" @click="save">
+        <Check class="mr-1 h-3 w-3" />
+        {{ t('ai.settings.saveConfig') }}
+      </Button>
+    </div>
+
+    <Tabs default-value="providers" class="w-full">
+      <TabsList class="grid w-full grid-cols-4">
+        <TabsTrigger value="providers">
+          {{ t('ai.settings.tabProviders') }}
+        </TabsTrigger>
+        <TabsTrigger value="roles">
+          {{ t('ai.settings.tabRoles') }}
         </TabsTrigger>
         <TabsTrigger value="params">
-          {{ t('ai.settings.params') }}
+          {{ t('ai.settings.tabParams') }}
         </TabsTrigger>
         <TabsTrigger value="triggers">
-          {{ t('ai.settings.triggers') }}
+          {{ t('ai.settings.tabTriggers') }}
         </TabsTrigger>
       </TabsList>
 
-      <!-- ==================== Models Tab ==================== -->
-      <TabsContent value="models" class="mt-3">
-        <AccordionRoot
-          type="single"
-          collapsible
-          default-value="text"
-          class="space-y-3"
+      <!-- ==================== TAB 1: Providers ==================== -->
+      <TabsContent value="providers" class="space-y-4">
+        <!-- Empty state -->
+        <div
+          v-if="providerStore.providers.length === 0 && !showTemplatePicker"
+          class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
         >
-          <!-- ========== 文本模型 ========== -->
-          <AccordionItem value="text" class="rounded-lg border overflow-hidden">
-            <AccordionHeader>
-              <AccordionTrigger class="flex w-full cursor-pointer select-none items-center justify-between px-3 py-2.5 text-sm font-semibold hover:bg-muted/50 [&[data-state=open]>svg.chevron]:rotate-180">
-                <div class="flex flex-1 items-center text-left">
-                  <span>{{ t('ai.settings.textModel') }}</span>
-                  <span class="ml-2 text-xs font-normal text-muted-foreground">{{ t('ai.settings.textModelDesc') }}</span>
-                </div>
-                <div class="flex items-center gap-1.5" @click.stop.prevent @keydown.stop>
-                  <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" :disabled="textTesting" @click="testText">
-                    {{ t('ai.settings.testConnection') }}
-                  </Button>
-                  <Loader2 v-if="textTesting" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  <template v-else-if="textTestResult">
-                    <Check v-if="textTestResult.ok" class="h-4 w-4 text-green-500" />
-                    <X v-else class="h-4 w-4 text-red-500" />
-                  </template>
-                </div>
-                <ChevronDown class="chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
-              </AccordionTrigger>
-            </AccordionHeader>
-            <AccordionContent class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-              <div class="space-y-3 px-3 pb-3 pt-1">
-                <!-- 服务类型 -->
-                <div>
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.serviceType') }}</Label>
-                  <Select v-model="aiStore.textType">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ textService.label }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="svc in localizedAIServices.serviceOptions" :key="svc.value" :value="svc.value">
-                        {{ svc.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <!-- 端点 -->
-                <div v-if="aiStore.textType !== DEFAULT_SERVICE_TYPE">
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiEndpoint') }}</Label>
-                  <Input v-model="aiStore.textEndpoint" :placeholder="t('ai.config.apiEndpointPlaceholder')" />
-                </div>
-                <!-- API Key -->
-                <div v-if="aiStore.textType !== DEFAULT_SERVICE_TYPE">
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiKey') }}</Label>
-                  <PasswordInput v-model="aiStore.textApiKey" placeholder="sk-..." />
-                </div>
-                <!-- 模型 -->
-                <div>
-                  <div class="mb-1 flex items-center justify-between">
-                    <Label class="text-sm font-medium">{{ t('ai.config.modelName') }}</Label>
-                    <button
-                      v-if="textService.fetchModels"
-                      type="button"
-                      class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-                      :disabled="textDynamic.loading.value || !aiStore.textApiKey"
-                      :title="t('ai.config.refreshModelsHint')"
-                      @click="textDynamic.refresh()"
-                    >
-                      <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': textDynamic.loading.value }" />
-                      <span>{{ textDynamic.loading.value ? t('ai.config.refreshModelsLoading') : t('ai.config.refreshModels') }}</span>
-                    </button>
-                  </div>
-                  <Select v-if="textDynamic.allModels.value.length > 0" v-model="aiStore.textModel">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ aiStore.textModel || t('ai.config.selectModel') }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="m in textDynamic.allModels.value" :key="m" :value="m">
-                        {{ m }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input v-else v-model="aiStore.textModel" :placeholder="t('ai.config.modelPlaceholder')" />
-                </div>
-                <!-- 温度 + Max Token -->
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label class="mb-1 flex items-center gap-1 text-sm font-medium">
-                      {{ t('ai.settings.temperature') }}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger as-child>
-                            <Info class="text-gray-500" :size="14" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" class="z-250">
-                            {{ t('ai.settings.temperatureHint') }}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
-                    <Input v-model.number="aiStore.temperature" type="number" step="0.1" min="0" max="2" />
-                  </div>
-                  <div>
-                    <Label class="mb-1 block text-sm font-medium">{{ t('ai.settings.maxTokens') }}</Label>
-                    <Input v-model.number="aiStore.maxToken" type="number" min="1" max="32768" />
-                  </div>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+          <Settings class="mb-2 h-8 w-8 text-muted-foreground" />
+          <p class="text-sm text-muted-foreground">
+            {{ t('ai.settings.noProviders') }}
+          </p>
+          <p class="mb-4 text-xs text-muted-foreground">
+            {{ t('ai.settings.addProviderHint') }}
+          </p>
+          <Button size="sm" @click="showTemplatePicker = true">
+            <Plus class="mr-1 h-3 w-3" />
+            {{ t('ai.settings.addProvider') }}
+          </Button>
+        </div>
 
-          <!-- ========== 视觉模型 ========== -->
-          <AccordionItem value="vision" class="rounded-lg border overflow-hidden">
-            <AccordionHeader>
-              <AccordionTrigger class="flex w-full cursor-pointer select-none items-center justify-between px-3 py-2.5 text-sm font-semibold hover:bg-muted/50 [&[data-state=open]>svg.chevron]:rotate-180">
-                <div class="flex flex-1 items-center text-left">
-                  <span>{{ t('ai.settings.visionModel') }}</span>
-                  <span class="ml-2 text-xs font-normal text-muted-foreground">{{ t('ai.settings.visionModelDesc') }}</span>
-                </div>
-                <div class="flex items-center gap-1.5" @click.stop.prevent @keydown.stop>
-                  <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" :disabled="visionTesting" @click="testVision">
-                    {{ t('ai.settings.testConnection') }}
-                  </Button>
-                  <Loader2 v-if="visionTesting" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  <template v-else-if="visionTestResult">
-                    <Check v-if="visionTestResult.ok" class="h-4 w-4 text-green-500" />
-                    <X v-else class="h-4 w-4 text-red-500" />
-                  </template>
-                </div>
-                <ChevronDown class="chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
-              </AccordionTrigger>
-            </AccordionHeader>
-            <AccordionContent class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-              <div class="space-y-3 px-3 pb-3 pt-1">
-                <!-- 服务类型 -->
-                <div>
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.serviceType') }}</Label>
-                  <Select v-model="aiStore.visionType">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ visionService.label }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="svc in localizedAIServices.serviceOptions" :key="svc.value" :value="svc.value">
-                        {{ svc.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <!-- 端点 -->
-                <div v-if="aiStore.visionType !== DEFAULT_SERVICE_TYPE">
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiEndpoint') }}</Label>
-                  <Input v-model="aiStore.visionEndpoint" :placeholder="t('ai.config.apiEndpointPlaceholder')" />
-                </div>
-                <!-- API Key -->
-                <div v-if="aiStore.visionType !== DEFAULT_SERVICE_TYPE">
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiKey') }}</Label>
-                  <PasswordInput v-model="aiStore.visionApiKey" placeholder="sk-..." />
-                </div>
-                <!-- 模型 -->
-                <div>
-                  <div class="mb-1 flex items-center justify-between">
-                    <Label class="text-sm font-medium">{{ t('ai.config.modelName') }}</Label>
-                    <button
-                      v-if="visionService.fetchModels"
-                      type="button"
-                      class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-                      :disabled="visionDynamic.loading.value || !aiStore.visionApiKey"
-                      :title="t('ai.config.refreshModelsHint')"
-                      @click="visionDynamic.refresh()"
-                    >
-                      <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': visionDynamic.loading.value }" />
-                      <span>{{ visionDynamic.loading.value ? t('ai.config.refreshModelsLoading') : t('ai.config.refreshModels') }}</span>
-                    </button>
-                  </div>
-                  <Select v-if="visionDynamic.allModels.value.length > 0" v-model="aiStore.visionModel">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ aiStore.visionModel || t('ai.config.selectModel') }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="m in visionDynamic.allModels.value" :key="m" :value="m">
-                        {{ m }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input v-else v-model="aiStore.visionModel" :placeholder="t('ai.config.modelPlaceholder')" />
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          <!-- ========== 图片生成模型 ========== -->
-          <AccordionItem value="image" class="rounded-lg border overflow-hidden">
-            <AccordionHeader>
-              <AccordionTrigger class="flex w-full cursor-pointer select-none items-center justify-between px-3 py-2.5 text-sm font-semibold hover:bg-muted/50 [&[data-state=open]>svg.chevron]:rotate-180">
-                <div class="flex flex-1 items-center text-left">
-                  <span>{{ t('ai.settings.imageModel') }}</span>
-                  <span class="ml-2 text-xs font-normal text-muted-foreground">{{ t('ai.settings.imageModelDesc') }}</span>
-                </div>
-                <div class="flex items-center gap-1.5" @click.stop.prevent @keydown.stop>
-                  <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" :disabled="imageTesting" @click="testImage">
-                    {{ t('ai.settings.testConnection') }}
-                  </Button>
-                  <Loader2 v-if="imageTesting" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  <template v-else-if="imageTestResult">
-                    <Check v-if="imageTestResult.ok" class="h-4 w-4 text-green-500" />
-                    <X v-else class="h-4 w-4 text-red-500" />
-                  </template>
-                </div>
-                <ChevronDown class="chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
-              </AccordionTrigger>
-            </AccordionHeader>
-            <AccordionContent class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-              <div class="space-y-3 px-3 pb-3 pt-1">
-                <!-- 服务类型 -->
-                <div>
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.serviceType') }}</Label>
-                  <Select v-model="aiStore.imageType">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ imageService.label }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="svc in localizedAIServices.imageServiceOptions" :key="svc.value" :value="svc.value">
-                        {{ svc.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <!-- 端点 -->
-                <div v-if="aiStore.imageType !== DEFAULT_SERVICE_TYPE">
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiEndpoint') }}</Label>
-                  <Input v-model="aiStore.imageEndpoint" :placeholder="t('ai.config.apiEndpointPlaceholder')" />
-                </div>
-                <!-- API Key -->
-                <div v-if="aiStore.imageType !== DEFAULT_SERVICE_TYPE">
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiKey') }}</Label>
-                  <PasswordInput v-model="aiStore.imageApiKey" placeholder="sk-..." />
-                </div>
-                <!-- 模型 -->
-                <div>
-                  <div class="mb-1 flex items-center justify-between">
-                    <Label class="text-sm font-medium">{{ t('ai.config.modelName') }}</Label>
-                    <button
-                      v-if="imageService.fetchModels"
-                      type="button"
-                      class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-                      :disabled="imageDynamic.loading.value || !aiStore.imageApiKey"
-                      :title="t('ai.config.refreshModelsHint')"
-                      @click="imageDynamic.refresh()"
-                    >
-                      <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': imageDynamic.loading.value }" />
-                      <span>{{ imageDynamic.loading.value ? t('ai.config.refreshModelsLoading') : t('ai.config.refreshModels') }}</span>
-                    </button>
-                  </div>
-                  <Select v-if="imageDynamic.allModels.value.length > 0" v-model="aiStore.imageModel">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ aiStore.imageModel || t('ai.config.selectModel') }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="m in imageDynamic.allModels.value" :key="m" :value="m">
-                        {{ m }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input v-else v-model="aiStore.imageModel" :placeholder="t('ai.config.modelPlaceholder')" />
-                </div>
-                <!-- 图像尺寸 -->
-                <div>
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.settings.imageSize') }}</Label>
-                  <Select v-model="aiStore.imageSize">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ sizeOptions.find(opt => opt.value === aiStore.imageSize)?.label || aiStore.imageSize }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="opt in sizeOptions" :key="opt.value" :value="opt.value">
-                        {{ opt.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <!-- 图像质量 -->
-                <div>
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.settings.imageQuality') }}</Label>
-                  <Select v-model="aiStore.imageQuality">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ qualityOptions.find(opt => opt.value === aiStore.imageQuality)?.label || aiStore.imageQuality }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="opt in qualityOptions" :key="opt.value" :value="opt.value">
-                        {{ opt.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <!-- 图像风格 -->
-                <div>
-                  <Label class="mb-1 block text-sm font-medium">{{ t('ai.settings.imageStyle') }}</Label>
-                  <Select v-model="aiStore.imageStyle">
-                    <SelectTrigger class="w-full">
-                      <SelectValue>{{ styleOptions.find(opt => opt.value === aiStore.imageStyle)?.label || aiStore.imageStyle }}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="opt in styleOptions" :key="opt.value" :value="opt.value">
-                        {{ opt.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </AccordionRoot>
-      </TabsContent>
-
-      <!-- ==================== Params Tab ==================== -->
-      <TabsContent value="params" class="mt-3 space-y-4">
-        <div class="rounded-lg border p-4 space-y-4">
-          <div>
-            <Label class="mb-1 flex items-center gap-1 text-sm font-medium">
-              {{ t('ai.settings.temperature') }}
+        <!-- Provider cards -->
+        <div v-for="provider in providerStore.providers" :key="provider.id" class="rounded-lg border p-4 space-y-3">
+          <!-- Header row -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-sm">{{ provider.name }}</span>
+              <span
+                v-if="provider.isDefault"
+                class="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+              >
+                {{ t('ai.settings.defaultBadge') }}
+              </span>
+            </div>
+            <div class="flex items-center gap-1">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <Info class="text-gray-500" :size="14" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-7 w-7"
+                      :disabled="provider.fetchStatus === 'loading'"
+                      @click="providerStore.fetchModels(provider.id)"
+                    >
+                      <component
+                        :is="getFetchStatusIcon(provider.fetchStatus)"
+                        class="h-3.5 w-3.5"
+                        :class="{ 'animate-spin': provider.fetchStatus === 'loading' }"
+                      />
+                    </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" class="z-250">
-                    {{ t('ai.settings.temperatureHint') }}
-                  </TooltipContent>
+                  <TooltipContent>{{ t('ai.settings.refreshModels') }}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            </Label>
-            <div class="flex items-center gap-3">
-              <Input
-                v-model.number="aiStore.temperature"
-                type="number"
-                step="0.1"
-                min="0"
-                max="2"
-                class="w-24"
-              />
-              <input
-                v-model.number="aiStore.temperature"
-                type="range"
-                min="0"
-                max="2"
-                step="0.1"
-                class="flex-1 accent-primary"
-              >
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-7 w-7"
+                      :class="{ 'text-yellow-500': provider.isDefault }"
+                      @click="providerStore.setDefaultProvider(provider.id)"
+                    >
+                      <Star class="h-3.5 w-3.5" :fill="provider.isDefault ? 'currentColor' : 'none'" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ t('ai.settings.setDefault') }}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-7 w-7 text-destructive"
+                      @click="providerStore.removeProvider(provider.id)"
+                    >
+                      <Trash2 class="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ t('ai.settings.removeProvider') }}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
-          <div>
-            <Label class="mb-1 block text-sm font-medium">{{ t('ai.settings.maxTokens') }}</Label>
-            <Input
-              v-model.number="aiStore.maxToken"
-              type="number"
-              min="1"
-              max="32768"
-              class="w-40"
+
+          <!-- Endpoint & Key -->
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span class="text-muted-foreground">{{ t('ai.settings.providerEndpoint') }}:</span>
+              <span class="ml-1 break-all">{{ provider.endpoint || '—' }}</span>
+            </div>
+            <div>
+              <span class="text-muted-foreground">{{ t('ai.settings.providerKey') }}:</span>
+              <span class="ml-1 font-mono">{{ maskKey(provider.apiKey) }}</span>
+            </div>
+          </div>
+
+          <!-- API Key input (for new providers) -->
+          <div v-if="!provider.apiKey" class="flex gap-2">
+            <PasswordInput
+              v-model="apiKeyInputs[provider.id]"
+              :placeholder="t('ai.settings.apiKeyPlaceholder')"
+              class="flex-1 h-8 text-xs"
+              @keydown.enter="handleApiKeyEnter(provider)"
             />
+            <Button size="sm" class="h-8" @click="handleApiKeyEnter(provider)">
+              <Check class="mr-1 h-3 w-3" />
+              OK
+            </Button>
+          </div>
+
+          <!-- Fetch error -->
+          <div v-if="provider.fetchStatus === 'error'" class="flex items-center gap-1 text-xs text-destructive">
+            <Info class="h-3 w-3" />
+            {{ t('ai.settings.fetchError') }}: {{ provider.fetchError }}
+          </div>
+
+          <!-- Models -->
+          <div>
+            <div class="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+              {{ t('ai.settings.providerModels') }}
+              <span class="rounded bg-muted px-1 py-0.5 text-[10px]">
+                {{ t('ai.settings.modelsFetched', { count: getModelCount(provider) }) }}
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <template v-for="modelId in [...provider.models, ...provider.manualModels]" :key="modelId">
+                <span
+                  v-if="isExcluded(modelId)"
+                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground"
+                >
+                  {{ modelId }}
+                  <span class="ml-1 text-[9px] opacity-70">{{ t('ai.settings.excluded') }}</span>
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px]"
+                  :class="ROLE_BADGE_COLORS[inferRole(modelId) as ModelRole] ?? 'bg-muted'"
+                >
+                  {{ modelId }}
+                  <span class="ml-1">{{ ROLE_META[inferRole(modelId) as ModelRole]?.icon }}</span>
+                </span>
+              </template>
+            </div>
+
+            <!-- Manual model input -->
+            <div class="mt-2 flex gap-2">
+              <Input
+                v-model="newManualModel[provider.id]"
+                :placeholder="t('ai.settings.manualModel')"
+                class="h-7 flex-1 text-xs"
+                @keydown.enter="addManualModel(provider)"
+              />
+              <Button variant="outline" size="sm" class="h-7" @click="addManualModel(provider)">
+                <Plus class="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add provider button / template picker -->
+        <div v-if="providerStore.providers.length > 0">
+          <Button
+            v-if="!showTemplatePicker"
+            variant="outline"
+            size="sm"
+            class="w-full"
+            @click="showTemplatePicker = true"
+          >
+            <Plus class="mr-1 h-3 w-3" />
+            {{ t('ai.settings.addProvider') }}
+          </Button>
+
+          <!-- Template picker grid -->
+          <div v-if="showTemplatePicker" class="rounded-lg border p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium">{{ t('ai.settings.addProvider') }}</span>
+              <Button variant="ghost" size="icon" class="h-6 w-6" @click="showTemplatePicker = false">
+                <X class="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-for="tpl in providerTemplates"
+                :key="tpl.id"
+                class="flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors hover:bg-accent"
+                :class="{
+                  'ring-2 ring-primary border-primary/50 bg-primary/5': tpl.id === 'xiaomi-token-plan',
+                }"
+                @click="addFromTemplate(tpl.id)"
+              >
+                <span class="text-xs font-medium">{{ tpl.name }}</span>
+                <span class="text-[10px] text-muted-foreground">
+                  {{ tpl.defaultModels.length || '∞' }} {{ t('ai.settings.tabProviders').toLowerCase() }}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </TabsContent>
 
-      <!-- ==================== Triggers Tab ==================== -->
-      <TabsContent value="triggers" class="mt-3">
-        <div class="rounded-lg border p-4 space-y-1">
-          <p class="text-sm text-muted-foreground mb-4">
-            {{ t('ai.settings.triggersDesc') }}
-          </p>
+      <!-- ==================== TAB 2: Roles ==================== -->
+      <TabsContent value="roles" class="space-y-4">
+        <p class="text-xs text-muted-foreground">
+          {{ t('ai.settings.selectModel') }}
+        </p>
 
-          <!-- Auto Summary -->
-          <div class="flex items-center justify-between py-3 border-b last:border-b-0">
-            <div class="flex-1 mr-4">
-              <div class="text-sm font-medium">
-                {{ t('ai.settings.autoSummary') }}
-              </div>
-              <div class="text-xs text-muted-foreground">
-                {{ t('ai.settings.autoSummaryDesc') }}
+        <div class="grid grid-cols-2 gap-3">
+          <div
+            v-for="role in MODEL_ROLES"
+            :key="role"
+            class="rounded-lg border p-4 space-y-3"
+          >
+            <!-- Role header -->
+            <div class="flex items-center gap-2">
+              <span class="text-lg">{{ ROLE_META[role].icon }}</span>
+              <div>
+                <div class="text-sm font-medium">
+                  {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
+                </div>
+                <div class="text-[10px] text-muted-foreground">
+                  {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}Desc`) }}
+                </div>
               </div>
             </div>
-            <Switch v-model="aiStore.autoSummary" />
+
+            <!-- Status badge -->
+            <div>
+              <span
+                v-if="getAssignmentStatus(role) === 'manual'"
+                class="inline-flex items-center rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300"
+              >
+                {{ t('ai.settings.manualAssigned') }}
+              </span>
+              <span
+                v-else-if="getAssignmentStatus(role) === 'auto'"
+                class="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+              >
+                {{ t('ai.settings.autoInferred') }}
+              </span>
+              <span
+                v-else
+                class="inline-flex items-center rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300"
+              >
+                {{ t('ai.settings.noModel') }}
+              </span>
+            </div>
+
+            <!-- Current model display -->
+            <div v-if="getAssignmentDisplay(role)" class="text-xs text-muted-foreground truncate">
+              {{ getAssignmentDisplay(role) }}
+            </div>
+            <div v-else-if="getResolvedModel(role)" class="text-xs text-muted-foreground">
+              {{ getResolvedModel(role) }}
+            </div>
+
+            <!-- Model selector -->
+            <Select
+              :model-value="providerStore.roleAssignments[role]?.modelId ?? ''"
+              @update:model-value="(val: string) => {
+                if (val) {
+                  // Find which provider owns this model
+                  for (const p of providerStore.providers) {
+                    if ([...p.models, ...p.manualModels].includes(val)) {
+                      providerStore.setRoleAssignment(role, p.id, val)
+                      break
+                    }
+                  }
+                }
+              }"
+            >
+              <SelectTrigger class="h-8 text-xs">
+                <SelectValue :placeholder="t('ai.settings.selectModel')" />
+              </SelectTrigger>
+              <SelectContent>
+                <template v-for="provider in providerStore.providers" :key="provider.id">
+                  <SelectLabel class="text-xs font-medium text-muted-foreground">
+                    {{ provider.name }}
+                  </SelectLabel>
+                  <SelectItem
+                    v-for="modelId in [...provider.models, ...provider.manualModels]"
+                    :key="`${provider.id}:${modelId}`"
+                    :value="modelId"
+                    :disabled="isExcluded(modelId)"
+                    class="text-xs"
+                  >
+                    <span class="flex items-center gap-1">
+                      {{ modelId }}
+                      <span v-if="isExcluded(modelId)" class="text-muted-foreground">
+                        ({{ t('ai.settings.excluded') }})
+                      </span>
+                      <span v-else-if="inferRole(modelId)">
+                        {{ ROLE_META[inferRole(modelId)!]?.icon }}
+                      </span>
+                    </span>
+                  </SelectItem>
+                </template>
+              </SelectContent>
+            </Select>
+
+            <!-- Clear button -->
+            <Button
+              v-if="providerStore.roleAssignments[role]"
+              variant="ghost"
+              size="sm"
+              class="h-6 w-full text-xs text-muted-foreground"
+              @click="providerStore.clearRoleAssignment(role)"
+            >
+              <X class="mr-1 h-3 w-3" />
+              {{ t('ai.settings.clearAssignment') }}
+            </Button>
+          </div>
+        </div>
+      </TabsContent>
+
+      <!-- ==================== TAB 3: Params ==================== -->
+      <TabsContent value="params" class="space-y-4">
+        <!-- Temperature -->
+        <div class="space-y-2">
+          <Label class="text-sm">{{ t('ai.settings.temperature') }}</Label>
+          <p class="text-[10px] text-muted-foreground">
+            {{ t('ai.settings.temperatureHint') }}
+          </p>
+          <div class="flex items-center gap-3">
+            <input
+              v-model.number="providerStore.temperature"
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              class="flex-1"
+            >
+            <Input
+              v-model.number="providerStore.temperature"
+              type="number"
+              min="0"
+              max="2"
+              step="0.1"
+              class="w-20 h-8 text-xs"
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        <!-- Max Tokens -->
+        <div class="space-y-2">
+          <Label class="text-sm">{{ t('ai.settings.maxTokens') }}</Label>
+          <Input
+            v-model.number="providerStore.maxToken"
+            type="number"
+            min="256"
+            step="256"
+            class="w-40 h-8 text-xs"
+          />
+        </div>
+
+        <!-- Image params (only if image role is configured) -->
+        <template v-if="hasImageRole">
+          <Separator />
+
+          <div class="space-y-3">
+            <div class="flex items-center gap-2 text-sm font-medium">
+              <Image class="h-4 w-4" />
+              {{ t('ai.settings.imageModel') }}
+            </div>
+            <p class="text-[10px] text-muted-foreground">
+              {{ t('ai.settings.imageParamsNote') }}
+            </p>
+
+            <!-- Image Size -->
+            <div class="space-y-1">
+              <Label class="text-xs">{{ t('ai.settings.imageSize') }}</Label>
+              <Select v-model="providerStore.imageSize">
+                <SelectTrigger class="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1024x1024">
+                    {{ t('ai.settings.sizeSquare') }}
+                  </SelectItem>
+                  <SelectItem value="1792x1024">
+                    {{ t('ai.settings.sizeLandscape') }}
+                  </SelectItem>
+                  <SelectItem value="1024x1792">
+                    {{ t('ai.settings.sizePortrait') }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <!-- Image Quality -->
+            <div class="space-y-1">
+              <Label class="text-xs">{{ t('ai.settings.imageQuality') }}</Label>
+              <Select v-model="providerStore.imageQuality">
+                <SelectTrigger class="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">
+                    {{ t('ai.settings.qualityStandard') }}
+                  </SelectItem>
+                  <SelectItem value="hd">
+                    {{ t('ai.settings.qualityHd') }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <!-- Image Style -->
+            <div class="space-y-1">
+              <Label class="text-xs">{{ t('ai.settings.imageStyle') }}</Label>
+              <Select v-model="providerStore.imageStyle">
+                <SelectTrigger class="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vivid">
+                    {{ t('ai.settings.styleVivid') }}
+                  </SelectItem>
+                  <SelectItem value="natural">
+                    {{ t('ai.settings.styleNatural') }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </template>
+      </TabsContent>
+
+      <!-- ==================== TAB 4: Triggers ==================== -->
+      <TabsContent value="triggers" class="space-y-4">
+        <p class="text-xs text-muted-foreground">
+          {{ t('ai.settings.triggersDesc') }}
+        </p>
+
+        <div class="space-y-3">
+          <!-- Auto Summary -->
+          <div class="rounded-lg border p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Brain class="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <div class="text-sm font-medium">
+                    {{ t('ai.settings.autoSummary') }}
+                  </div>
+                  <div class="text-[10px] text-muted-foreground">
+                    {{ t('ai.settings.autoSummaryDesc') }}
+                  </div>
+                </div>
+              </div>
+              <Switch v-model="providerStore.triggerSummary.enabled" />
+            </div>
+            <div v-if="providerStore.triggerSummary.enabled" class="space-y-2">
+              <Label class="text-xs">{{ t('ai.settings.triggerRole') }}</Label>
+              <Select v-model="providerStore.triggerSummary.role">
+                <SelectTrigger class="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
+                    <span class="flex items-center gap-1">
+                      {{ ROLE_META[role].icon }}
+                      {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <div class="text-[10px] text-muted-foreground">
+                <template v-if="getTriggerModel(providerStore.triggerSummary.role)">
+                  ✅ {{ getTriggerModel(providerStore.triggerSummary.role) }}
+                </template>
+                <template v-else>
+                  ⚠️ {{ t('ai.settings.noModel') }}
+                </template>
+              </div>
+            </div>
           </div>
 
           <!-- Auto Annotate -->
-          <div class="flex items-center justify-between py-3 border-b last:border-b-0">
-            <div class="flex-1 mr-4">
-              <div class="text-sm font-medium">
-                {{ t('ai.settings.autoAnnotate') }}
+          <div class="rounded-lg border p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Wand2 class="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <div class="text-sm font-medium">
+                    {{ t('ai.settings.autoAnnotate') }}
+                  </div>
+                  <div class="text-[10px] text-muted-foreground">
+                    {{ t('ai.settings.autoAnnotateDesc') }}
+                  </div>
+                </div>
               </div>
-              <div class="text-xs text-muted-foreground">
-                {{ t('ai.settings.autoAnnotateDesc') }}
+              <Switch v-model="providerStore.triggerAnnotate.enabled" />
+            </div>
+            <div v-if="providerStore.triggerAnnotate.enabled" class="space-y-2">
+              <Label class="text-xs">{{ t('ai.settings.triggerRole') }}</Label>
+              <Select v-model="providerStore.triggerAnnotate.role">
+                <SelectTrigger class="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
+                    <span class="flex items-center gap-1">
+                      {{ ROLE_META[role].icon }}
+                      {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <div class="text-[10px] text-muted-foreground">
+                <template v-if="getTriggerModel(providerStore.triggerAnnotate.role)">
+                  ✅ {{ getTriggerModel(providerStore.triggerAnnotate.role) }}
+                </template>
+                <template v-else>
+                  ⚠️ {{ t('ai.settings.noModel') }}
+                </template>
               </div>
             </div>
-            <Switch v-model="aiStore.autoAnnotate" />
           </div>
 
-          <!-- Auto Insight -->
-          <div class="flex items-center justify-between py-3">
-            <div class="flex-1 mr-4">
-              <div class="text-sm font-medium">
-                {{ t('ai.settings.autoInsight') }}
+          <!-- Active Insight -->
+          <div class="rounded-lg border p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Eye class="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <div class="text-sm font-medium">
+                    {{ t('ai.settings.autoInsight') }}
+                  </div>
+                  <div class="text-[10px] text-muted-foreground">
+                    {{ t('ai.settings.autoInsightDesc') }}
+                  </div>
+                </div>
               </div>
-              <div class="text-xs text-muted-foreground">
-                {{ t('ai.settings.autoInsightDesc') }}
+              <Switch v-model="providerStore.triggerInsight.enabled" />
+            </div>
+            <div v-if="providerStore.triggerInsight.enabled" class="space-y-2">
+              <Label class="text-xs">{{ t('ai.settings.triggerRole') }}</Label>
+              <Select v-model="providerStore.triggerInsight.role">
+                <SelectTrigger class="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
+                    <span class="flex items-center gap-1">
+                      {{ ROLE_META[role].icon }}
+                      {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <div class="text-[10px] text-muted-foreground">
+                <template v-if="getTriggerModel(providerStore.triggerInsight.role)">
+                  ✅ {{ getTriggerModel(providerStore.triggerInsight.role) }}
+                </template>
+                <template v-else>
+                  ⚠️ {{ t('ai.settings.noModel') }}
+                </template>
               </div>
             </div>
-            <Switch v-model="aiStore.autoInsight" />
           </div>
         </div>
       </TabsContent>
