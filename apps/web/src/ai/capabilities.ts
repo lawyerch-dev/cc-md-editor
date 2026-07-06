@@ -6,6 +6,7 @@
  * function that turns caller-supplied records into chat messages.
  */
 
+import type { ModelRole } from '@md/shared/types'
 import { DEFAULT_SERVICE_TEMPERATURE } from '@md/shared/constants'
 
 // ── Types ───────────────────────────────────────────────
@@ -13,8 +14,8 @@ import { DEFAULT_SERVICE_TEMPERATURE } from '@md/shared/constants'
 export interface AICapability {
   /** Unique identifier, e.g. `'core.summarize'` */
   id: string
-  /** Model family: `'text'` | `'vision'` | `'image'` */
-  modelType: string
+  /** Model role: `'reasoning'` | `'fast'` | `'vision'` | `'image'` */
+  role: ModelRole
   /** Response mode: `'stream'` (SSE deltas) | `'json'` (single response) */
   mode: `stream` | `json`
   /** Declares expected input fields (informational, for UI/validation) */
@@ -24,10 +25,10 @@ export interface AICapability {
   /**
    * Build the payload record to send to the AI endpoint.
    *
-   * - For `mode: 'stream'` / `'json'` with `modelType: 'text'` | `'vision'`:
+   * - For `mode: 'stream'` / `'json'` with `role: 'fast'` | `'reasoning'` | `'vision'`:
    *   returns `{ messages, temperature?, max_tokens?, stream?, ... }`.
    *
-   * - For `modelType: 'image'`:
+   * - For `role: 'image'`:
    *   returns `{ prompt, size, n, ... }`.
    */
   buildPrompt: (input: Record<string, unknown>) => Record<string, unknown>
@@ -58,7 +59,7 @@ export function getAllCapabilities(): AICapability[] {
 
 register({
   id: `core.summarize`,
-  modelType: `text`,
+  role: 'fast',
   mode: `stream`,
   inputSpec: [`content: string`, `title?: string`, `userProfile?: string`],
   outputSpec: [`summary: string (markdown bullet points)`],
@@ -87,7 +88,7 @@ register({
 
 register({
   id: `core.translate`,
-  modelType: `text`,
+  role: 'fast',
   mode: `stream`,
   inputSpec: [`content: string`, `targetLang: string`, `userProfile?: string`],
   outputSpec: [`translation: string`],
@@ -116,7 +117,7 @@ register({
 
 register({
   id: `core.polish`,
-  modelType: `text`,
+  role: 'fast',
   mode: `stream`,
   inputSpec: [`content: string`, `prompt?: string`],
   outputSpec: [`polished: string`],
@@ -144,7 +145,7 @@ register({
 
 register({
   id: `reading.annotate`,
-  modelType: `text`,
+  role: 'fast',
   mode: `stream`,
   inputSpec: [`text: string`, `articleTitle?: string`, `articleContent?: string`],
   outputSpec: [`annotation: string (concise commentary)`],
@@ -175,7 +176,7 @@ register({
 
 register({
   id: `reading.insight`,
-  modelType: `text`,
+  role: 'reasoning',
   mode: `stream`,
   inputSpec: [`content: string`, `title?: string`],
   outputSpec: [`insights: string (markdown list)`],
@@ -203,7 +204,7 @@ register({
 
 register({
   id: `collector.generateSelectors`,
-  modelType: `text`,
+  role: 'fast',
   mode: `json`,
   inputSpec: [`url: string`, `html: string`, `description: string`],
   outputSpec: [`selectors: CollectorSelectors (JSON)`],
@@ -247,7 +248,7 @@ register({
 
 register({
   id: `image.generate`,
-  modelType: `image`,
+  role: 'image',
   mode: `json`,
   inputSpec: [`prompt: string`, `size?: string`],
   outputSpec: [`images: Array<{ url: string }> (JSON)`],

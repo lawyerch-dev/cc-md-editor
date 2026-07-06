@@ -1,3 +1,4 @@
+export * from './ai-provider-templates'
 export * from './ai-service-options'
 export * from './prefix'
 export * from './shortcut-key'

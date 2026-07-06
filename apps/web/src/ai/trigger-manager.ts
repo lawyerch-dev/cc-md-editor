@@ -1,7 +1,7 @@
 import type { Article } from '@/stores/reading/types'
 import { watch } from 'vue'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
-import { useAIStore } from '@/stores/ai'
+import { useAIProviderStore } from '@/stores/aiProvider'
 import { useAnnotationStore } from '@/stores/annotation'
 import { useReadingStore } from '@/stores/reading'
 import { saveArticles } from '@/stores/reading/persistence'
@@ -94,9 +94,9 @@ async function fetchSSE(
 // ── AI task runners ────────────────────────────────────
 
 async function execSummary(article: Article): Promise<void> {
-  const aiStore = useAIStore()
+  const providerStore = useAIProviderStore()
 
-  if (!aiStore.autoSummary)
+  if (!providerStore.triggerSummary.enabled)
     return
   if (article.content.length < SUMMARY_MIN_LENGTH)
     return
@@ -114,16 +114,13 @@ async function execSummary(article: Article): Promise<void> {
   try {
     const prompt = `请用 2-3 句话概括以下文章的核心内容，直接输出摘要，不要添加任何前缀或解释：\n\n${article.content.slice(0, 4000)}`
 
-    const endpoint = aiStore.textEndpoint
-    const apiKey = aiStore.textApiKey
-    const model = aiStore.textModel
-    const type = aiStore.textType
-
-    if (!endpoint || !model)
+    const config = providerStore.resolveRole(providerStore.triggerSummary.role)
+    if (!config)
       return
 
-    const url = resolveEndpointUrl(endpoint, 'chat')
-    const headers = buildAIHeaders(apiKey, type)
+    const url = resolveEndpointUrl(config.endpoint, 'chat')
+    const headers = buildAIHeaders(config.apiKey, 'default')
+    const model = config.model
     const payload = {
       model,
       messages: [{ role: 'user', content: prompt }],
@@ -156,9 +153,9 @@ async function execSummary(article: Article): Promise<void> {
 }
 
 async function execAnnotate(article: Article): Promise<void> {
-  const aiStore = useAIStore()
+  const providerStore = useAIProviderStore()
 
-  if (!aiStore.autoAnnotate)
+  if (!providerStore.triggerAnnotate.enabled)
     return
   if (article.content.length < ANNOTATE_MIN_LENGTH)
     return
@@ -176,16 +173,13 @@ async function execAnnotate(article: Article): Promise<void> {
   try {
     const prompt = `阅读以下文章，提取 3-5 个关键观点或要点。对每个要点，输出原文引用和你的解读。以 JSON 数组格式输出，每项包含 text（原文引用）和 comment（解读），category 为以下之一：insight, question, key-point, action。只输出 JSON，不要解释。\n\n${article.content.slice(0, 6000)}`
 
-    const endpoint = aiStore.textEndpoint
-    const apiKey = aiStore.textApiKey
-    const model = aiStore.textModel
-    const type = aiStore.textType
-
-    if (!endpoint || !model)
+    const config = providerStore.resolveRole(providerStore.triggerAnnotate.role)
+    if (!config)
       return
 
-    const url = resolveEndpointUrl(endpoint, 'chat')
-    const headers = buildAIHeaders(apiKey, type)
+    const url = resolveEndpointUrl(config.endpoint, 'chat')
+    const headers = buildAIHeaders(config.apiKey, 'default')
+    const model = config.model
     const payload = {
       model,
       messages: [{ role: 'user', content: prompt }],

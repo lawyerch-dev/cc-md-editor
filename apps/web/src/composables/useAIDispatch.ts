@@ -1,16 +1,18 @@
+import type { ModelRole } from '@md/shared/types/ai-provider-types'
 import type { SSECallbacks } from '@/composables/useAIFetch'
 import { get as getCapability } from '@/ai/capabilities'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import { useAIStore } from '@/stores/ai'
+import { useAIProviderStore } from '@/stores/aiProvider'
 
-/** Supported model configuration types. */
-export type ModelType = 'text' | 'vision' | 'image'
-
-/** Configuration resolved from the AI store for a given model type. */
-export interface ModelConfig {
-  type: string
+/** Configuration resolved from the provider store for a given role. */
+export interface ResolvedModelConfig {
+  /** Provider id (for logging / debugging). */
+  providerId: string
+  /** OpenAI-compatible endpoint URL. */
   endpoint: string
+  /** Model id to send in the payload. */
   model: string
+  /** API key for the Authorization header. */
   apiKey: string
 }
 
@@ -30,44 +32,14 @@ export interface DispatchResult {
 }
 
 /**
- * Resolve model configuration from the AI store for a given model type.
- */
-function resolveModelConfig(modelType: ModelType): ModelConfig {
-  const store = useAIStore()
-
-  switch (modelType) {
-    case 'text':
-      return {
-        type: store.text.type,
-        endpoint: store.text.endpoint,
-        model: store.text.model,
-        apiKey: store.text.apiKey,
-      }
-    case 'vision':
-      return {
-        type: store.vision.type,
-        endpoint: store.vision.endpoint,
-        model: store.vision.model,
-        apiKey: store.vision.apiKey,
-      }
-    case 'image':
-      return {
-        type: store.image.type,
-        endpoint: store.image.endpoint,
-        model: store.image.model,
-        apiKey: store.image.apiKey,
-      }
-  }
-}
-
-/**
  * Unified AI dispatcher.
  *
- * Resolves model config from the store based on the capability's `modelType`,
- * builds the payload via the capability's `buildPrompt`, and calls the
+ * Resolves model config from the provider store by the capability's declared
+ * `role`, builds the payload via the capability's `buildPrompt`, and calls the
  * appropriate fetch method (`fetchSSE` for stream mode, `fetchJSON` for json mode).
  */
 export function useAIDispatch() {
+  const providerStore = useAIProviderStore()
   const { fetchSSE, fetchJSON } = useAIFetch()
 
   async function dispatch(options: DispatchOptions): Promise<DispatchResult> {
@@ -79,23 +51,27 @@ export function useAIDispatch() {
       return { ok: false, data: null, error: `Unknown capability: ${capabilityId}` }
     }
 
-    // 2. Resolve model config from store
-    const config = resolveModelConfig(capability.modelType as ModelType)
+    // 2. Resolve model config by role
+    const role = capability.role as ModelRole
+    const config = providerStore.resolveRole(role)
 
+    if (!config) {
+      return { ok: false, data: null, error: `No model configured for role: ${role}` }
+    }
     if (!config.endpoint) {
-      return { ok: false, data: null, error: `No endpoint configured for ${capability.modelType} model` }
+      return { ok: false, data: null, error: `No endpoint configured for role: ${role}` }
     }
     if (!config.model) {
-      return { ok: false, data: null, error: `No model configured for ${capability.modelType} model` }
+      return { ok: false, data: null, error: `No model configured for role: ${role}` }
     }
 
     // 3. Build payload via capability
     const payload = capability.buildPrompt(input)
 
     // 4. Build request URL and headers
-    const kind = capability.modelType === 'image' ? 'image' as const : 'chat' as const
+    const kind = role === 'image' ? 'image' as const : 'chat' as const
     const url = resolveEndpointUrl(config.endpoint, kind)
-    const headers = buildAIHeaders(config.apiKey, config.type)
+    const headers = buildAIHeaders(config.apiKey, 'default')
 
     // 5. Inject model into payload (capability builds prompt content, we supply the model)
     payload.model = config.model
