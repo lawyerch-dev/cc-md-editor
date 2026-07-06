@@ -2,14 +2,12 @@
 import type { ModelRole, Provider } from '@md/shared/types'
 import {
   Brain,
-  Check,
   Eye,
   Image,
   Info,
   Loader2,
   Plus,
   RefreshCw,
-  Settings,
   Star,
   Trash2,
   Wand2,
@@ -160,26 +158,15 @@ const hasImageRole = computed(() => {
 })
 
 // ── Save ──
-function save() {
+function saveConfig() {
   emit('saved')
 }
+
+defineExpose({ saveConfig })
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <Settings class="h-4 w-4" />
-        <h3 class="text-sm font-medium">
-          {{ t('ai.settings.title') }}
-        </h3>
-      </div>
-      <Button size="sm" @click="save">
-        <Check class="mr-1 h-3 w-3" />
-        {{ t('ai.settings.saveConfig') }}
-      </Button>
-    </div>
-
     <Tabs default-value="providers" class="w-full">
       <TabsList class="grid w-full grid-cols-4">
         <TabsTrigger value="providers">
@@ -419,10 +406,10 @@ function save() {
               <span class="text-lg">{{ ROLE_META[role].icon }}</span>
               <div>
                 <div class="text-sm font-medium">
-                  {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
+                  {{ t(`ai.settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
                 </div>
                 <div class="text-[10px] text-muted-foreground">
-                  {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}Desc`) }}
+                  {{ t(`ai.settings.role${role.charAt(0).toUpperCase() + role.slice(1)}Desc`) }}
                 </div>
               </div>
             </div>
@@ -664,7 +651,7 @@ function save() {
                   <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
                     <span class="flex items-center gap-1">
                       {{ ROLE_META[role].icon }}
-                      {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
+                      {{ t(`ai.settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
                     </span>
                   </SelectItem>
                 </SelectContent>
@@ -706,7 +693,7 @@ function save() {
                   <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
                     <span class="flex items-center gap-1">
                       {{ ROLE_META[role].icon }}
-                      {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
+                      {{ t(`ai.settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
                     </span>
                   </SelectItem>
                 </SelectContent>
@@ -748,7 +735,7 @@ function save() {
                   <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
                     <span class="flex items-center gap-1">
                       {{ ROLE_META[role].icon }}
-                      {{ t(`settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
+                      {{ t(`ai.settings.role${role.charAt(0).toUpperCase() + role.slice(1)}`) }}
                     </span>
                   </SelectItem>
                 </SelectContent>
