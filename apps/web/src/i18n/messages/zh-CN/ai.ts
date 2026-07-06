@@ -238,8 +238,8 @@ export default {
     title: `AI 设置`,
     // Tabs
     tabProviders: `供应商`,
-    tabRoles: `角色`,
-    tabParams: `参数`,
+    tabRoles: `模型`,
+    // tabParams removed — params are per-role now
     tabTriggers: `触发器`,
     // Legacy tab keys (kept for compatibility)
     models: `模型`,

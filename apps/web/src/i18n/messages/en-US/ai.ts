@@ -238,8 +238,8 @@ export default {
     title: `AI Settings`,
     // Tabs
     tabProviders: `Providers`,
-    tabRoles: `Roles`,
-    tabParams: `Params`,
+    tabRoles: `Models`,
+    // tabParams removed — params are per-role now
     tabTriggers: `Triggers`,
     // Legacy tab keys (kept for compatibility)
     models: `Models`,

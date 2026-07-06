@@ -3,7 +3,6 @@ import type { ModelRole, Provider } from '@md/shared/types'
 import {
   Brain,
   Eye,
-  Image,
   Info,
   Loader2,
   Plus,
@@ -152,11 +151,6 @@ function getTriggerModel(role: ModelRole): string | null {
   return resolved?.model ?? null
 }
 
-// ── Image role check ──
-const hasImageRole = computed(() => {
-  return providerStore.resolveRole('image') !== null
-})
-
 // ── Save ──
 function saveConfig() {
   emit('saved')
@@ -166,17 +160,14 @@ defineExpose({ saveConfig })
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-4 p-4">
     <Tabs default-value="providers" class="w-full">
-      <TabsList class="grid w-full grid-cols-4">
+      <TabsList class="grid w-full grid-cols-3">
         <TabsTrigger value="providers">
           {{ t('ai.settings.tabProviders') }}
         </TabsTrigger>
         <TabsTrigger value="roles">
           {{ t('ai.settings.tabRoles') }}
-        </TabsTrigger>
-        <TabsTrigger value="params">
-          {{ t('ai.settings.tabParams') }}
         </TabsTrigger>
         <TabsTrigger value="triggers">
           {{ t('ai.settings.tabTriggers') }}
@@ -184,7 +175,7 @@ defineExpose({ saveConfig })
       </TabsList>
 
       <!-- ==================== TAB 1: Providers ==================== -->
-      <TabsContent value="providers" class="space-y-4">
+      <TabsContent value="providers" class="space-y-4 px-1">
         <!-- Empty state -->
         <div
           v-if="providerStore.providers.length === 0 && !showTemplatePicker"
@@ -349,7 +340,7 @@ defineExpose({ saveConfig })
         </div>
 
         <!-- Add provider button / template picker -->
-        <div v-if="providerStore.providers.length > 0">
+        <div>
           <Button
             v-if="!showTemplatePicker"
             variant="outline"
@@ -390,7 +381,7 @@ defineExpose({ saveConfig })
       </TabsContent>
 
       <!-- ==================== TAB 2: Roles ==================== -->
-      <TabsContent value="roles" class="space-y-4">
+      <TabsContent value="roles" class="space-y-4 px-1">
         <p class="text-xs text-muted-foreground">
           {{ t('ai.settings.selectModel') }}
         </p>
@@ -462,7 +453,7 @@ defineExpose({ saveConfig })
               <SelectTrigger class="h-8 text-xs">
                 <SelectValue :placeholder="t('ai.settings.selectModel')" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <template v-for="provider in providerStore.providers" :key="provider.id">
                   <SelectLabel class="text-xs font-medium text-muted-foreground">
                     {{ provider.name }}
@@ -488,6 +479,80 @@ defineExpose({ saveConfig })
               </SelectContent>
             </Select>
 
+            <!-- Per-role parameters -->
+            <Separator class="my-1" />
+            <div class="space-y-2">
+              <!-- Text model params (reasoning/fast/vision) -->
+              <template v-if="role !== 'image'">
+                <div class="flex items-center gap-2">
+                  <Label class="text-[10px] text-muted-foreground">{{ t('ai.settings.temperature') }}</Label>
+                  <Input
+                    v-model.number="providerStore.temperature"
+                    type="number"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    class="h-6 w-16 text-[10px]"
+                  />
+                </div>
+                <div class="flex items-center gap-2">
+                  <Label class="text-[10px] text-muted-foreground">{{ t('ai.settings.maxTokens') }}</Label>
+                  <Input
+                    v-model.number="providerStore.maxToken"
+                    type="number"
+                    min="256"
+                    step="256"
+                    class="h-6 w-20 text-[10px]"
+                  />
+                </div>
+              </template>
+              <!-- Image model params -->
+              <template v-if="role === 'image'">
+                <Select v-model="providerStore.imageSize">
+                  <SelectTrigger class="h-6 text-[10px]">
+                    <SelectValue :placeholder="t('ai.settings.imageSize')" />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value="1024x1024">
+                      {{ t('ai.settings.sizeSquare') }}
+                    </SelectItem>
+                    <SelectItem value="1792x1024">
+                      {{ t('ai.settings.sizeLandscape') }}
+                    </SelectItem>
+                    <SelectItem value="1024x1792">
+                      {{ t('ai.settings.sizePortrait') }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select v-model="providerStore.imageQuality">
+                  <SelectTrigger class="h-6 text-[10px]">
+                    <SelectValue :placeholder="t('ai.settings.imageQuality')" />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value="standard">
+                      {{ t('ai.settings.qualityStandard') }}
+                    </SelectItem>
+                    <SelectItem value="hd">
+                      {{ t('ai.settings.qualityHd') }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select v-model="providerStore.imageStyle">
+                  <SelectTrigger class="h-6 text-[10px]">
+                    <SelectValue :placeholder="t('ai.settings.imageStyle')" />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value="vivid">
+                      {{ t('ai.settings.styleVivid') }}
+                    </SelectItem>
+                    <SelectItem value="natural">
+                      {{ t('ai.settings.styleNatural') }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </template>
+            </div>
+
             <!-- Clear button -->
             <Button
               v-if="providerStore.roleAssignments[role]"
@@ -503,123 +568,8 @@ defineExpose({ saveConfig })
         </div>
       </TabsContent>
 
-      <!-- ==================== TAB 3: Params ==================== -->
-      <TabsContent value="params" class="space-y-4">
-        <!-- Temperature -->
-        <div class="space-y-2">
-          <Label class="text-sm">{{ t('ai.settings.temperature') }}</Label>
-          <p class="text-[10px] text-muted-foreground">
-            {{ t('ai.settings.temperatureHint') }}
-          </p>
-          <div class="flex items-center gap-3">
-            <input
-              v-model.number="providerStore.temperature"
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              class="flex-1"
-            >
-            <Input
-              v-model.number="providerStore.temperature"
-              type="number"
-              min="0"
-              max="2"
-              step="0.1"
-              class="w-20 h-8 text-xs"
-            />
-          </div>
-        </div>
-
-        <Separator />
-
-        <!-- Max Tokens -->
-        <div class="space-y-2">
-          <Label class="text-sm">{{ t('ai.settings.maxTokens') }}</Label>
-          <Input
-            v-model.number="providerStore.maxToken"
-            type="number"
-            min="256"
-            step="256"
-            class="w-40 h-8 text-xs"
-          />
-        </div>
-
-        <!-- Image params (only if image role is configured) -->
-        <template v-if="hasImageRole">
-          <Separator />
-
-          <div class="space-y-3">
-            <div class="flex items-center gap-2 text-sm font-medium">
-              <Image class="h-4 w-4" />
-              {{ t('ai.settings.imageModel') }}
-            </div>
-            <p class="text-[10px] text-muted-foreground">
-              {{ t('ai.settings.imageParamsNote') }}
-            </p>
-
-            <!-- Image Size -->
-            <div class="space-y-1">
-              <Label class="text-xs">{{ t('ai.settings.imageSize') }}</Label>
-              <Select v-model="providerStore.imageSize">
-                <SelectTrigger class="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1024x1024">
-                    {{ t('ai.settings.sizeSquare') }}
-                  </SelectItem>
-                  <SelectItem value="1792x1024">
-                    {{ t('ai.settings.sizeLandscape') }}
-                  </SelectItem>
-                  <SelectItem value="1024x1792">
-                    {{ t('ai.settings.sizePortrait') }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <!-- Image Quality -->
-            <div class="space-y-1">
-              <Label class="text-xs">{{ t('ai.settings.imageQuality') }}</Label>
-              <Select v-model="providerStore.imageQuality">
-                <SelectTrigger class="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">
-                    {{ t('ai.settings.qualityStandard') }}
-                  </SelectItem>
-                  <SelectItem value="hd">
-                    {{ t('ai.settings.qualityHd') }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <!-- Image Style -->
-            <div class="space-y-1">
-              <Label class="text-xs">{{ t('ai.settings.imageStyle') }}</Label>
-              <Select v-model="providerStore.imageStyle">
-                <SelectTrigger class="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="vivid">
-                    {{ t('ai.settings.styleVivid') }}
-                  </SelectItem>
-                  <SelectItem value="natural">
-                    {{ t('ai.settings.styleNatural') }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </template>
-      </TabsContent>
-
-      <!-- ==================== TAB 4: Triggers ==================== -->
-      <TabsContent value="triggers" class="space-y-4">
+      <!-- ==================== TAB 3: Triggers ==================== -->
+      <TabsContent value="triggers" class="space-y-4 px-1">
         <p class="text-xs text-muted-foreground">
           {{ t('ai.settings.triggersDesc') }}
         </p>
@@ -647,7 +597,7 @@ defineExpose({ saveConfig })
                 <SelectTrigger class="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
                     <span class="flex items-center gap-1">
                       {{ ROLE_META[role].icon }}
@@ -689,7 +639,7 @@ defineExpose({ saveConfig })
                 <SelectTrigger class="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
                     <span class="flex items-center gap-1">
                       {{ ROLE_META[role].icon }}
@@ -731,7 +681,7 @@ defineExpose({ saveConfig })
                 <SelectTrigger class="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem v-for="role in MODEL_ROLES" :key="role" :value="role">
                     <span class="flex items-center gap-1">
                       {{ ROLE_META[role].icon }}
