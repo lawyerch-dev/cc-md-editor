@@ -1,13 +1,13 @@
 import type { CollectorSelectors } from '@/stores/reading'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import { useAIConfigStore } from '@/stores/aiConfig'
+import { useAIStore } from '@/stores/ai'
 
 /**
  * 分析网页 HTML，生成 CSS 选择器采集规则。
  * 使用用户配置的文本模型（OpenAI 兼容 API）。
  */
 export function useCollectorAI() {
-  const aiConfig = useAIConfigStore()
+  const aiStore = useAIStore()
   const { fetchJSON } = useAIFetch()
 
   /**
@@ -85,10 +85,10 @@ export function useCollectorAI() {
 HTML 结构（已精简，保留 class 属性）：
 ${simplified}`
 
-    const endpoint = aiConfig.textEndpoint || aiConfig.endpoint
-    const apiKey = aiConfig.textApiKey || aiConfig.apiKey
-    const model = aiConfig.textModel || aiConfig.model
-    const type = aiConfig.textType || aiConfig.type
+    const endpoint = aiStore.textEndpoint
+    const apiKey = aiStore.textApiKey
+    const model = aiStore.textModel
+    const type = aiStore.textType
 
     const url_ = resolveEndpointUrl(endpoint, 'chat')
     const headers = buildAIHeaders(apiKey, type)

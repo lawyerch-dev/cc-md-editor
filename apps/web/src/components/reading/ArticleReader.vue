@@ -6,7 +6,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { endReading, startReading, trackAnnotate, trackExtractIdea, trackFavorite } from '@/composables/useBehaviorTracking'
-import { useAIConfigStore } from '@/stores/aiConfig'
+import { useAIStore } from '@/stores/ai'
 import { useReadingStore } from '@/stores/reading'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 
@@ -15,7 +15,7 @@ const props = defineProps<{
 }>()
 
 const readingStore = useReadingStore()
-const aiConfig = useAIConfigStore()
+const aiStore = useAIStore()
 const { t } = useI18n()
 
 const sanitize = (html: string) => DOMPurify.sanitize(html.replace(/\[!--begin:\w+--\][\s\S]*?\[!--end:\w+--\]/g, ''), { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling'] })
@@ -154,10 +154,10 @@ async function callAIStream(
     currentAIAbort.abort()
   currentAIAbort = new AbortController()
   const signal = currentAIAbort.signal
-  const endpoint = aiConfig.textEndpoint || aiConfig.endpoint
-  const apiKey = aiConfig.textApiKey || aiConfig.apiKey
-  const model = aiConfig.textModel || aiConfig.model
-  const type = aiConfig.textType || aiConfig.type
+  const endpoint = aiStore.textEndpoint || aiStore.endpoint
+  const apiKey = aiStore.textApiKey || aiStore.apiKey
+  const model = aiStore.textModel || aiStore.model
+  const type = aiStore.textType || aiStore.type
   const url = resolveEndpointUrl(endpoint, 'chat')
   const headers = buildAIHeaders(apiKey, type)
   const payload = {

@@ -24,10 +24,10 @@ import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
 import { prepareModalOverlayFocus } from '@/lib/a11y/dialog-focus'
 import { copyPlain } from '@/lib/browser/clipboard'
 import { store } from '@/storage'
-import useAIImageConfigStore from '@/stores/aiImageConfig'
+import { useAIStore } from '@/stores/ai'
 import { useEditorStore } from '@/stores/editor'
 import { useUIStore } from '@/stores/ui'
-import AIImageConfig from './AIImageConfig.vue'
+import AISettingsPanel from '../AISettingsPanel.vue'
 
 /* ---------- 组件属性 ---------- */
 const props = defineProps<{ open: boolean }>()
@@ -69,8 +69,8 @@ const currentTime = ref(Date.now()) // 用于实时显示图片剩余有效期
 let timerIntervalId: ReturnType<typeof setInterval> | null = null
 
 /* ---------- AI 配置 ---------- */
-const AIImageConfigStore = useAIImageConfigStore()
-const { apiKey, endpoint, model, type, size, quality, style } = storeToRefs(AIImageConfigStore)
+const aiStore = useAIStore()
+const { imageApiKey: apiKey, imageEndpoint: endpoint, imageModel: model, imageType: type, imageSize: size, imageQuality: quality, imageStyle: style } = storeToRefs(aiStore)
 
 /* ---------- 过期检查函数 ---------- */
 function isImageExpired(timestamp: number): boolean {
@@ -554,7 +554,7 @@ function getTimeRemainingClass(index: number): string {
         v-if="configVisible"
         class="mb-4 w-full border rounded-md p-4 max-h-[60vh] overflow-y-auto flex-shrink-0"
       >
-        <AIImageConfig @saved="handleConfigSaved" />
+        <AISettingsPanel @saved="handleConfigSaved" />
       </div>
 
       <!-- ============ 图像展示区域 ============ -->

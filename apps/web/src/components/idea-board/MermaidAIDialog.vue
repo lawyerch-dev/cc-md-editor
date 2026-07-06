@@ -2,13 +2,13 @@
 import { Clock, RotateCcw, Settings, Sparkles, Trash2, Wand2, X } from '@lucide/vue'
 import mermaid from 'mermaid'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
+import AISettingsPanel from '@/components/ai/AISettingsPanel.vue'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import useAIConfigStore from '@/stores/aiConfig'
+import { useAIStore } from '@/stores/ai'
 
 const emit = defineEmits<{
   close: []
@@ -16,7 +16,7 @@ const emit = defineEmits<{
   insertJson: [json: string]
 }>()
 
-const aiConfig = useAIConfigStore()
+const aiStore = useAIStore()
 const { loading, fetchSSE, abort } = useAIFetch()
 
 const prompt = ref('')
@@ -325,11 +325,11 @@ function buildJsonPrompt(direction: string): string {
 }
 
 async function callAI(systemPrompt: string, userContent: string, onDelta: (s: string) => void): Promise<void> {
-  const url = resolveEndpointUrl(aiConfig.textEndpoint || aiConfig.endpoint, 'chat')
-  const headers = buildAIHeaders(aiConfig.textApiKey || aiConfig.apiKey, aiConfig.textType || aiConfig.type)
+  const url = resolveEndpointUrl(aiStore.textEndpoint, 'chat')
+  const headers = buildAIHeaders(aiStore.textApiKey, aiStore.textType)
 
   const payload: Record<string, unknown> = {
-    model: aiConfig.textModel,
+    model: aiStore.textModel,
     temperature: 0.3,
     max_tokens: 2000,
     stream: true,
@@ -346,7 +346,7 @@ async function optimize() {
   if (!prompt.value.trim())
     return
 
-  if (!aiConfig.textModel) {
+  if (!aiStore.textModel) {
     error.value = '请先在设置中配置 AI 文本模型'
     return
   }
@@ -373,7 +373,7 @@ async function generate() {
   if (!prompt.value.trim())
     return
 
-  if (!aiConfig.textModel) {
+  if (!aiStore.textModel) {
     error.value = '请先在设置中配置 AI 文本模型'
     return
   }
@@ -500,7 +500,7 @@ function handleInsert() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent class="w-[420px] max-h-[70vh] overflow-y-auto" align="end">
-                <AIConfig />
+                <AISettingsPanel />
               </PopoverContent>
             </Popover>
             <Button variant="ghost" size="sm" class="h-7 gap-1 text-xs" :class="{ 'text-purple-500': showHistory }" @click="showHistory = !showHistory">
@@ -558,7 +558,7 @@ function handleInsert() {
                     variant="outline"
                     size="sm"
                     class="gap-1.5"
-                    :disabled="!prompt.trim() || !aiConfig.textModel"
+                    :disabled="!prompt.trim() || !aiStore.textModel"
                     @click="optimize"
                   >
                     <Wand2 class="h-3.5 w-3.5" />
@@ -567,7 +567,7 @@ function handleInsert() {
                   <Button
                     size="sm"
                     class="gap-1.5"
-                    :disabled="!prompt.trim() || !aiConfig.textModel"
+                    :disabled="!prompt.trim() || !aiStore.textModel"
                     @click="generate"
                   >
                     <Sparkles class="h-3.5 w-3.5" />

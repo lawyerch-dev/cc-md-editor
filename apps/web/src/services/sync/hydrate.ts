@@ -2,7 +2,7 @@ import { storeToRefs } from 'pinia'
 import { store } from '@/storage/manager'
 import { addPrefix } from '@/storage/prefix'
 import { parseStoredValue } from '@/storage/quota'
-import { useAIConfigStore } from '@/stores/aiConfig'
+import { useAIStore } from '@/stores/ai'
 import { useCssEditorStore } from '@/stores/cssEditor'
 import { useCustomComponentStore } from '@/stores/customComponent'
 import { useEditorStore } from '@/stores/editor'
@@ -60,7 +60,7 @@ export async function hydrateSyncedSettings(appliedKeys: string[]): Promise<void
   const themeStore = useThemeStore()
   const uiStore = useUIStore()
   const postStore = usePostStore()
-  const aiConfigStore = useAIConfigStore()
+  const aiConfigStore = useAIStore()
   const cssEditorStore = useCssEditorStore()
   const templateStore = useTemplateStore()
   const customComponentStore = useCustomComponentStore()

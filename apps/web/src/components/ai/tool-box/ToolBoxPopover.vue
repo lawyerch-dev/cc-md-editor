@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Pause, Settings, Wand2, X } from '@lucide/vue'
+import AISettingsPanel from '@/components/ai/AISettingsPanel.vue'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -16,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import useAIConfigStore from '@/stores/aiConfig'
+import { useAIStore } from '@/stores/ai'
 import { useEditorStore } from '@/stores/editor'
 
 /* -------------------- props / emits -------------------- */
@@ -55,7 +56,7 @@ watch(() => props.open, (val) => {
 watch(dialogVisible, val => emit(`update:open`, val))
 
 /* -------------------- AI config -------------------- */
-const AIConfigStore = useAIConfigStore()
+const AIConfigStore = useAIStore()
 const { apiKey, endpoint, model, temperature, maxToken, type }
   = storeToRefs(AIConfigStore)
 const { t } = useI18n()
@@ -267,7 +268,7 @@ defineExpose({ dialogVisible, runAIAction, replaceText, show, close, stopAI })
 
       <!-- ============ 内容区域 ============ -->
       <!-- config panel -->
-      <AIConfig
+      <AISettingsPanel
         v-if="configVisible"
         class="border-border mx-6 mb-4 w-auto border rounded-md p-4"
         @saved="() => (configVisible = false)"

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Loader2, Send, Settings, X } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
-import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
+import AISettingsPanel from '@/components/ai/AISettingsPanel.vue'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
 import { useImageUploader } from '@/composables/useImageUploader'
-import { useAIConfigStore } from '@/stores/aiConfig'
+import { useAIStore } from '@/stores/ai'
 import { usePostStore } from '@/stores/post'
 
 const props = defineProps<{
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   inserted: []
 }>()
 
-const aiConfig = useAIConfigStore()
+const aiStore = useAIStore()
 const postStore = usePostStore()
 const { upload } = useImageUploader()
 const { loading, fetchSSE, abort } = useAIFetch()
@@ -59,7 +59,7 @@ const inserting = ref(false)
 
 // ── 用视觉模型一步到位 ─────────────────────────────────
 async function tryVisionModel(): Promise<boolean> {
-  const visionModel = aiConfig.visionModel
+  const visionModel = aiStore.visionModel
   if (!visionModel)
     return false
 
@@ -67,13 +67,13 @@ async function tryVisionModel(): Promise<boolean> {
   stepText.value = '正在用视觉模型理解图片…'
 
   try {
-    const url = resolveEndpointUrl(aiConfig.visionEndpoint || aiConfig.endpoint, 'chat')
-    const headers = buildAIHeaders(aiConfig.visionApiKey || aiConfig.apiKey, aiConfig.visionType || aiConfig.type)
+    const url = resolveEndpointUrl(aiStore.visionEndpoint || aiStore.endpoint, 'chat')
+    const headers = buildAIHeaders(aiStore.visionApiKey || aiStore.apiKey, aiStore.visionType || aiStore.type)
 
     const payload: Record<string, unknown> = {
       model: visionModel,
-      temperature: aiConfig.temperature,
-      max_tokens: aiConfig.maxToken,
+      temperature: aiStore.temperature,
+      max_tokens: aiStore.maxToken,
       stream: true,
       messages: [
         {
@@ -109,11 +109,11 @@ async function tryVisionModel(): Promise<boolean> {
 
 // ── 降级：OCR 提取 + 文本模型生成 ─────────────────────────
 async function fallbackOcrAndWrite() {
-  const visionModel = aiConfig.visionModel
-  const textModel = aiConfig.textModel
-  const textEndpoint = aiConfig.endpoint
-  const textApiKey = aiConfig.apiKey
-  const textType = aiConfig.type
+  const visionModel = aiStore.visionModel
+  const textModel = aiStore.textModel
+  const textEndpoint = aiStore.endpoint
+  const textApiKey = aiStore.apiKey
+  const textType = aiStore.type
 
   // Step 1: OCR — 用视觉模型提取图片中的文字内容
   let ocrResult = ''
@@ -122,8 +122,8 @@ async function fallbackOcrAndWrite() {
     stepText.value = '正在用图片理解模型提取内容…'
 
     try {
-      const url = resolveEndpointUrl(aiConfig.visionEndpoint || aiConfig.endpoint, 'chat')
-      const headers = buildAIHeaders(aiConfig.visionApiKey || aiConfig.apiKey, aiConfig.visionType || aiConfig.type)
+      const url = resolveEndpointUrl(aiStore.visionEndpoint || aiStore.endpoint, 'chat')
+      const headers = buildAIHeaders(aiStore.visionApiKey || aiStore.apiKey, aiStore.visionType || aiStore.type)
 
       const payload: Record<string, unknown> = {
         model: visionModel,
@@ -195,8 +195,8 @@ ${ocrResult}
 
     const payload: Record<string, unknown> = {
       model: textModel,
-      temperature: aiConfig.temperature,
-      max_tokens: aiConfig.maxToken,
+      temperature: aiStore.temperature,
+      max_tokens: aiStore.maxToken,
       stream: true,
       messages: [
         { role: 'user', content: writePrompt },
@@ -232,7 +232,7 @@ async function generate() {
   stepText.value = ''
 
   // 检查基本配置
-  if (!aiConfig.apiKey && !aiConfig.visionApiKey) {
+  if (!aiStore.apiKey && !aiStore.visionApiKey) {
     error.value = '请先在设置中配置 AI 的 API Key'
     return
   }
@@ -312,7 +312,7 @@ async function insertToDraft() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent class="w-[420px] max-h-[70vh] overflow-y-auto" align="end">
-                  <AIConfig />
+                  <AISettingsPanel />
                 </PopoverContent>
               </Popover>
               <Button size="sm" :disabled="loading" @click="generate">
@@ -335,10 +335,10 @@ async function insertToDraft() {
               class="flex-1 w-full resize-none rounded-md border bg-muted/30 p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <p class="mt-2 text-xs text-muted-foreground">
-              文本：{{ aiConfig.textModel || '未配置' }}
+              文本：{{ aiStore.textModel || '未配置' }}
             </p>
             <p class="text-xs text-muted-foreground">
-              视觉：{{ aiConfig.visionModel || '未配置' }}
+              视觉：{{ aiStore.visionModel || '未配置' }}
             </p>
           </div>
         </div>

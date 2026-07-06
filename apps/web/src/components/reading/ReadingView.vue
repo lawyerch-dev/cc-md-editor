@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { Globe, Grid2X2, Grid3X3, Image, Loader2, Moon, Plus, RefreshCcw, Search, Square, Star, Sun, X } from '@lucide/vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
+
 import SyncButton from '@/components/shared/SyncButton.vue'
 import ViewNav from '@/components/shared/ViewNav.vue'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,8 @@ import AudioPlayerView from './views/AudioPlayerView.vue'
 import CornerPlayer from './views/CornerPlayer.vue'
 import ImageLightbox from './views/ImageLightbox.vue'
 import VideoGridView from './views/VideoGridView.vue'
+
+const AISettingsPanel = defineAsyncComponent(() => import('@/components/ai/AISettingsPanel.vue'))
 
 const { t } = useI18n()
 const store = useReadingStore()
@@ -627,7 +629,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
           </Button>
         </div>
         <div class="flex-1 overflow-y-auto">
-          <AIConfig />
+          <AISettingsPanel />
         </div>
       </div>
     </div>

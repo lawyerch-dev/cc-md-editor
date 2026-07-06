@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { useLocaleStore } from '@/stores/locale'
 import { useUIStore } from '@/stores/ui'
 
-const AIConfig = defineAsyncComponent(() => import('@/components/ai/chat-box/AIConfig.vue'))
+const AISettingsPanel = defineAsyncComponent(() => import('@/components/ai/AISettingsPanel.vue'))
 
 const uiStore = useUIStore()
 const localeStore = useLocaleStore()
@@ -147,7 +147,7 @@ const showChangelog = ref(false)
           </Button>
         </div>
         <div class="flex-1 overflow-y-auto">
-          <AIConfig />
+          <AISettingsPanel />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Settings } from '@lucide/vue'
-import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
+import { defineAsyncComponent } from 'vue'
 import PanelDialog from '@/components/shared/panel-dialog/PanelDialog.vue'
 import PanelSelect from '@/components/shared/panel-dialog/PanelSelect.vue'
 import { Label } from '@/components/ui/label'
@@ -19,6 +19,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
+
+const AISettingsPanel = defineAsyncComponent(() => import('@/components/ai/AISettingsPanel.vue'))
 
 const { t } = useI18n()
 const localeStore = useLocaleStore()
@@ -216,7 +218,7 @@ function setCountStatus(value: boolean) {
 
       <!-- AI -->
       <TabsContent value="ai" class="mt-4 flex min-h-[400px] max-h-[60vh] flex-col overflow-y-auto pr-1">
-        <AIConfig />
+        <AISettingsPanel />
       </TabsContent>
     </Tabs>
   </PanelDialog>

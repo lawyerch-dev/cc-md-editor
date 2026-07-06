@@ -22,19 +22,19 @@ import { Textarea } from '@/components/ui/textarea'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
 import { copyPlain } from '@/lib/browser/clipboard'
 import { store } from '@/storage'
-import useAIConfigStore from '@/stores/aiConfig'
+import { useAIStore } from '@/stores/ai'
 import { useAIPanelStore } from '@/stores/aiPanel'
 import { useEditorStore } from '@/stores/editor'
 import { usePostStore } from '@/stores/post'
 import { useQuickCommandsStore } from '@/stores/quickCommands'
-import AIConfig from './AIConfig.vue'
+import AISettingsPanel from '../AISettingsPanel.vue'
 
 const FEEDBACK_INDICATOR_TIMEOUT_MS = 1500
 
 const panelStore = useAIPanelStore()
 const editorStore = useEditorStore()
 const { editor } = storeToRefs(editorStore)
-const configStore = useAIConfigStore()
+const configStore = useAIStore()
 const { apiKey, endpoint, model, temperature, maxToken, type } = storeToRefs(configStore)
 const postStore = usePostStore()
 const { currentPost } = storeToRefs(postStore)
@@ -585,7 +585,7 @@ function resetToAnchor() {
 
             <!-- AI Config tab -->
             <template v-if="configTab === 'ai'">
-              <AIConfig ref="aiConfigRef" class="flex-1 overflow-y-auto px-4 pt-2" @saved="handleConfigSaved" />
+              <AISettingsPanel ref="aiConfigRef" class="flex-1 overflow-y-auto px-4 pt-2" @saved="handleConfigSaved" />
               <div class="shrink-0 border-t px-4 py-3 flex flex-col gap-2 sm:flex-row">
                 <Button size="sm" @click="aiConfigRef?.saveConfig()">
                   {{ t('common.save') }}
