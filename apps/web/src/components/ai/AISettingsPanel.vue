@@ -372,7 +372,7 @@ defineExpose({ saveConfig })
               >
                 <span class="text-xs font-medium">{{ tpl.name }}</span>
                 <span class="text-[10px] text-muted-foreground">
-                  {{ tpl.defaultModels.length || '∞' }} {{ t('ai.settings.tabProviders').toLowerCase() }}
+                  {{ tpl.defaultModels.length }} {{ t('ai.settings.providerModels') }}
                 </span>
               </button>
             </div>
@@ -484,7 +484,7 @@ defineExpose({ saveConfig })
             <div class="space-y-2">
               <!-- Text model params (reasoning/fast/vision) -->
               <template v-if="role !== 'image'">
-                <div class="flex items-center gap-2">
+                <div class="space-y-1">
                   <Label class="text-[10px] text-muted-foreground">{{ t('ai.settings.temperature') }}</Label>
                   <Input
                     v-model.number="providerStore.temperature"
@@ -492,24 +492,24 @@ defineExpose({ saveConfig })
                     min="0"
                     max="2"
                     step="0.1"
-                    class="h-6 w-16 text-[10px]"
+                    class="h-7 w-full text-xs"
                   />
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="space-y-1">
                   <Label class="text-[10px] text-muted-foreground">{{ t('ai.settings.maxTokens') }}</Label>
                   <Input
                     v-model.number="providerStore.maxToken"
                     type="number"
                     min="256"
                     step="256"
-                    class="h-6 w-20 text-[10px]"
+                    class="h-7 w-full text-xs"
                   />
                 </div>
               </template>
               <!-- Image model params -->
               <template v-if="role === 'image'">
                 <Select v-model="providerStore.imageSize">
-                  <SelectTrigger class="h-6 text-[10px]">
+                  <SelectTrigger class="h-7 text-xs">
                     <SelectValue :placeholder="t('ai.settings.imageSize')" />
                   </SelectTrigger>
                   <SelectContent position="popper">
@@ -525,7 +525,7 @@ defineExpose({ saveConfig })
                   </SelectContent>
                 </Select>
                 <Select v-model="providerStore.imageQuality">
-                  <SelectTrigger class="h-6 text-[10px]">
+                  <SelectTrigger class="h-7 text-xs">
                     <SelectValue :placeholder="t('ai.settings.imageQuality')" />
                   </SelectTrigger>
                   <SelectContent position="popper">
@@ -538,7 +538,7 @@ defineExpose({ saveConfig })
                   </SelectContent>
                 </Select>
                 <Select v-model="providerStore.imageStyle">
-                  <SelectTrigger class="h-6 text-[10px]">
+                  <SelectTrigger class="h-7 text-xs">
                     <SelectValue :placeholder="t('ai.settings.imageStyle')" />
                   </SelectTrigger>
                   <SelectContent position="popper">
