@@ -96,7 +96,19 @@ export async function hydrateSyncedSettings(appliedKeys: string[]): Promise<void
       useLocaleStore().setLocale(raw)
   }
 
-  hydrateRef(`openai_type`, keys, aiConfig.type)
+  // AI config — new unified keys
+  hydrateRef(`ai_text_type`, keys, aiConfig.textType)
+  hydrateRef(`ai_vision_type`, keys, aiConfig.visionType)
+  hydrateRef(`ai_image_type`, keys, aiConfig.imageType)
+  hydrateRef(`ai_params_temperature`, keys, aiConfig.temperature)
+  hydrateRef(`ai_params_max_token`, keys, aiConfig.maxToken)
+  hydrateRef(`ai_image_size`, keys, aiConfig.imageSize)
+  hydrateRef(`ai_image_quality`, keys, aiConfig.imageQuality)
+  hydrateRef(`ai_image_style`, keys, aiConfig.imageStyle)
+  hydrateRef(`ai_trigger_auto_summary`, keys, aiConfig.autoSummary)
+  hydrateRef(`ai_trigger_auto_annotate`, keys, aiConfig.autoAnnotate)
+  hydrateRef(`ai_trigger_auto_insight`, keys, aiConfig.autoInsight)
+  // AI config — legacy keys (backward compat for old sync data)
   hydrateRef(`openai_temperature`, keys, aiConfig.temperature)
   hydrateRef(`openai_max_token`, keys, aiConfig.maxToken)
 
