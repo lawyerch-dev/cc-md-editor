@@ -7,6 +7,7 @@ import * as yup from 'yup'
 import { useLocalizedUploadHostOptions } from '@/composables/useLocalizedUploadHosts'
 import { validateImageFile } from '@/lib/upload/validate-image'
 import { store } from '@/storage'
+import { useGitHubSyncStore } from '@/stores/githubSync'
 import { useUIStore } from '@/stores/ui'
 
 const emit = defineEmits([`uploadImage`])
@@ -14,6 +15,7 @@ const emit = defineEmits([`uploadImage`])
 const { t } = useI18n()
 
 const uiStore = useUIStore()
+const ghSyncStore = useGitHubSyncStore()
 const { enableImageReupload } = storeToRefs(uiStore)
 const { toggleImageReupload } = uiStore
 
@@ -315,9 +317,11 @@ async function beforeImageUpload(file: File) {
   }
 
   const imgHostValue = imgHost.value || `default`
+  // github 和 default 都有自动 fallback 到云同步的逻辑，无需单独配置
+  if (imgHostValue === `default` || imgHostValue === `github`)
+    return true
   const config = await store.get(`${imgHostValue}Config`)
-  const isValidHost = imgHostValue === `default` || config
-  if (!isValidHost) {
+  if (!config) {
     const hostLabel = uploadHostOptions.value.find(option => option.value === imgHostValue)?.label ?? imgHostValue
     toast.error(t(`upload.configureHostFirst`, { host: hostLabel }))
     return false
@@ -469,7 +473,35 @@ function onTabScroll(e: WheelEvent) {
         </TabsContent>
 
         <TabsContent value="github" class="flex-1 flex flex-col overflow-hidden">
-          <Form :validation-schema="githubSchema" :initial-values="githubConfig" class="flex flex-col flex-1 overflow-hidden" @submit="githubSubmit">
+          <!-- 已登录云同步 → 自动使用同步仓库 -->
+          <div v-if="ghSyncStore.isConfigured" class="flex flex-col flex-1 overflow-hidden">
+            <div class="flex-1 overflow-y-auto p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950">
+                <p class="text-sm font-medium text-green-700 dark:text-green-300">
+                  ✓ {{ t('upload.github.autoConfigured') }}
+                </p>
+                <p class="mt-1 text-xs text-green-600 dark:text-green-400">
+                  {{ t('upload.github.syncRepo', { repo: ghSyncStore.repoFullName || 'cc-md-editor-data' }) }}
+                </p>
+              </div>
+              <div class="mt-3">
+                <FormItem :label="t('upload.labels.cdnAccel')">
+                  <Switch
+                    :model-value="githubConfig.useCDN"
+                    @update:model-value="githubConfig.useCDN = $event"
+                  />
+                </FormItem>
+              </div>
+            </div>
+            <DialogFooter class="p-1">
+              <Button @click="githubSubmit({ ...githubConfig, useCDN: githubConfig.useCDN })">
+                {{ t('upload.saveConfig') }}
+              </Button>
+            </DialogFooter>
+          </div>
+
+          <!-- 未登录 → 手动配置 -->
+          <Form v-else :validation-schema="githubSchema" :initial-values="githubConfig" class="flex flex-col flex-1 overflow-hidden" @submit="githubSubmit">
             <div class="flex-1 overflow-y-auto p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <Field v-slot="{ field, errorMessage }" name="repo">
                 <FormItem :label="t('upload.labels.githubRepo')" required :error="errorMessage">

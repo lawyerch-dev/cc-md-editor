@@ -134,6 +134,10 @@ export default {
     apiKeyRequired: `API Key 不能为空`,
     uploadPresetRequired: `未填写 apiSecret 时必须提供上传预设名`,
   },
+  github: {
+    autoConfigured: `已通过云同步登录 GitHub，图床自动使用同步仓库`,
+    syncRepo: `当前仓库：{repo}`,
+  },
   provider: {
     accessTokenFailed: `获取 access_token 失败`,
     uploadNoUrl: `上传失败，未获取到URL`,

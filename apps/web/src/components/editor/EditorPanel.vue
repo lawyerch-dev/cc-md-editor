@@ -198,6 +198,7 @@ function uploaded(imageUrl: string) {
   if (codeMirrorView.value) {
     codeMirrorView.value.dispatch(codeMirrorView.value.state.replaceSelection(`\n${markdownImage}\n`))
   }
+  editorRefresh()
   toast.success(t('editorPanel.uploadSuccess'))
 }
 
@@ -540,31 +541,31 @@ onMounted(() => {
 
   window.addEventListener(MATHJAX_READY_EVENT, handleMathJaxReady)
 
-  renderStore.initRendererInstance({
+  void renderStore.initRendererInstance({
     isMacCodeBlock: themeStore.isMacCodeBlock,
     isShowLineNumber: themeStore.isShowLineNumber,
-  })
+  }).then(() => {
+    themeStore.applyCurrentTheme()
 
-  themeStore.applyCurrentTheme()
+    void nextTick(async () => {
+      const editorView = createFormTextArea(editorDom)
+      editor.value = editorView
+      editorStore.registerContentFlush(commitEditorContentToPost)
 
-  void nextTick(async () => {
-    const editorView = createFormTextArea(editorDom)
-    editor.value = editorView
-    editorStore.registerContentFlush(commitEditorContentToPost)
+      const content = posts.value[currentPostIndex.value]?.content ?? ``
+      await preloadMathJaxIfNeeded(content)
 
-    const content = posts.value[currentPostIndex.value]?.content ?? ``
-    await preloadMathJaxIfNeeded(content)
+      editorRefresh()
+      mdLocalToRemote()
+      void completeInitialPreviewBoot()
 
-    editorRefresh()
-    mdLocalToRemote()
-    void completeInitialPreviewBoot()
-
-    // 编辑器失去焦点时立即保存，防止切走后修改丢失
-    editorView.dom.addEventListener(`blur`, () => {
-      clearTimeout(changeTimer.value)
-      changeTimer.value = undefined
-      commitEditorContentToPost()
-      saveHistorySnapshot()
+      // 编辑器失去焦点时立即保存，防止切走后修改丢失
+      editorView.dom.addEventListener(`blur`, () => {
+        clearTimeout(changeTimer.value)
+        changeTimer.value = undefined
+        commitEditorContentToPost()
+        saveHistorySnapshot()
+      })
     })
   })
 

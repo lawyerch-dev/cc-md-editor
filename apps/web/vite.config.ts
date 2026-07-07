@@ -103,6 +103,8 @@ export default defineConfig(({ mode }) => {
         `html-to-image`,
         `diff-match-patch`,
         `uuid`,
+        `@md/core/renderer`,
+        `@md/core/utils`,
       ],
     },
     define: {

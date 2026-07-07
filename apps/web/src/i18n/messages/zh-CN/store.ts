@@ -70,6 +70,7 @@ export default {
     downloadFailed: `图片下载失败: {message}`,
     uploadFailed: `上传失败`,
     defaultHostRequiresApi: `默认图床需要配置 md-api 上传服务`,
+    githubTokenMissing: `GitHub 图床未配置 Access Token，请在图床设置中填写`,
   },
   pdf: {
     pageFooter: `第 " counter(page) " 页，共 " counter(pages) " 页`,

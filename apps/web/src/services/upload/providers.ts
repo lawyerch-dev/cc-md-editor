@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { t } from '@/i18n/translate'
 import { uploadDefaultImage } from '@/services/upload/client'
 import { store } from '@/storage'
+import { addPrefix } from '@/storage/prefix'
 import { loadS3Sdk } from './s3-sdk'
 
 /**
@@ -28,15 +29,21 @@ function safeJsonParse<T>(str: string | null | undefined, context: string = `con
 async function getConfig(platform: string) {
   const customConfig = await store.getJSON<any>(`${platform}Config`, {}) || {}
 
+  if (!customConfig.repo || !customConfig.accessToken) {
+    return { username: ``, repo: ``, branch: `main`, accessToken: ``, useCDN: false }
+  }
+
   const repoUrl = customConfig.repo
     .replace(`https://${platform}.com/`, ``)
     .replace(`http://${platform}.com/`, ``)
     .replace(`${platform}.com/`, ``)
+    .replace(/\.git$/, ``)
+    .replace(/\/$/, ``)
     .split(`/`)
   return {
-    username: repoUrl[0],
-    repo: repoUrl[1],
-    branch: customConfig.branch || `master`,
+    username: repoUrl[0] || ``,
+    repo: repoUrl[1] || ``,
+    branch: customConfig.branch || `main`,
     accessToken: customConfig.accessToken,
     useCDN: customConfig.useCDN ?? false,
   }
@@ -67,7 +74,61 @@ function getDateFilename(filename: string) {
 }
 
 async function defaultImageUpload(_content: string, file: File): Promise<string> {
-  return await uploadDefaultImage(file)
+  try {
+    return await uploadDefaultImage(file)
+  }
+  catch (err) {
+    // md-api 不可用时，自动回退到 GitHub 同步仓库
+    const ghToken = store.getSync(addPrefix('github_token'))
+    if (!ghToken)
+      throw err
+    console.warn('[upload] default host failed, falling back to GitHub sync repo:', err)
+    return ghSyncUpload(ghToken, _content, file.name)
+  }
+}
+
+/** 缓存 GitHub 用户名，避免每次上传都调 /user */
+let _ghSyncLogin: string | null = null
+
+/** 复用 GitHub 同步账号的 token + 仓库上传图片 */
+async function ghSyncUpload(token: string, content: string, filename: string): Promise<string> {
+  if (!_ghSyncLogin) {
+    const userRes = await window.fetch('https://api.github.com/user', {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' },
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!userRes.ok)
+      throw new Error(`GitHub API ${userRes.status}: ${userRes.statusText}`)
+    _ghSyncLogin = (await userRes.json() as { login: string }).login
+  }
+  const repo = `${_ghSyncLogin}/cc-md-editor-data`
+
+  const dir = getDir()
+  const dateFilename = getDateFilename(filename)
+  const path = `${dir}/${dateFilename}`
+  const putUrl = `https://api.github.com/repos/${repo}/contents/${path}`
+
+  const res = await window.fetch(putUrl, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github.v3+json',
+    },
+    body: JSON.stringify({
+      content,
+      branch: 'main',
+      message: `Upload image via editor`,
+    }),
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as Record<string, unknown>
+    throw new Error(`GitHub upload ${res.status}: ${(body.message as string) || res.statusText}`)
+  }
+  await res.json()
+  // download_url 包含 ?token= 参数，CDN 不支持，用公开 jsdelivr URL 替代
+  return `https://fastly.jsdelivr.net/gh/${repo}@main/${path}`
 }
 
 // -----------------------------------------------------------------------
@@ -76,6 +137,10 @@ async function defaultImageUpload(_content: string, file: File): Promise<string>
 
 async function ghFileUpload(content: string, filename: string) {
   const { username, repo, branch, accessToken, useCDN } = await getConfig(`github`)
+
+  if (!accessToken || !username || !repo) {
+    throw new Error(t('store.uploader.githubTokenMissing'))
+  }
   const dir = getDir()
   const url = `https://api.github.com/repos/${username}/${repo}/contents/${dir}/`
   const dateFilename = getDateFilename(filename)
@@ -105,10 +170,12 @@ async function ghFileUpload(content: string, filename: string) {
   const githubResourceUrl = `raw.githubusercontent.com/${username}/${repo}/${branch}/`
   const cdnResourceUrl = `fastly.jsdelivr.net/gh/${username}/${repo}@${branch}/`
   res.content = res.data?.content || res.content
+  // GitHub API 的 download_url 包含 ?token= 参数，需去掉
+  const cleanUrl = res.content.download_url.split(`?`)[0]
   const shouldUseCDN = useCDN
   return shouldUseCDN
-    ? res.content.download_url.replace(githubResourceUrl, cdnResourceUrl)
-    : res.content.download_url
+    ? cleanUrl.replace(githubResourceUrl, cdnResourceUrl)
+    : cleanUrl
 }
 
 // -----------------------------------------------------------------------

@@ -134,6 +134,10 @@ export default {
     apiKeyRequired: `API Key is required`,
     uploadPresetRequired: `Upload preset is required when apiSecret is not provided`,
   },
+  github: {
+    autoConfigured: `GitHub sync is active — image hosting uses your sync repo automatically`,
+    syncRepo: `Current repo: {repo}`,
+  },
   provider: {
     accessTokenFailed: `Failed to obtain access_token`,
     uploadNoUrl: `Upload failed: no URL returned`,

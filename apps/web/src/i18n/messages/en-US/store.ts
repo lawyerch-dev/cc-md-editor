@@ -70,6 +70,7 @@ export default {
     downloadFailed: `Image download failed: {message}`,
     uploadFailed: `Upload failed`,
     defaultHostRequiresApi: `Default image host requires md-api upload service configuration`,
+    githubTokenMissing: `GitHub image host is missing an Access Token. Please configure it in image hosting settings.`,
   },
   pdf: {
     pageFooter: `Page " counter(page) " of " counter(pages) "`,
