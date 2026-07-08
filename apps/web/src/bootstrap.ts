@@ -37,13 +37,14 @@ export async function bootstrap(): Promise<void> {
   const i18n = setupI18n(detectInitialLocale())
   setAppI18n(i18n)
 
+  // 先初始化存储，使 store.reactive 能从 IndexedDB 同步读取持久化状态
+  await initStorage()
+
   const app = createApp(AppRoot)
   app.use(i18n)
   app.use(createPinia())
   useLocaleStore()
   app.mount(`#app`)
 
-  // Storage 后台初始化，不阻塞 UI 挂载
-  initStorage().catch(console.error)
   dismissInitialLoader()
 }

@@ -81,6 +81,9 @@ function readLocal(key: string): string | null {
  * 收集本地发生变化的设置项（与上次同步快照比对），并刷新元数据时间戳。
  * 返回需要推送的设置列表。
  */
+// 单个设置项超过此大小则跳过同步（避免撑爆请求体）
+const MAX_SETTING_SIZE_BYTES = 512 * 1024 // 512 KB
+
 export function collectChangedSettings(): SyncSetting[] {
   const meta = readMeta()
   const now = Date.now()
@@ -90,6 +93,11 @@ export function collectChangedSettings(): SyncSetting[] {
     const current = readLocal(key)
     const prev = meta[key]
     if (!prev || prev.value !== current) {
+      // 跳过过大的设置项，避免请求体超限
+      if (current !== null && current.length > MAX_SETTING_SIZE_BYTES) {
+        meta[key] = { value: current, updatedAt: now }
+        continue
+      }
       meta[key] = { value: current, updatedAt: now }
       changed.push({ key, value: current, updatedAt: now })
     }

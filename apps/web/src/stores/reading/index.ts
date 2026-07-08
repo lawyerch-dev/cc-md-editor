@@ -91,12 +91,45 @@ export const useReadingStore = defineStore('reading', () => {
   function normalizeUrl(url: string): string {
     try {
       const u = new URL(url)
-      // 去掉 trailing slash、query、fragment，统一 protocol
       return `${u.origin}${u.pathname.replace(/\/$/, '')}`.toLowerCase()
     }
     catch {
       return url.toLowerCase().replace(/\/$/, '')
     }
+  }
+
+  /** 按标准化 URL 合并两个源数组，保留先出现的，不丢弃任何一方独有的数据 */
+  function mergeByUrl(a: Source[], b: Source[]): Source[] {
+    if (b.length === 0)
+      return a
+    if (a.length === 0)
+      return b
+    const seen = new Map<string, Source>()
+    for (const src of [...a, ...b]) {
+      const norm = normalizeUrl(src.url)
+      if (!seen.has(norm)) {
+        seen.set(norm, src)
+      }
+    }
+    return [...seen.values()]
+  }
+
+  /** 按 sourceId+title+publishedAt 合并两个文章数组 */
+  function mergeArticles(a: Article[], b: Article[]): Article[] {
+    if (b.length === 0)
+      return a
+    if (a.length === 0)
+      return b
+    const seen = new Set<string>()
+    const result: Article[] = []
+    for (const art of [...a, ...b]) {
+      const key = `${art.sourceId}|${art.title}|${art.publishedAt}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        result.push(art)
+      }
+    }
+    return result
   }
 
   async function hydrate() {
@@ -111,17 +144,24 @@ export const useReadingStore = defineStore('reading', () => {
       loadLastFetchMap(),
     ])
 
-    // localStorage 是同步写入，不会丢失；IndexedDB 异步写入可能丢失。
-    // 取两者中更完整的一份，确保用户新增的数据不会被旧的 IndexedDB 数据覆盖。
-    const finalSources = lsSources.length > 0 ? lsSources : s
-    const finalArticles = lsArticles.length > 0 ? lsArticles : a
+    // 合并两个存储后端的数据（按 URL 去重取并集），而非简单取一方
+    const mergedSources = mergeByUrl(lsSources, s)
+    const mergedArticles = mergeArticles(lsArticles, a)
     const finalLists = lsLists.length > 0 ? lsLists : l
 
-    // ── 源去重：按标准化 URL，保留第一个，合并文章到保留的源 ──
+    // 补全缺失的 strategy 字段（旧数据迁移）
+    for (const src of mergedSources) {
+      if (!src.strategy) {
+        src.strategy = src.selectors ? 'css-selector' : 'rss'
+      }
+    }
+
+    // mergeByUrl 已按 URL 去重，此处只需处理同 URL 不同 ID 的情况
+    // （理论上不应发生，但作为安全网保留）
     const urlToKeepId = new Map<string, string>()
     const removeSourceIds = new Set<string>()
     const keptSources: Source[] = []
-    for (const src of finalSources) {
+    for (const src of mergedSources) {
       const norm = normalizeUrl(src.url)
       const existing = urlToKeepId.get(norm)
       if (existing) {
@@ -134,17 +174,14 @@ export const useReadingStore = defineStore('reading', () => {
     }
     sources.value = keptSources
 
-    // ── 文章去重：迁移被删源的文章 + 按内容去重 ──
-    // 被删源的文章 → 归到保留的源
     if (removeSourceIds.size > 0) {
-      // 建立 oldSourceId → keptSourceId 映射（通过 URL 匹配）
       const oldIdToNorm = new Map<string, string>()
-      for (const src of finalSources) {
+      for (const src of mergedSources) {
         if (removeSourceIds.has(src.id)) {
           oldIdToNorm.set(src.id, normalizeUrl(src.url))
         }
       }
-      for (const article of finalArticles) {
+      for (const article of mergedArticles) {
         if (removeSourceIds.has(article.sourceId)) {
           const norm = oldIdToNorm.get(article.sourceId)
           const keptId = norm ? urlToKeepId.get(norm) : undefined
@@ -154,19 +191,9 @@ export const useReadingStore = defineStore('reading', () => {
       }
     }
 
-    // 按 sourceId+title+publishedAt 去重（比 ID 去重更可靠）
+    // 过滤掉没有对应源的文章（mergeArticles 已去重，这里只做 sourceId 校验）
     const validSourceIds = new Set(keptSources.map(s => s.id))
-    const seenArticleKeys = new Set<string>()
-    const keptArticles: Article[] = []
-    for (const article of finalArticles) {
-      if (!validSourceIds.has(article.sourceId))
-        continue
-      const key = `${article.sourceId}|${article.title}|${article.publishedAt}`
-      if (seenArticleKeys.has(key))
-        continue
-      seenArticleKeys.add(key)
-      keptArticles.push(article)
-    }
+    const keptArticles = mergedArticles.filter(a => validSourceIds.has(a.sourceId))
     articles.value = keptArticles
 
     lists.value = finalLists
@@ -174,7 +201,7 @@ export const useReadingStore = defineStore('reading', () => {
     hydrated.value = true
 
     // 去重后持久化，防止下次启动重复清理
-    if (removeSourceIds.size > 0 || keptArticles.length < finalArticles.length) {
+    if (removeSourceIds.size > 0 || keptArticles.length < mergedArticles.length) {
       saveSources(sources.value)
       saveArticles(articles.value)
     }

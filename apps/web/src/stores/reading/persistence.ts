@@ -16,10 +16,8 @@ function triggerSync() {
 function loadFromLocalStorage<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key)
-    if (raw) {
+    if (raw != null) {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.length === 0)
-        return fallback
       return parsed
     }
   }
@@ -75,14 +73,23 @@ export function loadLists(): ReadingList[] {
 
 // ── 保存（双写 localStorage + IndexedDB）──────────────
 
+/** 剥离运行时字段，只保留可序列化的持久化数据 */
+function stripRuntimeFields(sources: Source[]): Source[] {
+  return sources.map(({ health, ...rest }) => rest as Source)
+}
+
 export function saveSources(sources: Source[]) {
+  const persisted = stripRuntimeFields(sources)
   try {
-    localStorage.setItem(STORAGE_SOURCES, JSON.stringify(sources))
+    localStorage.setItem(STORAGE_SOURCES, JSON.stringify(persisted))
   }
   catch (e) {
     console.warn('[Reading] localStorage save failed:', e)
   }
-  void idb.saveSources(sources).catch(() => {})
+  void idb.saveSources(persisted).catch((e) => {
+    console.warn('[Reading] IndexedDB save failed, retrying once:', e)
+    idb.saveSources(persisted).catch(() => {})
+  })
   triggerSync()
 }
 
@@ -93,7 +100,10 @@ export function saveArticles(articles: Article[]) {
   catch (e) {
     console.warn('[Reading] localStorage save failed:', e)
   }
-  void idb.saveArticles(articles).catch(() => {})
+  void idb.saveArticles(articles).catch((e) => {
+    console.warn('[Reading] IndexedDB articles save failed, retrying once:', e)
+    idb.saveArticles(articles).catch(() => {})
+  })
   triggerSync()
 }
 

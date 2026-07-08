@@ -35,14 +35,25 @@ const rsshubRoutes = ref<Array<{ name: string, path: string }>>([])
 const rsshubChecking = ref(false)
 const inlineError = ref('')
 
+function normalizeStrategy(s: Source): FetchStrategy {
+  return s.strategy || (s.selectors ? 'css-selector' : 'rss')
+}
+
 const filteredSources = computed(() => {
-  if (activeTab.value === 'rss')
-    return store.sources.filter(s => s.strategy === 'rss' || s.strategy === 'folo-rsshub')
-  return store.sources.filter(s => s.strategy === activeTab.value)
+  if (activeTab.value === 'rss') {
+    return store.sources.filter((s) => {
+      const st = normalizeStrategy(s)
+      return st === 'rss' || st === 'folo-rsshub'
+    })
+  }
+  return store.sources.filter(s => normalizeStrategy(s) === activeTab.value)
 })
 
-const rssCount = computed(() => store.sources.filter(s => s.strategy === 'rss' || s.strategy === 'folo-rsshub').length)
-const cssCount = computed(() => store.sources.filter(s => s.strategy === 'css-selector').length)
+const rssCount = computed(() => store.sources.filter((s) => {
+  const st = normalizeStrategy(s)
+  return st === 'rss' || st === 'folo-rsshub'
+}).length)
+const cssCount = computed(() => store.sources.filter(s => normalizeStrategy(s) === 'css-selector').length)
 
 function handleReset() {
   store.resetToDefaults()
