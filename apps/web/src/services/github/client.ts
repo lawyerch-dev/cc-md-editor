@@ -180,7 +180,7 @@ export class GitHubSyncClient {
     try {
       const file = await this.request<GitHubFile>(`GET`, `/repos/${repo}/contents/${path}`)
       if (!file.content)
-        return file.sha ? { content: '', sha: file.sha } : null
+        return null
       const content = decodeBase64Utf8(file.content.replace(/\n/g, ''))
       return { content, sha: file.sha }
     }
