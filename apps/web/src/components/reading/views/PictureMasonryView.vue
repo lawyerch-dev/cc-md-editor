@@ -72,7 +72,8 @@ const columnArrays = computed(() => {
   for (const item of items.value) {
     const minIdx = heights.indexOf(Math.min(...heights))
     cols[minIdx].push(item)
-    heights[minIdx] += colWidth / (item.width / item.height) + (props.imageOnly ? 0 : 60) + gutter
+    const aspectRatio = item.width > 0 && item.height > 0 ? item.width / item.height : 4 / 3
+    heights[minIdx] += colWidth / aspectRatio + (props.imageOnly ? 0 : 60) + gutter
   }
   return cols
 })

@@ -1,8 +1,8 @@
 import type { Article, ReadingList, Source } from './types'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { store } from '@/storage'
-import { detectFeedViewType, discoverRSSHubRoutes, fetchFullText, fetchPageHTML, fetchSourceArticles, previewSelectors, probeRSS } from './fetch-strategies'
+import { detectFeedViewType, discoverRSSHubRoutes, fetchFullText, fetchPageHTML, fetchSourceArticles, previewSelectors, probeRSS, setCustomRsshubInstance } from './fetch-strategies'
 import { clearAll as clearAllIDB } from './indexeddb-persistence'
 import {
   loadArticles,
@@ -27,6 +27,7 @@ const ARTICLE_CAP = 3000
 const PER_SOURCE_ARTICLE_CAP = 240
 const READING_PICTURE_LAYOUT_KEY = 'reading_picture_layout'
 const READING_PICTURE_IMAGE_ONLY_KEY = 'reading_picture_image_only'
+const READING_CUSTOM_RSSHUB_KEY = 'reading_custom_rsshub'
 /** lastFetchMap 持久化防抖 */
 let persistFetchMapTimer: number | null = null
 
@@ -42,12 +43,14 @@ export const useReadingStore = defineStore('reading', () => {
   const activeArticleId = ref<string | null>(null)
   const pictureLayout = store.reactive<'masonry' | 'grid'>(READING_PICTURE_LAYOUT_KEY, 'masonry')
   const pictureImageOnly = store.reactive<boolean>(READING_PICTURE_IMAGE_ONLY_KEY, false)
+  const customRsshubInstance = store.reactive<string>(READING_CUSTOM_RSSHUB_KEY, 'http://8.134.251.42:1200')
   const searchQuery = ref('')
   const fetchingSourceIds = ref<Record<string, boolean>>({})
   const lastFetchMap = ref<Record<string, number>>({})
   const lists = ref<ReadingList[]>(loadLists())
   const hydrated = ref(false)
   let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
+  let foloEventHandler: EventListener | null = null
 
   // ── 计算属性 ─────────────────────────────────────────
 
@@ -133,6 +136,9 @@ export const useReadingStore = defineStore('reading', () => {
   }
 
   async function hydrate() {
+    // 初始化自定义 RSSHub 实例
+    setCustomRsshubInstance(customRsshubInstance.value)
+
     const lsSources = loadSources()
     const lsArticles = loadArticles()
     const lsLists = loadLists()
@@ -152,7 +158,12 @@ export const useReadingStore = defineStore('reading', () => {
     // 补全缺失的 strategy 字段（旧数据迁移）
     for (const src of mergedSources) {
       if (!src.strategy) {
-        src.strategy = src.selectors ? 'css-selector' : 'rss'
+        if (src.url.startsWith('rsshub://')) {
+          src.strategy = 'folo-rsshub'
+        }
+        else {
+          src.strategy = src.selectors ? 'css-selector' : 'rss'
+        }
       }
     }
 
@@ -207,7 +218,9 @@ export const useReadingStore = defineStore('reading', () => {
     }
 
     // 监听 Folo feedId 缓存事件（fetchFoloSource 首次获取后触发）
-    window.addEventListener('folo-feed-id', ((e: CustomEvent<{ sourceId: string, feedId: string, view?: number }>) => {
+    if (foloEventHandler)
+      window.removeEventListener('folo-feed-id', foloEventHandler)
+    foloEventHandler = ((e: CustomEvent<{ sourceId: string, feedId: string, view?: number }>) => {
       const src = sources.value.find(s => s.id === e.detail.sourceId)
       if (src) {
         if (!src.foloFeedId) {
@@ -219,8 +232,12 @@ export const useReadingStore = defineStore('reading', () => {
         }
         saveSources(sources.value)
       }
-    }) as EventListener)
+    }) as EventListener
+    window.addEventListener('folo-feed-id', foloEventHandler)
   }
+
+  // 同步自定义 RSSHub 实例到 fetch-strategies 模块
+  watch(customRsshubInstance, (url) => { setCustomRsshubInstance(url) })
 
   // ── 源 CRUD ──────────────────────────────────────────
 
@@ -265,9 +282,12 @@ export const useReadingStore = defineStore('reading', () => {
 
   function removeSource(id: string) {
     sources.value = sources.value.filter(s => s.id !== id)
+    const removedIds = new Set(articles.value.filter(a => a.sourceId === id).map(a => a.id))
     articles.value = articles.value.filter(a => a.sourceId !== id)
     saveSources(sources.value)
     saveArticles(articles.value)
+    if (removedIds.size > 0)
+      cleanupListRefs(removedIds)
   }
 
   // ── 获取 ─────────────────────────────────────────────
@@ -298,15 +318,25 @@ export const useReadingStore = defineStore('reading', () => {
     }
 
     if (toAdd.length || updated) {
-      if (toAdd.length)
-        articles.value = [...toAdd, ...articles.value].slice(0, ARTICLE_CAP)
+      if (toAdd.length) {
+        const merged = [...toAdd, ...articles.value]
+        if (merged.length > ARTICLE_CAP) {
+          // 保护 starred 文章不被裁剪
+          const starred = merged.filter(a => a.starred)
+          const rest = merged.filter(a => !a.starred).slice(0, ARTICLE_CAP - starred.length)
+          articles.value = [...starred, ...rest]
+        }
+        else {
+          articles.value = merged
+        }
+      }
       saveArticles(articles.value)
     }
     // 每个源淘汰旧文章，防止无限堆积
     trimArticlesPerSource()
   }
 
-  /** 每个源只保留最新 PER_SOURCE_ARTICLE_CAP 篇文章 */
+  /** 每个源只保留最新 PER_SOURCE_ARTICLE_CAP 篇文章（保护 starred） */
   function trimArticlesPerSource() {
     const bySource = new Map<string, Article[]>()
     for (const a of articles.value) {
@@ -322,7 +352,12 @@ export const useReadingStore = defineStore('reading', () => {
       }
       else {
         needsTrim = true
-        arr.sort((a, b) => b.publishedAt - a.publishedAt)
+        // starred 文章优先保留
+        arr.sort((a, b) => {
+          if (a.starred !== b.starred)
+            return a.starred ? -1 : 1
+          return b.publishedAt - a.publishedAt
+        })
         for (const a of arr.slice(0, PER_SOURCE_ARTICLE_CAP)) keepIds.add(a.id)
       }
     }
@@ -371,7 +406,7 @@ export const useReadingStore = defineStore('reading', () => {
             throw e
           }
           finally {
-            delete fetchingSourceIds.value[src.id]
+            fetchingSourceIds.value[src.id] = false
           }
         }),
       )
@@ -385,8 +420,11 @@ export const useReadingStore = defineStore('reading', () => {
         error.value = msg
       toast.error(msg)
     }
-    loading.value = false
-    backgroundRefreshing.value = false
+    // 只在没有其他进行中的获取时才清除 loading 状态
+    if (Object.values(fetchingSourceIds.value).every(v => !v)) {
+      loading.value = false
+      backgroundRefreshing.value = false
+    }
   }
 
   /** 并发获取一组源 */
@@ -417,13 +455,22 @@ export const useReadingStore = defineStore('reading', () => {
   }
 
   /** 并发刷新所有源，最大并发数由 FETCH_CONCURRENCY 控制 */
-  async function fetchAllGradual(_delayMs = 500) {
+  async function fetchAllGradual() {
     const targets = sources.value.filter(src =>
       src.refreshInterval > 0 && !fetchingSourceIds.value[src.id],
     )
     if (!targets.length)
       return
     await doFetchSourcesParallel(targets, true)
+  }
+
+  /** 判断源是否需要刷新（基于 refreshInterval + lastFetchMap） */
+  function shouldRefreshSource(sourceId: string): boolean {
+    const src = sources.value.find(s => s.id === sourceId)
+    if (!src || src.refreshInterval <= 0)
+      return false
+    const lastFetch = lastFetchMap.value[sourceId] || 0
+    return Date.now() - lastFetch >= src.refreshInterval * 60 * 1000
   }
 
   async function fetchSingleSource(sourceId: string) {
@@ -459,7 +506,7 @@ export const useReadingStore = defineStore('reading', () => {
       console.warn(`[Reading] Failed to fetch ${src.title}:`, e)
     }
     finally {
-      delete fetchingSourceIds.value[src.id]
+      fetchingSourceIds.value[src.id] = false
     }
   }
 
@@ -539,6 +586,7 @@ export const useReadingStore = defineStore('reading', () => {
     if (activeArticleId.value === id)
       activeArticleId.value = null
     saveArticles(articles.value)
+    cleanupListRefs(new Set([id]))
   }
 
   function deleteArticles(ids: Set<string>) {
@@ -546,6 +594,7 @@ export const useReadingStore = defineStore('reading', () => {
     if (activeArticleId.value && ids.has(activeArticleId.value))
       activeArticleId.value = null
     saveArticles(articles.value)
+    cleanupListRefs(ids)
   }
 
   function starArticles(ids: Set<string>) {
@@ -582,6 +631,19 @@ export const useReadingStore = defineStore('reading', () => {
   }
 
   // ── 列表 ─────────────────────────────────────────────
+
+  /** 清理 lists 中指向已删除文章的 orphaned IDs */
+  function cleanupListRefs(deletedIds: Set<string>) {
+    let changed = false
+    for (const list of lists.value) {
+      const before = list.articleIds.length
+      list.articleIds = list.articleIds.filter(id => !deletedIds.has(id))
+      if (list.articleIds.length !== before)
+        changed = true
+    }
+    if (changed)
+      saveLists(lists.value)
+  }
 
   function addList(name: string) {
     lists.value.push({ id: `list-${Date.now()}`, name, articleIds: [], createdAt: Date.now() })
@@ -623,24 +685,25 @@ export const useReadingStore = defineStore('reading', () => {
     await hydrate()
   }
 
-  function resetToDefaults() {
-    localStorage.removeItem('reading_sources_v4')
-    localStorage.removeItem('reading_articles')
-    localStorage.removeItem('reading_lists')
+  async function resetToDefaults() {
     sources.value = []
     articles.value = []
     lists.value = []
     lastFetchMap.value = {}
-    saveSources([])
-    saveArticles([])
-    saveLists([])
-    void saveLastFetchMap({})
-    void clearAllIDB()
+    await Promise.all([
+      saveSources([]),
+      saveArticles([]),
+      saveLists([]),
+      saveLastFetchMap({}),
+      clearAllIDB(),
+    ])
   }
 
   // ── 页面卸载时保存 lastFetchMap ─────────────────────
 
+  let beforeUnloadCleanup: (() => void) | null = null
   function setupBeforeUnload() {
+    beforeUnloadCleanup?.()
     const handler = () => {
       if (persistFetchMapTimer != null) {
         window.clearTimeout(persistFetchMapTimer)
@@ -649,7 +712,7 @@ export const useReadingStore = defineStore('reading', () => {
       void saveLastFetchMap(lastFetchMap.value)
     }
     window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
+    beforeUnloadCleanup = () => window.removeEventListener('beforeunload', handler)
   }
 
   return {
@@ -663,6 +726,7 @@ export const useReadingStore = defineStore('reading', () => {
     activeArticleId,
     pictureLayout,
     pictureImageOnly,
+    customRsshubInstance,
     searchQuery,
     fetchingSourceIds,
     hydrated,
@@ -681,6 +745,7 @@ export const useReadingStore = defineStore('reading', () => {
     fetchAll,
     fetchAllGradual,
     fetchSingleSource,
+    shouldRefreshSource,
     startAutoRefresh,
     stopAutoRefresh,
     // 文章操作

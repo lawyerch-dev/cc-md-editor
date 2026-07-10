@@ -79,7 +79,8 @@ function parseOpml(xml: string): Array<{ xmlUrl: string, title: string, view: nu
     // <\/outline>
     if (full.startsWith('<\/')) {
       // Only pop group when closing a depth-1 tag (group level), not depth-2+ (feed level)
-      if (depth === 1 && groupStack.length > 1) groupStack.pop()
+      if (depth === 1 && groupStack.length > 1)
+        groupStack.pop()
       depth--
       continue
     }
@@ -108,7 +109,8 @@ function parseOpml(xml: string): Array<{ xmlUrl: string, title: string, view: nu
 
     if (isSelfClose) {
       // Self-closing empty group — pop immediately
-      if (depth === 1 && text && !xmlUrl && groupStack.length > 1) groupStack.pop()
+      if (depth === 1 && text && !xmlUrl && groupStack.length > 1)
+        groupStack.pop()
       depth--
     }
   }
@@ -234,7 +236,8 @@ export default async (req: Request, _context: Context) => {
       for (const row of entryRows) {
         const feedId = String(row.feed_id ?? '')
         const srcId = srcIdByFeed[feedId]
-        if (!srcId) continue
+        if (!srcId)
+          continue
 
         let mediaItems: MediaItem[] = []
         try {
@@ -274,8 +277,10 @@ export default async (req: Request, _context: Context) => {
         catch { /* skip invalid attachments */ }
 
         let pubTs = Number(row.published_at ?? 0)
-        if (pubTs > 1e15) pubTs = Math.floor(pubTs / 1000000)
-        else if (pubTs < 1e10 && pubTs > 0) pubTs *= 1000
+        if (pubTs > 1e15)
+          pubTs = Math.floor(pubTs / 1000000)
+        else if (pubTs < 1e10 && pubTs > 0)
+          pubTs *= 1000
 
         articles.push({
           id: `art-${row.id}`,

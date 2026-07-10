@@ -366,7 +366,9 @@ export async function applyImport(sources: Source[], articles: Article[]): Promi
   localStorage.removeItem('reading_sources_v4')
   localStorage.removeItem('reading_articles')
   localStorage.removeItem('reading_lists')
-  saveSources(deduped)
-  saveArticles(articles)
-  saveLists([])
+  await Promise.all([
+    saveSources(deduped),
+    saveArticles(articles),
+    saveLists([]),
+  ])
 }

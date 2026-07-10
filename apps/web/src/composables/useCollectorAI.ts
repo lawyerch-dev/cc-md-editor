@@ -57,6 +57,16 @@ export function useCollectorAI() {
     description: string,
     onProgress?: (msg: string) => void,
   ): Promise<CollectorSelectors> {
+    // 检查 AI 配置
+    const endpoint = aiStore.textEndpoint
+    const apiKey = aiStore.textApiKey
+    const model = aiStore.textModel
+    const type = aiStore.textType
+
+    if (!endpoint || !model) {
+      throw new Error('请先在设置中配置 AI 模型（设置 → AI 配置 → 文本模型）')
+    }
+
     const simplified = simplifyHTML(html)
     onProgress?.('正在分析页面结构...')
 
@@ -84,11 +94,6 @@ export function useCollectorAI() {
 
 HTML 结构（已精简，保留 class 属性）：
 ${simplified}`
-
-    const endpoint = aiStore.textEndpoint
-    const apiKey = aiStore.textApiKey
-    const model = aiStore.textModel
-    const type = aiStore.textType
 
     const url_ = resolveEndpointUrl(endpoint, 'chat')
     const headers = buildAIHeaders(apiKey, type)

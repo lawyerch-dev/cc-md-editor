@@ -55,8 +55,8 @@ const rssCount = computed(() => store.sources.filter((s) => {
 }).length)
 const cssCount = computed(() => store.sources.filter(s => normalizeStrategy(s) === 'css-selector').length)
 
-function handleReset() {
-  store.resetToDefaults()
+async function handleReset() {
+  await store.resetToDefaults()
 }
 
 function removeSource(src: Source) {
@@ -493,6 +493,33 @@ async function importFullDataFromFile(e: Event) {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- RSSHub 实例配置 -->
+      <div class="border-t px-4 py-3 bg-neutral-50 dark:bg-neutral-900/50">
+        <div class="flex items-center gap-2 mb-2">
+          <svg class="h-4 w-4 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+          <span class="text-xs font-medium">RSSHub 备用实例（官方挂了自动切换）</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Input
+            v-model="store.customRsshubInstance"
+            class="h-7 text-xs flex-1"
+            placeholder="http://your-rsshub:1200"
+          />
+          <Button
+            v-if="store.customRsshubInstance"
+            variant="ghost"
+            size="sm"
+            class="h-7 px-2 text-xs text-neutral-400"
+            @click="store.customRsshubInstance = ''"
+          >
+            清除
+          </Button>
+        </div>
+        <p class="text-[10px] text-neutral-400 mt-1">
+          优先用 rsshub.app 官方源，失败后自动切换到此实例。
+        </p>
       </div>
 
       <!-- Footer -->

@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,
       proxy: {
         '/.netlify/functions': {
-          target: 'http://localhost:9999',
+          target: 'http://localhost:8888',
           changeOrigin: true,
         },
         // 本地开发代理 Folo API（绕过 CORS）

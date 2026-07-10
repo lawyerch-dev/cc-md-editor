@@ -30,7 +30,6 @@ const localeStore = useLocaleStore()
 const showSourceConfig = ref(false)
 const showAIConfig = ref(false)
 const activeFilter = ref<'all' | 'starred'>('all')
-const searchQuery = ref('')
 const sidebarWidth = ref(300)
 const listWidth = ref(320)
 const sidebarCollapsed = ref(false)
@@ -229,7 +228,6 @@ function startResize(e: MouseEvent, target: 'sidebar' | 'list') {
   document.addEventListener('mouseup', onUp)
 }
 
-watch(searchQuery, (v) => { store.searchQuery = v })
 onMounted(async () => {
   await store.hydrate()
   store.setupBeforeUnload()
@@ -249,7 +247,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
       <div class="flex-1" />
       <div class="relative w-56">
         <Search class="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
-        <Input v-model="searchQuery" :placeholder="t('reading.search')" class="h-8 pl-8 text-xs rounded-lg border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900" />
+        <Input v-model="store.searchQuery" :placeholder="t('reading.search')" class="h-8 pl-8 text-xs rounded-lg border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900" />
       </div>
       <Button variant="ghost" size="sm" class="gap-1 text-xs text-neutral-500" @click="showSourceConfig = true">
         {{ t('reading.sourceManage') }}
@@ -323,7 +321,7 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
             :key="src.id"
             class="group flex items-center justify-between px-2.5 py-1 rounded-lg cursor-pointer transition-colors text-sm"
             :class="store.activeSourceId === src.id ? 'bg-neutral-200/60 dark:bg-neutral-700/60 font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/30 dark:hover:bg-neutral-700/30'"
-            @click="store.activeSourceId = src.id; activeFilter = 'all'; activeView = src.view ?? -1; store.fetchSingleSource(src.id)"
+            @click="store.activeSourceId = src.id; activeFilter = 'all'; activeView = src.view ?? -1; if (store.shouldRefreshSource(src.id)) store.fetchSingleSource(src.id)"
           >
             <div class="flex items-center gap-2 min-w-0">
               <!-- 状态圆点：绿色=正常，红色=错误，黄色=加载中 -->

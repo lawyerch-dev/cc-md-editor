@@ -25,15 +25,11 @@ function netlifyFunctionsAvailable(): boolean {
   if (typeof window === 'undefined')
     return false
   const host = window.location.hostname
+  // localhost 始终走 Vite proxy，不走 Netlify Functions
+  if (host === 'localhost' || host === '127.0.0.1')
+    return false
   // 非 localhost → 已部署
-  if (!host.includes('localhost') && !host.includes('127.0.0.1'))
-    return true
-  // localhost：有 <base> 且不是 /md/，或无 <base>（默认 /）= proxy 模式
-  const base = document.querySelector('base')
-  if (!base)
-    return true // 无 base 标签 = path 从根开始
-  const href = base.getAttribute('href')
-  return href !== '/md/'
+  return true
 }
 
 /** 获取 Netlify Function 完整 URL（考虑 base path） */
@@ -75,10 +71,7 @@ async function fetchViaNetlify(url: string, timeoutMs = 15_000): Promise<Respons
 }
 
 /**
- * 专门用于 RSS 采集的 Netlify Function 代理
- * 服务端完成 XML 抓取 + 解析，直接返回结构化 Article[]，浏览器端无需解析 XML
- * 无 CORS 问题，支持编码检测，支持 retry
- * @returns 解析后的文章数组（不含 sourceId / sourceTitle，由调用方补充）
+ * 通过代理获取 RSS Feed（本地用 Vite proxy，生产用 Netlify Function）
  */
 async function fetchFeedViaProxy(url: string): Promise<{
   feedTitle: string
@@ -93,8 +86,36 @@ async function fetchFeedViaProxy(url: string): Promise<{
     media: Array<{ url: string, type: string, previewImageUrl?: string, mimeType?: string, width?: number, height?: number }>
   }>
 }> {
+  // 本地开发：使用 Vite proxy 转发请求
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`
+    const res = await window.fetch(proxyUrl, {
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!res.ok) {
+      throw new Error(`代理返回 ${res.status}`)
+    }
+    const text = await res.text()
+    // 解析 RSS XML
+    const parsed = parseRSSWithDOMParser(text)
+    return {
+      feedTitle: parsed.title,
+      articles: parsed.items.map(item => ({
+        id: item.guid || item.link || hashContent(item.title || ''),
+        title: item.title || '无标题',
+        link: item.link || '',
+        content: cleanShortcodes(item.content || ''),
+        summary: item.contentSnippet?.slice(0, 200) || '',
+        author: item.creator || item.author || '',
+        publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
+        media: extractMediaFromItem(item),
+      })),
+    }
+  }
+
+  // 生产环境：使用 Netlify Function
   if (!netlifyFunctionsAvailable())
-    throw new Error('本地环境：Netlify Function 不可用')
+    throw new Error('Netlify Function 不可用')
   const fnUrl = netlifyFunctionPath('rss-feed-proxy')
   const res = await window.fetch(fnUrl, {
     method: 'POST',
@@ -171,16 +192,23 @@ async function fetchViaCorsProxy(url: string): Promise<Response> {
 
 /**
  * 多层代理策略：优先使用 Netlify Function，失败则回退到其他方案
- * 类似 Folo 的 @follow-app/client-sdk → api.folo.is 模式，但增加了回退机制
- *
- * 优先级：Netlify（服务端代理，无 CORS 限制）→ 直接请求（CORS 友好源）→ CORS 代理
+ * 本地开发使用 Vite proxy 绕过 CORS
  */
 async function fetchViaServer(url: string, timeoutMs = 15_000): Promise<Response> {
-  const strategies = [
-    { name: 'netlify', fn: () => fetchViaNetlify(url, timeoutMs) },
-    { name: 'direct', fn: () => fetchDirect(url, timeoutMs) },
-    { name: 'cors-proxy', fn: () => fetchViaCorsProxy(url) },
-  ]
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
+  const strategies = isLocalhost
+    ? [
+        // 本地开发：优先使用 Vite proxy
+        { name: 'vite-proxy', fn: () => fetchViaViteProxy(url, timeoutMs) },
+        { name: 'cors-proxy', fn: () => fetchViaCorsProxy(url) },
+      ]
+    : [
+        // 生产环境：Netlify Function → 直接请求 → CORS 代理
+        { name: 'netlify', fn: () => fetchViaNetlify(url, timeoutMs) },
+        { name: 'direct', fn: () => fetchDirect(url, timeoutMs) },
+        { name: 'cors-proxy', fn: () => fetchViaCorsProxy(url) },
+      ]
 
   let lastError: Error | null = null
   for (const { name, fn } of strategies) {
@@ -194,6 +222,17 @@ async function fetchViaServer(url: string, timeoutMs = 15_000): Promise<Response
     }
   }
   throw lastError || new Error('所有代理方案均失败')
+}
+
+/** 本地开发用 Vite proxy 转发请求 */
+async function fetchViaViteProxy(url: string, timeoutMs = 15_000): Promise<Response> {
+  const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`
+  const res = await window.fetch(proxyUrl, {
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (!res.ok)
+    throw new Error(`Vite proxy 返回 ${res.status}`)
+  return res
 }
 
 /** 通过 CORS 代理获取网页 HTML（仅 CSS 选择器采集源使用） */
@@ -532,19 +571,32 @@ async function fetchRSSSource(source: Source): Promise<Article[]> {
   let srcTitle = source.title
 
   // 如果配置了 RSSHub 路由路径，优先使用 RSSHub（社区维护，更稳定）
-  const fetchUrl = source.rsshubPath
-    ? `https://rsshub.app${source.rsshubPath.startsWith('/') ? '' : '/'}${source.rsshubPath}`
-    : source.url
+  const rsshubInstances = _customRsshubInstance
+    ? [...RSSHUB_PUBLIC_INSTANCES, _customRsshubInstance]
+    : RSSHUB_PUBLIC_INSTANCES
+  const fetchUrls = source.rsshubPath
+    ? rsshubInstances.map(base => `${base.replace(/\/$/, '')}${source.rsshubPath!.startsWith('/') ? '' : '/'}${source.rsshubPath}`)
+    : [source.url]
 
-  try {
-    const result = await fetchFeedViaProxy(fetchUrl)
-    items = result.articles
-    if (result.feedTitle)
-      srcTitle = result.feedTitle
+  // 尝试多个 RSSHub 实例
+  let proxyErr: Error | null = null
+  for (const fetchUrl of fetchUrls) {
+    try {
+      const result = await fetchFeedViaProxy(fetchUrl)
+      items = result.articles
+      if (result.feedTitle)
+        srcTitle = result.feedTitle
+      break // 成功就退出
+    }
+    catch (e) {
+      proxyErr = e instanceof Error ? e : new Error(String(e))
+      console.warn(`[RSS] ${fetchUrl} failed:`, proxyErr.message)
+    }
   }
-  catch (proxyErr) {
-    // 代理失败时降级为浏览器端 RSS 解析（走 CORS fallback 链）
-    console.warn(`[RSS] 服务端代理失败，降级为浏览器端解析 ${source.title}:`, proxyErr)
+
+  if (items.length === 0 && proxyErr) {
+    // 所有 RSSHub 实例都失败，降级为浏览器端 RSS 解析
+    console.warn(`[RSS] All RSSHub instances failed for ${source.title}, falling back to direct fetch`)
     try {
       const feed = await fetchFeed(source.url)
       srcTitle = feed.title || source.title
@@ -567,7 +619,7 @@ async function fetchRSSSource(source: Source): Promise<Article[]> {
     }
     catch {
       // 两层都失败，把原始代理错误抛出去（信息更完整）
-      throw proxyErr instanceof Error ? proxyErr : new Error(String(proxyErr))
+      throw proxyErr
     }
   }
 
@@ -606,34 +658,90 @@ const FOLO_VIEW_MAP: Record<number, FeedViewType> = {
   4: 3, // Audios
 }
 
-/** 通过 Folo API 获取 rsshub:// 源的文章 */
+/** RSSHub 实例列表（按优先级：官方 → 用户自定义） */
+const RSSHUB_PUBLIC_INSTANCES = [
+  'https://rsshub.app',
+]
+
+/** rsshub:// URL → RSSHub 直连 URL 列表（官方优先，自定义兜底） */
+function rsshubToDirectUrls(rsshubUrl: string, customInstance?: string): string[] {
+  const path = rsshubUrl.replace(/^rsshub:\/\//, '')
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  // 官方优先，用户自定义兜底
+  const instances = customInstance
+    ? [...RSSHUB_PUBLIC_INSTANCES, customInstance]
+    : RSSHUB_PUBLIC_INSTANCES
+  return instances.map(base => `${base.replace(/\/$/, '')}${normalizedPath}`)
+}
+
+/** 通过 Folo API 获取 rsshub:// 源的文章，失败时降级到 RSSHub 直连 */
 async function fetchFoloSource(source: Source): Promise<Article[]> {
   let articles: Article[]
-  // 已有 feedId：优先调 entries API（POST）
-  if (source.foloFeedId) {
+
+  // 本地开发：跳过 Folo API，直接用 RSSHub（更快更稳定）
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
+  if (!isLocalhost) {
     try {
-      articles = await fetchFoloEntries(source.foloFeedId)
+      // 已有 feedId：优先调 entries API（POST）
+      if (source.foloFeedId) {
+        try {
+          articles = await fetchFoloEntries(source.foloFeedId)
+        }
+        catch {
+          // POST 失败 → 降级为 GET /feeds
+          const result = await fetchFoloFeed(source.url)
+          articles = result.articles
+        }
+      }
+      else {
+        // 首次获取：用 rsshub:// URL 调 feeds API（GET）
+        const result = await fetchFoloFeed(source.url)
+        articles = result.articles
+        // 缓存 feedId 和视图类型
+        const feedId = result.feed.id
+        const foloView = result.foloView
+        const mappedView = foloView != null ? (FOLO_VIEW_MAP[foloView] ?? 0) : undefined
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('folo-feed-id', { detail: { sourceId: source.id, feedId, view: mappedView } }))
+        }
+      }
+      // Folo 成功，直接返回
+      return articles.map(a => ({ ...a, sourceId: source.id, sourceTitle: source.title }))
     }
-    catch {
-      // POST 失败（CORS 代理不支持 POST）→ 降级为 GET /feeds
-      const result = await fetchFoloFeed(source.url)
-      articles = result.articles
+    catch (foloErr) {
+      console.warn(`[Reading] Folo API failed for ${source.title}, falling back to RSSHub:`, foloErr)
     }
   }
-  else {
-    // 首次获取：用 rsshub:// URL 调 feeds API（GET）
-    const result = await fetchFoloFeed(source.url)
-    articles = result.articles
-    // 缓存 feedId 和视图类型
-    const feedId = result.feed.id
-    const foloView = result.foloView
-    const mappedView = foloView != null ? (FOLO_VIEW_MAP[foloView] ?? 0) : undefined
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('folo-feed-id', { detail: { sourceId: source.id, feedId, view: mappedView } }))
+
+  // 降级到 RSSHub 直连（尝试多个实例）
+  const directUrls = rsshubToDirectUrls(source.url, _customRsshubInstance)
+  let lastRsshubErr: Error | null = null
+  for (const url of directUrls) {
+    try {
+      const rsshubSource = { ...source, url, strategy: 'rss' as const }
+      articles = await fetchRSSSource(rsshubSource)
+      return articles.map(a => ({ ...a, sourceId: source.id, sourceTitle: source.title }))
+    }
+    catch (e) {
+      lastRsshubErr = e instanceof Error ? e : new Error(String(e))
+      console.warn(`[Reading] RSSHub ${url} failed:`, lastRsshubErr.message)
     }
   }
-  // 统一 sourceId 为 store 中的源 ID
-  return articles.map(a => ({ ...a, sourceId: source.id, sourceTitle: source.title }))
+  throw lastRsshubErr || new Error('所有获取方式均失败')
+}
+
+/** 模块级配置：用户自定义 RSSHub 实例 */
+let _customRsshubInstance = ''
+
+/** 设置用户自定义 RSSHub 实例 */
+export function setCustomRsshubInstance(url: string) {
+  _customRsshubInstance = url.replace(/\/$/, '')
+}
+
+/** 获取用户自定义 RSSHub 实例 */
+export function getCustomRsshubInstance(): string {
+  return _customRsshubInstance
 }
 
 /**
@@ -646,7 +754,7 @@ export async function fetchSourceArticles(source: Source): Promise<Article[]> {
   if (!handler)
     throw new Error(`未知的获取策略: ${source.strategy}`)
 
-  const timeoutMs = source.strategy === 'rss' ? 25_000 : 15_000
+  const timeoutMs = source.strategy === 'rss' || source.strategy === 'folo-rsshub' ? 30_000 : 15_000
 
   const { promise: timeoutPromise, reject } = Promise.withResolvers<never>()
   const timer = window.setTimeout(() => reject(new Error(`获取超时（${timeoutMs}ms）`)), timeoutMs)
@@ -892,7 +1000,7 @@ async function fetchFoloJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const lastErrors: string[] = []
 
   // 1. Vite 本地代理（开发环境，/api/folo → api.folo.is）
-  if (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1') || window.location.port) {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     try {
       const proxyUrl = `/api/folo${foloPath}`
       const res = await window.fetch(proxyUrl, {

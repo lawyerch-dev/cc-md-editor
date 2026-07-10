@@ -78,7 +78,7 @@ function stripRuntimeFields(sources: Source[]): Source[] {
   return sources.map(({ health, ...rest }) => rest as Source)
 }
 
-export function saveSources(sources: Source[]) {
+export function saveSources(sources: Source[]): Promise<void> {
   const persisted = stripRuntimeFields(sources)
   try {
     localStorage.setItem(STORAGE_SOURCES, JSON.stringify(persisted))
@@ -86,36 +86,39 @@ export function saveSources(sources: Source[]) {
   catch (e) {
     console.warn('[Reading] localStorage save failed:', e)
   }
-  void idb.saveSources(persisted).catch((e) => {
+  triggerSync()
+  return idb.saveSources(persisted).catch((e) => {
     console.warn('[Reading] IndexedDB save failed, retrying once:', e)
-    idb.saveSources(persisted).catch(() => {})
+    return idb.saveSources(persisted).catch(() => {})
   })
-  triggerSync()
 }
 
-export function saveArticles(articles: Article[]) {
+export function saveArticles(articles: Article[]): Promise<void> {
+  // ponytail: JSON.parse(JSON.stringify()) strips Vue reactive proxies
+  const persisted = JSON.parse(JSON.stringify(articles))
   try {
-    localStorage.setItem(STORAGE_ARTICLES, JSON.stringify(articles))
+    localStorage.setItem(STORAGE_ARTICLES, JSON.stringify(persisted))
   }
   catch (e) {
     console.warn('[Reading] localStorage save failed:', e)
   }
-  void idb.saveArticles(articles).catch((e) => {
+  triggerSync()
+  return idb.saveArticles(persisted).catch((e) => {
     console.warn('[Reading] IndexedDB articles save failed, retrying once:', e)
-    idb.saveArticles(articles).catch(() => {})
+    return idb.saveArticles(persisted).catch(() => {})
   })
-  triggerSync()
 }
 
-export function saveLists(lists: ReadingList[]) {
+export function saveLists(lists: ReadingList[]): Promise<void> {
+  const persisted = JSON.parse(JSON.stringify(lists))
   try {
-    localStorage.setItem(STORAGE_LISTS, JSON.stringify(lists))
+    localStorage.setItem(STORAGE_LISTS, JSON.stringify(persisted))
   }
   catch (e) {
     console.warn('[Reading] localStorage save failed:', e)
   }
-  void idb.saveLists(lists).catch(() => {})
   triggerSync()
+  return idb.saveLists(persisted).catch(() => {})
 }
 
 // ── lastFetchMap 持久化 ───────────────────────────────
@@ -179,7 +182,9 @@ export async function importAllData(data: ReadingDataExport): Promise<void> {
       return true
     }
   })
-  saveSources(dedupedSources)
-  saveArticles(articles)
-  saveLists(lists)
+  await Promise.all([
+    saveSources(dedupedSources),
+    saveArticles(articles),
+    saveLists(lists),
+  ])
 }
