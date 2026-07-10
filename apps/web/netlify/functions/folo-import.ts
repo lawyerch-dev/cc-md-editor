@@ -1,4 +1,5 @@
 import type { Context } from '@netlify/functions'
+import { Buffer } from 'node:buffer'
 import Database from 'better-sqlite3'
 
 interface SourceOutput {
@@ -67,11 +68,12 @@ function parseOpml(xml: string): Array<{ xmlUrl: string, title: string, view: nu
   // Walk all <outline> tags in document order (handles single-line OPML, any line breaks)
   // Use depth tracking so </outline> only pops a group when it closes a depth-1 (group-level) tag,
   // not depth-2+ (feed-level) tags which use non-self-closing <outline>...</outline> form.
-  const tagRe = /<\/?outline\s*([^>]*?)\/?\s*>/gi
+  const tagRe = /<\/?outline([^>]*)\/>?/gi
   const groupStack: string[] = ['Articles']
   let depth = 0
 
   let match: RegExpExecArray | null
+  // eslint-disable-next-line no-cond-assign
   while ((match = tagRe.exec(xml)) !== null) {
     const full = match[0]
     const attrs = match[1]
@@ -209,7 +211,7 @@ export default async (req: Request, _context: Context) => {
     // 5. 构建 sources
     const srcIdByFeed: Record<string, string> = {}
     const srcTitleByFeed: Record<string, string> = {}
-    const sources: SourceOutput[] = matchedFeeds.map((m, i) => {
+    const sources: SourceOutput[] = matchedFeeds.map((m, _i) => {
       const id = `import-folo-${m.feedId.slice(0, 12)}`
       srcIdByFeed[m.feedId] = id
       srcTitleByFeed[m.feedId] = m.source.title

@@ -555,6 +555,24 @@ function extractMediaFromItem(item: FeedItem): MediaItem[] {
   return media
 }
 
+/** RSSHub 实例列表（按优先级：官方 → 用户自定义） */
+const RSSHUB_PUBLIC_INSTANCES = [
+  'https://rsshub.app',
+]
+
+/** 模块级配置：用户自定义 RSSHub 实例 */
+let _customRsshubInstance = ''
+
+/** 设置用户自定义 RSSHub 实例 */
+export function setCustomRsshubInstance(url: string) {
+  _customRsshubInstance = url.replace(/\/$/, '')
+}
+
+/** 获取用户自定义 RSSHub 实例 */
+export function getCustomRsshubInstance(): string {
+  return _customRsshubInstance
+}
+
 async function fetchRSSSource(source: Source): Promise<Article[]> {
   // 优先走服务端 RSS 代理（Netlify Function），稳定且无 CORS 问题
   interface ProxyArticle {
@@ -658,11 +676,6 @@ const FOLO_VIEW_MAP: Record<number, FeedViewType> = {
   4: 3, // Audios
 }
 
-/** RSSHub 实例列表（按优先级：官方 → 用户自定义） */
-const RSSHUB_PUBLIC_INSTANCES = [
-  'https://rsshub.app',
-]
-
 /** rsshub:// URL → RSSHub 直连 URL 列表（官方优先，自定义兜底） */
 function rsshubToDirectUrls(rsshubUrl: string, customInstance?: string): string[] {
   const path = rsshubUrl.replace(/^rsshub:\/\//, '')
@@ -729,19 +742,6 @@ async function fetchFoloSource(source: Source): Promise<Article[]> {
     }
   }
   throw lastRsshubErr || new Error('所有获取方式均失败')
-}
-
-/** 模块级配置：用户自定义 RSSHub 实例 */
-let _customRsshubInstance = ''
-
-/** 设置用户自定义 RSSHub 实例 */
-export function setCustomRsshubInstance(url: string) {
-  _customRsshubInstance = url.replace(/\/$/, '')
-}
-
-/** 获取用户自定义 RSSHub 实例 */
-export function getCustomRsshubInstance(): string {
-  return _customRsshubInstance
 }
 
 /**
