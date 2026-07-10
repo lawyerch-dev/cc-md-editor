@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     server: {
+      // 允许代理转发到任意外部 Host（Vite 6+ DNS rebinding 保护）
+      allowedHosts: true,
       proxy: {
         '/.netlify/functions': {
           target: 'http://localhost:9999',
@@ -39,6 +41,12 @@ export default defineConfig(({ mode }) => {
           target: 'https://api.folo.is',
           changeOrigin: true,
           rewrite: (path: string) => path.replace(/^\/api\/folo/, ''),
+        },
+        // 本地开发代理自建 RSSHub（绕过 CORS）
+        '/api/rsshub': {
+          target: 'http://8.134.251.42:1200',
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/api\/rsshub/, ''),
         },
       },
     },
@@ -69,6 +77,39 @@ export default defineConfig(({ mode }) => {
       Components({
         resolvers: [],
       }),
+      // 本地开发：服务端代理外部 URL（绕过浏览器 CORS）
+      mode === 'development' && {
+        name: 'api-proxy-middleware',
+        configureServer(server) {
+          server.middlewares.use('/api/proxy', async (req, res) => {
+            const targetUrl = new URL(req.url!, 'http://localhost').searchParams.get('url')
+            if (!targetUrl) {
+              res.statusCode = 400
+              res.end('Missing url parameter')
+              return
+            }
+            try {
+              const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+              const proxyRes = await fetch(targetUrl, {
+                headers: { 'User-Agent': ua, 'Accept': '*/*' },
+                signal: AbortSignal.timeout(15_000),
+                redirect: 'follow',
+              })
+              res.statusCode = proxyRes.status
+              const ct = proxyRes.headers.get('content-type')
+              if (ct)
+                res.setHeader('Content-Type', ct)
+              res.setHeader('Access-Control-Allow-Origin', '*')
+              const body = new Uint8Array(await proxyRes.arrayBuffer())
+              res.end(body)
+            }
+            catch (e: any) {
+              res.statusCode = 502
+              res.end(`Proxy error: ${e.message}`)
+            }
+          })
+        },
+      } as Plugin,
       isUTools && utoolsLocalAssetsPlugin(),
       // Strip modulepreload for large vendor chunks — they'll load on demand via dynamic import
       {
