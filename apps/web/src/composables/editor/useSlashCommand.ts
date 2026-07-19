@@ -1,9 +1,9 @@
 // @workspace editor
 import type { EditorView as EditorViewType } from '@codemirror/view'
-import type { SlashCommandItem } from '@/composables/slashCommands'
+import type { SlashCommandItem } from '@/composables/editor/slashCommands'
 import { Prec } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { buildSlashCommands } from '@/composables/slashCommands'
+import { buildSlashCommands } from '@/composables/editor/slashCommands'
 
 export function useSlashCommand() {
   const visible = ref(false)

@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { Blocks, Table } from '@lucide/vue'
 import { normalizeFormulaInput } from '@/lib/markdown/formula'
-import { useEditorStore } from '@/stores/editor'
-import { useUIStore } from '@/stores/ui'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = withDefaults(defineProps<{
   asSub?: boolean

@@ -1,7 +1,7 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
 /* eslint-disable vue/no-unused-refs */ // template refs are used in template
-import type { QuickCommandRuntime } from '@/stores/quickCommands'
+import type { QuickCommandRuntime } from '@/stores/shared/quickCommands'
 import {
   ArrowLeft,
   Check,
@@ -20,14 +20,14 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/shared/useAIFetch'
 import { copyPlain } from '@/lib/browser/clipboard'
 import { store } from '@/storage'
-import useAIConfigStore from '@/stores/aiConfig'
-import { useAIPanelStore } from '@/stores/aiPanel'
-import { useEditorStore } from '@/stores/editor'
-import { usePostStore } from '@/stores/post'
-import { useQuickCommandsStore } from '@/stores/quickCommands'
+import useAIConfigStore from '@/stores/shared/aiConfig'
+import { useAIPanelStore } from '@/stores/shared/aiPanel'
+import { useEditorStore } from '@/stores/editor/editor'
+import { usePostStore } from '@/stores/editor/post'
+import { useQuickCommandsStore } from '@/stores/shared/quickCommands'
 import AIConfig from './AIConfig.vue'
 
 const FEEDBACK_INDICATOR_TIMEOUT_MS = 1500

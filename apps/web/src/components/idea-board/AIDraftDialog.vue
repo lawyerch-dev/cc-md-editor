@@ -5,10 +5,10 @@ import { onMounted, ref } from 'vue'
 import AIConfig from '@/components/ai/chat-box/AIConfig.vue'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import { useImageUploader } from '@/composables/useImageUploader'
-import { useAIConfigStore } from '@/stores/aiConfig'
-import { usePostStore } from '@/stores/post'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/shared/useAIFetch'
+import { useImageUploader } from '@/composables/editor/useImageUploader'
+import { useAIConfigStore } from '@/stores/shared/aiConfig'
+import { usePostStore } from '@/stores/editor/post'
 
 const props = defineProps<{
   screenshotFile: File

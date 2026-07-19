@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useQuickCommandsStore } from '@/stores/quickCommands'
+import { useQuickCommandsStore } from '@/stores/shared/quickCommands'
 
 /* ---------- 弹窗开关 ---------- */
 const props = defineProps<{ open: boolean }>()

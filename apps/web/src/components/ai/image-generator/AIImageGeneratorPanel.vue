@@ -21,13 +21,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
+import { buildAIHeaders, resolveEndpointUrl } from '@/composables/shared/useAIFetch'
 import { prepareModalOverlayFocus } from '@/lib/a11y/dialog-focus'
 import { copyPlain } from '@/lib/browser/clipboard'
 import { store } from '@/storage'
-import useAIImageConfigStore from '@/stores/aiImageConfig'
-import { useEditorStore } from '@/stores/editor'
-import { useUIStore } from '@/stores/ui'
+import useAIImageConfigStore from '@/stores/shared/aiImageConfig'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useUIStore } from '@/stores/shared/ui'
 import AIImageConfig from './AIImageConfig.vue'
 
 /* ---------- 组件属性 ---------- */

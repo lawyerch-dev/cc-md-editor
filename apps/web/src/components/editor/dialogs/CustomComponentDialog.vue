@@ -1,17 +1,17 @@
 <!-- @workspace editor -->
 <script setup lang="ts">
 import type { ComponentPropDef, ComponentPropType, CustomComponentDef } from '@md/shared'
-import type { MpAccount } from '@/stores/mpAccounts'
+import type { MpAccount } from '@/stores/editor/mpAccounts'
 import { Blocks, Check, ChevronDown, Copy, Download, Lock, Pencil, Plus, Rss, Trash2, Upload, Zap } from '@lucide/vue'
 import { previewComponent } from '@md/core/extensions'
 import { escapeHtml } from '@md/core/utils'
 import DOMPurify from 'isomorphic-dompurify'
-import { useLocalizedBuiltinComponents } from '@/composables/useLocalizedBuiltinComponents'
-import { useConfirmStore } from '@/stores/confirm'
-import { useCustomComponentStore } from '@/stores/customComponent'
-import { useEditorStore } from '@/stores/editor'
-import { useMpAccountsStore } from '@/stores/mpAccounts'
-import { useUIStore } from '@/stores/ui'
+import { useLocalizedBuiltinComponents } from '@/composables/editor/useLocalizedBuiltinComponents'
+import { useConfirmStore } from '@/stores/shared/confirm'
+import { useCustomComponentStore } from '@/stores/editor/customComponent'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useMpAccountsStore } from '@/stores/editor/mpAccounts'
+import { useUIStore } from '@/stores/shared/ui'
 
 const { t } = useI18n()
 const confirmStore = useConfirmStore()

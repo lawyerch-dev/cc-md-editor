@@ -10,9 +10,9 @@ import PanelDialog from '@/components/shared/panel-dialog/PanelDialog.vue'
 import { Button } from '@/components/ui/button'
 import { isShareProUser, isShareUiEnabled } from '@/services/share/client'
 import { isSyncUiEnabled } from '@/services/sync/client'
-import { useAuthStore } from '@/stores/auth'
-import { useSyncStore } from '@/stores/sync'
-import { useUIStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/shared/auth'
+import { useSyncStore } from '@/stores/shared/sync'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = defineProps<{
   open: boolean

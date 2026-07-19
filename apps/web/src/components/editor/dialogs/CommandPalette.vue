@@ -1,6 +1,6 @@
 <!-- @workspace editor -->
 <script setup lang="ts">
-import type { PaletteCommand } from '@/composables/useCommandPalette'
+import type { PaletteCommand } from '@/composables/shared/useCommandPalette'
 import { Search } from '@lucide/vue'
 import {
   Dialog,
@@ -9,8 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useCommandPalette } from '@/composables/useCommandPalette'
-import { useUIStore } from '@/stores/ui'
+import { useCommandPalette } from '@/composables/shared/useCommandPalette'
+import { useUIStore } from '@/stores/shared/ui'
 
 const { t, locale } = useI18n()
 const uiStore = useUIStore()

@@ -1,6 +1,6 @@
 // @workspace editor
-import { useFolderSourceStore } from '@/stores/folderSource'
-import { usePostStore } from '@/stores/post'
+import { useFolderSourceStore } from '@/stores/editor/folderSource'
+import { usePostStore } from '@/stores/editor/post'
 
 /**
  * 文件夹文件同步 Composable

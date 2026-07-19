@@ -5,8 +5,8 @@ import { BookOpen, ExternalLink, Languages, MessageSquarePlus, Sparkles, Star, X
 import DOMPurify from 'dompurify'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { buildAIHeaders, resolveEndpointUrl } from '@/composables/useAIFetch'
-import { useAIConfigStore } from '@/stores/aiConfig'
+import { buildAIHeaders, resolveEndpointUrl } from '@/composables/shared/useAIFetch'
+import { useAIConfigStore } from '@/stores/shared/aiConfig'
 import { useReadingStore } from '@/stores/reading'
 import PodcastInlinePlayer from './views/PodcastInlinePlayer.vue'
 

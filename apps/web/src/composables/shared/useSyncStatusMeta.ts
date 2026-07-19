@@ -6,9 +6,9 @@ import { computed } from 'vue'
 import { t } from '@/i18n/translate'
 import { store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
-import { useAuthStore } from '@/stores/auth'
-import { useGitHubSyncStore } from '@/stores/githubSync'
-import { useSyncStore } from '@/stores/sync'
+import { useAuthStore } from '@/stores/shared/auth'
+import { useGitHubSyncStore } from '@/stores/shared/githubSync'
+import { useSyncStore } from '@/stores/shared/sync'
 
 export type SyncUiState = `syncing` | `synced` | `error` | `pending`
 

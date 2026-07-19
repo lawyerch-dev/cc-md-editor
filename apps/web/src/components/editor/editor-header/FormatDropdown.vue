@@ -25,11 +25,11 @@ import {
   formatColor,
 } from '@md/shared/editor'
 import PickColors from 'vue-pick-colors'
-import { useEditorFormat } from '@/composables/useEditorFormat'
-import { useEditorRefresh } from '@/composables/useEditorRefresh'
-import { useEditorStore } from '@/stores/editor'
-import { useThemeStore } from '@/stores/theme'
-import { useUIStore } from '@/stores/ui'
+import { useEditorFormat } from '@/composables/editor/useEditorFormat'
+import { useEditorRefresh } from '@/composables/editor/useEditorRefresh'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useThemeStore } from '@/stores/editor/theme'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = withDefaults(defineProps<{
   asSub?: boolean

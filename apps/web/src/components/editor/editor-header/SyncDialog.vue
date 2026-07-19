@@ -8,12 +8,12 @@ import PanelCard from '@/components/shared/panel-dialog/PanelCard.vue'
 import PanelDialog from '@/components/shared/panel-dialog/PanelDialog.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { useSyncStatusMeta } from '@/composables/useSyncStatusMeta'
+import { useSyncStatusMeta } from '@/composables/shared/useSyncStatusMeta'
 import { isSyncConfigured } from '@/services/sync/client'
-import { useAuthStore } from '@/stores/auth'
-import { useLocaleStore } from '@/stores/locale'
-import { useSyncStore } from '@/stores/sync'
-import { useUIStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/shared/auth'
+import { useLocaleStore } from '@/stores/shared/locale'
+import { useSyncStore } from '@/stores/shared/sync'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = defineProps<{
   open: boolean

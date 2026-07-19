@@ -5,8 +5,8 @@ import { defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ChangelogDialog from '@/components/landing/ChangelogDialog.vue'
 import { Button } from '@/components/ui/button'
-import { useLocaleStore } from '@/stores/locale'
-import { useUIStore } from '@/stores/ui'
+import { useLocaleStore } from '@/stores/shared/locale'
+import { useUIStore } from '@/stores/shared/ui'
 
 const AIConfig = defineAsyncComponent(() => import('@/components/ai/chat-box/AIConfig.vue'))
 

@@ -3,7 +3,7 @@
 import type { Article } from '@/stores/reading'
 import { CheckSquare, Square } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
-import { useAudioPlayer } from '@/composables/useAudioPlayer'
+import { useAudioPlayer } from '@/composables/reading/useAudioPlayer'
 
 defineProps<{
   articles: Article[]

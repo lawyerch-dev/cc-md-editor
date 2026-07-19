@@ -1,7 +1,7 @@
 // @workspace reading
 import type { CollectorSelectors } from '@/stores/reading'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import { useAIConfigStore } from '@/stores/aiConfig'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/shared/useAIFetch'
+import { useAIConfigStore } from '@/stores/shared/aiConfig'
 
 /**
  * 分析网页 HTML，生成 CSS 选择器采集规则。

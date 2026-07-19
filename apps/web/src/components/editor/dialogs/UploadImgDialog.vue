@@ -5,10 +5,10 @@ import { UploadCloud } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/yup'
 import { Field, Form } from 'vee-validate'
 import * as yup from 'yup'
-import { useLocalizedUploadHostOptions } from '@/composables/useLocalizedUploadHosts'
+import { useLocalizedUploadHostOptions } from '@/composables/editor/useLocalizedUploadHosts'
 import { validateImageFile } from '@/lib/upload/validate-image'
 import { store } from '@/storage'
-import { useUIStore } from '@/stores/ui'
+import { useUIStore } from '@/stores/shared/ui'
 
 const emit = defineEmits([`uploadImage`])
 

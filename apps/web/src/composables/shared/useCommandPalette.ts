@@ -1,13 +1,13 @@
 // @workspace shared
 import type { EditorView } from '@codemirror/view'
 import { ctrlSign, shiftSign } from '@md/shared/configs'
-import { useEditorDocumentActions } from '@/composables/useEditorDocumentActions'
+import { useEditorDocumentActions } from '@/composables/editor/useEditorDocumentActions'
 import { t } from '@/i18n/translate'
 import { isAccountUiEnabled } from '@/services/account/config'
 import { isShareUiEnabled } from '@/services/share/client'
 import { isSyncUiEnabled } from '@/services/sync/client'
-import { useEditorStore } from '@/stores/editor'
-import { useUIStore } from '@/stores/ui'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useUIStore } from '@/stores/shared/ui'
 
 export interface PaletteCommand {
   id: string

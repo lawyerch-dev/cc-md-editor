@@ -1,8 +1,8 @@
 // @workspace editor
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import { t } from '@/i18n/translate'
-import { useEditorStore } from '@/stores/editor'
-import { usePostStore } from '@/stores/post'
+import { useEditorStore } from '@/stores/editor/editor'
+import { usePostStore } from '@/stores/editor/post'
 
 export function useEditorDocumentActions() {
   const editorStore = useEditorStore()

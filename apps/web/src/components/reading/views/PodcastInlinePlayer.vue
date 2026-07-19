@@ -3,7 +3,7 @@
 import type { Article } from '@/stores/reading'
 import { Download, Pause, Play, SkipBack, SkipForward } from '@lucide/vue'
 import { computed } from 'vue'
-import { useAudioPlayer } from '@/composables/useAudioPlayer'
+import { useAudioPlayer } from '@/composables/reading/useAudioPlayer'
 
 const props = defineProps<{
   article: Article

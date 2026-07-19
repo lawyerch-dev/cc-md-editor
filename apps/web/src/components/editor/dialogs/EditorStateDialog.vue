@@ -5,11 +5,11 @@ import { downloadFile } from '@md/shared/utils/fileHelpers'
 import { computed } from 'vue'
 import PanelDialog from '@/components/shared/panel-dialog/PanelDialog.vue'
 import { copyPlain } from '@/lib/browser/clipboard'
-import { useCssEditorStore } from '@/stores/cssEditor'
-import { usePostStore } from '@/stores/post'
-import { useRenderStore } from '@/stores/render'
-import { useThemeStore } from '@/stores/theme'
-import { useUIStore } from '@/stores/ui'
+import { useCssEditorStore } from '@/stores/editor/cssEditor'
+import { usePostStore } from '@/stores/editor/post'
+import { useRenderStore } from '@/stores/editor/render'
+import { useThemeStore } from '@/stores/editor/theme'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = defineProps<{
   open: boolean

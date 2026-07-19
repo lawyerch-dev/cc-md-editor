@@ -10,8 +10,8 @@ import { applyRemoteSettings, collectChangedSettings } from '@/services/sync/set
 import { store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
 import { safeGetItem, safeRemoveItem, safeSetItem } from '@/storage/safe-access'
-import { useAuthStore } from '@/stores/auth'
-import { usePostStore } from '@/stores/post'
+import { useAuthStore } from '@/stores/shared/auth'
+import { usePostStore } from '@/stores/editor/post'
 
 export type SyncStatus = 'idle' | 'syncing' | 'error'
 

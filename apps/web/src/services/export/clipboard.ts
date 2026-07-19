@@ -1,8 +1,8 @@
 // @workspace editor
 import { stripUnresolvedAsyncPlaceholders, waitForPreviewReady } from '@/lib/preview/preview-ready'
-import { useEditorStore } from '@/stores/editor'
-import { useRenderStore } from '@/stores/render'
-import { useUIStore } from '@/stores/ui'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useRenderStore } from '@/stores/editor/render'
+import { useUIStore } from '@/stores/shared/ui'
 import { prepareMathFormulasForWeChat, sanitizeSvgsForWeChat } from './wechat-svg'
 
 export function solveWeChatImage(container?: HTMLElement) {

@@ -12,9 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import { useLocalizedAIServiceOptions } from '@/composables/useLocalizedAIServices'
-import useAIImageConfigStore from '@/stores/aiImageConfig'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/shared/useAIFetch'
+import { useLocalizedAIServiceOptions } from '@/composables/shared/useLocalizedAIServices'
+import useAIImageConfigStore from '@/stores/shared/aiImageConfig'
 
 /* -------------------------- 基础数据 -------------------------- */
 

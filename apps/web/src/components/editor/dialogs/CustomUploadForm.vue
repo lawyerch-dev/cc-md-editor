@@ -5,7 +5,7 @@ import { EditorView } from '@codemirror/view'
 import { javascriptSetup, theme } from '@md/shared'
 import { removeLeft } from '@md/shared/utils/basicHelpers'
 import { store } from '@/storage'
-import { useUIStore } from '@/stores/ui'
+import { useUIStore } from '@/stores/shared/ui'
 
 const { t } = useI18n()
 

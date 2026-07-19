@@ -1,6 +1,6 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
-import type { QuickCommandRuntime } from '@/stores/quickCommands'
+import type { QuickCommandRuntime } from '@/stores/shared/quickCommands'
 import {
   Check,
   Copy,
@@ -31,13 +31,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/shared/useAIFetch'
 import { copyPlain } from '@/lib/browser/clipboard'
 import { store } from '@/storage'
-import useAIConfigStore from '@/stores/aiConfig'
-import { useEditorStore } from '@/stores/editor'
-import { useQuickCommandsStore } from '@/stores/quickCommands'
-import { useUIStore } from '@/stores/ui'
+import useAIConfigStore from '@/stores/shared/aiConfig'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useQuickCommandsStore } from '@/stores/shared/quickCommands'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = defineProps<{ open: boolean }>()
 

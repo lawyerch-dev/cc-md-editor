@@ -3,7 +3,7 @@ import type { HeadingLevel, HeadingStyles, HeadingStyleType, PerThemeSettings, P
 import { defaultPerThemeSettings, defaultStyleConfig, widthOptions } from '@md/shared/configs'
 import { store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
-import { useCssEditorStore } from '@/stores/cssEditor'
+import { useCssEditorStore } from '@/stores/editor/cssEditor'
 
 /**
  * 主题和样式配置 Store

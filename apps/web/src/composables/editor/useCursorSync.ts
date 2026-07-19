@@ -1,7 +1,7 @@
 // @workspace editor
 import type { MaybeRefOrGetter } from 'vue'
 import { EditorView } from '@codemirror/view'
-import { useUIStore } from '@/stores/ui'
+import { useUIStore } from '@/stores/shared/ui'
 
 /**
  * 点击预览区元素时，定位回编辑器对应位置。

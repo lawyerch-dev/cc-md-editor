@@ -1,8 +1,8 @@
 <!-- @workspace editor -->
 <script setup lang="ts">
 import { FileText, Globe, Loader2, Upload } from '@lucide/vue'
-import { usePostStore } from '@/stores/post'
-import { useUIStore } from '@/stores/ui'
+import { usePostStore } from '@/stores/editor/post'
+import { useUIStore } from '@/stores/shared/ui'
 
 const { t } = useI18n()
 const postStore = usePostStore()

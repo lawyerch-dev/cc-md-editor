@@ -7,11 +7,11 @@ import PanelSelect from '@/components/shared/panel-dialog/PanelSelect.vue'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useEditorRefresh } from '@/composables/useEditorRefresh'
+import { useEditorRefresh } from '@/composables/editor/useEditorRefresh'
 import { LOCALE_OPTIONS } from '@/i18n/constants'
-import { useLocaleStore } from '@/stores/locale'
-import { useThemeStore } from '@/stores/theme'
-import { useUIStore } from '@/stores/ui'
+import { useLocaleStore } from '@/stores/shared/locale'
+import { useThemeStore } from '@/stores/editor/theme'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = defineProps<{
   open: boolean

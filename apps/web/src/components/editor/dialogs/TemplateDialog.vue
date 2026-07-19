@@ -2,11 +2,11 @@
 <script setup lang="ts">
 import type { Template } from '@md/shared'
 import { Calendar, Clock, FileDown, FileInput, FileText, Package, Pencil, Plus, Search, Trash2 } from '@lucide/vue'
-import { useConfirmStore } from '@/stores/confirm'
-import { useEditorStore } from '@/stores/editor'
-import { usePostStore } from '@/stores/post'
-import { useTemplateStore } from '@/stores/template'
-import { useUIStore } from '@/stores/ui'
+import { useConfirmStore } from '@/stores/shared/confirm'
+import { useEditorStore } from '@/stores/editor/editor'
+import { usePostStore } from '@/stores/editor/post'
+import { useTemplateStore } from '@/stores/editor/template'
+import { useUIStore } from '@/stores/shared/ui'
 
 const { t, locale } = useI18n()
 const confirmStore = useConfirmStore()

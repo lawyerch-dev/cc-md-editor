@@ -9,11 +9,11 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import { useCursorSync } from '@/composables/useCursorSync'
-import { useScrollSync } from '@/composables/useScrollSync'
-import { useAIPanelStore } from '@/stores/aiPanel'
-import { useEditorStore } from '@/stores/editor'
-import { useUIStore } from '@/stores/ui'
+import { useCursorSync } from '@/composables/editor/useCursorSync'
+import { useScrollSync } from '@/composables/editor/useScrollSync'
+import { useAIPanelStore } from '@/stores/shared/aiPanel'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useUIStore } from '@/stores/shared/ui'
 
 const PostSlider = defineAsyncComponent(() => import('@/components/editor/post-slider/index.vue'))
 const FolderSourcePanel = defineAsyncComponent(() => import('@/components/editor/folder-source-panel/index.vue'))

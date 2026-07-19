@@ -3,9 +3,9 @@
 import { defineAsyncComponent } from 'vue'
 import LandingPage from '@/components/LandingPage.vue'
 import { Toaster } from '@/components/ui/sonner'
-import { useCommandPaletteHotkey } from '@/composables/useCommandPaletteHotkey'
-import { usePreferencesHotkey } from '@/composables/usePreferencesHotkey'
-import { useUIStore } from '@/stores/ui'
+import { useCommandPaletteHotkey } from '@/composables/shared/useCommandPaletteHotkey'
+import { usePreferencesHotkey } from '@/composables/shared/usePreferencesHotkey'
+import { useUIStore } from '@/stores/shared/ui'
 
 const CodemirrorEditor = defineAsyncComponent(() => import('@/components/editor/CodemirrorEditor.vue'))
 const IdeaBoard = defineAsyncComponent(() => import('@/components/idea-board/IdeaBoard.vue'))

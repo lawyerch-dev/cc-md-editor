@@ -2,9 +2,9 @@
 <script setup lang="ts">
 import { Bot, Image as ImageIcon, Wand2 } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'
-import { useAIPanelStore } from '@/stores/aiPanel'
-import { useEditorStore } from '@/stores/editor'
-import { useUIStore } from '@/stores/ui'
+import { useAIPanelStore } from '@/stores/shared/aiPanel'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useUIStore } from '@/stores/shared/ui'
 import { AIPolishPopover } from './tool-box'
 
 defineProps<{

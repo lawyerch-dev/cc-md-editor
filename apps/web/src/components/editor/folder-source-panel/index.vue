@@ -9,10 +9,10 @@ import {
   RefreshCw,
   X,
 } from '@lucide/vue'
-import { useFolderFileSync } from '@/composables/useFolderFileSync'
-import { useFolderSourceStore } from '@/stores/folderSource'
-import { usePostStore } from '@/stores/post'
-import { useUIStore } from '@/stores/ui'
+import { useFolderFileSync } from '@/composables/editor/useFolderFileSync'
+import { useFolderSourceStore } from '@/stores/editor/folderSource'
+import { usePostStore } from '@/stores/editor/post'
+import { useUIStore } from '@/stores/shared/ui'
 import FolderTree from './FolderTree.vue'
 
 const { t } = useI18n()

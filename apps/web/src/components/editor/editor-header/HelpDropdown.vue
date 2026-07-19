@@ -4,7 +4,7 @@ import { BookText, Command, Heart, HelpCircle, Keyboard, MessageSquare, Tag } fr
 
 import { ctrlSign, shiftSign } from '@md/shared/configs'
 
-import { useUIStore } from '@/stores/ui'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = withDefaults(defineProps<{
   asSub?: boolean

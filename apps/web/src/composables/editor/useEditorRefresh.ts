@@ -1,7 +1,7 @@
 // @workspace editor
-import { useEditorStore } from '@/stores/editor'
-import { useRenderStore } from '@/stores/render'
-import { useThemeStore } from '@/stores/theme'
+import { useEditorStore } from '@/stores/editor/editor'
+import { useRenderStore } from '@/stores/editor/render'
+import { useThemeStore } from '@/stores/editor/theme'
 
 const EDITOR_REFRESH_DEBOUNCE_MS = 300
 

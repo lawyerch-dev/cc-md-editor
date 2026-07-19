@@ -10,10 +10,10 @@ import {
   AccordionTrigger,
 } from 'reka-ui'
 import { PasswordInput } from '@/components/ui/password-input'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import { useDynamicAIModels } from '@/composables/useDynamicAIModels'
-import { useLocalizedAIServiceOptions } from '@/composables/useLocalizedAIServices'
-import { useAIConfigStore } from '@/stores/aiConfig'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/shared/useAIFetch'
+import { useDynamicAIModels } from '@/composables/shared/useDynamicAIModels'
+import { useLocalizedAIServiceOptions } from '@/composables/shared/useLocalizedAIServices'
+import { useAIConfigStore } from '@/stores/shared/aiConfig'
 
 const emit = defineEmits([`saved`])
 const aiConfig = useAIConfigStore()

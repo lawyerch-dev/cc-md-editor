@@ -6,7 +6,7 @@ import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import { formatLocalDateTime, t } from '@/i18n/translate'
 import { documentRepo, getLoadedDocuments, storageReady, store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
-import { useEditorStore } from '@/stores/editor'
+import { useEditorStore } from '@/stores/editor/editor'
 
 export type { Post } from '@/types/post'
 

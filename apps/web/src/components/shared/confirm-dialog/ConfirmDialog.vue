@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useConfirmStore } from '@/stores/confirm'
+import { useConfirmStore } from '@/stores/shared/confirm'
 
 const confirmStore = useConfirmStore()
 </script>

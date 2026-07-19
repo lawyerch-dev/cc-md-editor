@@ -1,7 +1,7 @@
 <!-- @workspace ideaBoard -->
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useUIStore } from '@/stores/ui'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = defineProps<{
   initialData?: {

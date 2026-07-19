@@ -3,7 +3,7 @@
 import { Keyboard } from '@lucide/vue'
 import { computed } from 'vue'
 import PanelDialog from '@/components/shared/panel-dialog/PanelDialog.vue'
-import { useCommandPalette } from '@/composables/useCommandPalette'
+import { useCommandPalette } from '@/composables/shared/useCommandPalette'
 import { buildKeyboardShortcutCategories } from '@/configs/keyboard-shortcuts'
 
 const props = defineProps<{

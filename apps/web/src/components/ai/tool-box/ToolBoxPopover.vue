@@ -16,9 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
-import useAIConfigStore from '@/stores/aiConfig'
-import { useEditorStore } from '@/stores/editor'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/shared/useAIFetch'
+import useAIConfigStore from '@/stores/shared/aiConfig'
+import { useEditorStore } from '@/stores/editor/editor'
 
 /* -------------------- props / emits -------------------- */
 const props = defineProps<{

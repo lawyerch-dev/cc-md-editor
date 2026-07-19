@@ -1,12 +1,12 @@
 <!-- @workspace ideaBoard -->
 <script setup lang="ts">
-import type { NoteColor, StickyNote } from '@/stores/ideaBoard'
+import type { NoteColor, StickyNote } from '@/stores/idea-board'
 import { nextTick, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { NOTE_COLORS } from '@/stores/ideaBoard'
+import { NOTE_COLORS } from '@/stores/idea-board'
 
 const props = defineProps<{
   note: StickyNote

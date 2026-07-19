@@ -3,10 +3,10 @@
 import { Cloud } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { useSyncFooterMeta } from '@/composables/useSyncStatusMeta'
+import { useSyncFooterMeta } from '@/composables/shared/useSyncStatusMeta'
 import { isSyncUiEnabled } from '@/services/sync/client'
-import { useAuthStore } from '@/stores/auth'
-import { useUIStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/shared/auth'
+import { useUIStore } from '@/stores/shared/ui'
 
 const uiStore = useUIStore()
 const authStore = useAuthStore()

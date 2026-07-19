@@ -1,6 +1,6 @@
 <!-- @workspace editor -->
 <script setup lang="ts">
-import type { FileSystemNode } from '@/stores/folderSource'
+import type { FileSystemNode } from '@/stores/editor/folderSource'
 import { ChevronDown, ChevronRight, File, Folder, FolderOpen } from '@lucide/vue'
 
 interface Props {

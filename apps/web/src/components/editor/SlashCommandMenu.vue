@@ -1,7 +1,7 @@
 <!-- @workspace editor -->
 <script setup lang="ts">
 import type { Component } from 'vue'
-import type { SlashCommandItem } from '@/composables/slashCommands'
+import type { SlashCommandItem } from '@/composables/editor/slashCommands'
 import {
   Blocks,
   Bold,
@@ -35,9 +35,9 @@ import {
   SLASH_BASIC_FORMAT_IDS,
   SLASH_EDIT_DOC_IDS,
   SLASH_HEADING_IDS,
-} from '@/composables/slashCommands'
-import { useSlashMenuPosition } from '@/composables/useSlashMenuPosition'
-import { useSlashMenuScrollHint } from '@/composables/useSlashMenuScrollHint'
+} from '@/composables/editor/slashCommands'
+import { useSlashMenuPosition } from '@/composables/editor/useSlashMenuPosition'
+import { useSlashMenuScrollHint } from '@/composables/editor/useSlashMenuScrollHint'
 
 const props = defineProps<{
   visible: boolean

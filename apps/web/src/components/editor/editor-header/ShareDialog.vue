@@ -15,11 +15,11 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { captureShareSnapshot } from '@/services/share/capture-snapshot'
 import { isNetlifyMode, isShareConfigured, isShareProUser, NetlifyShareClient, ShareApiError, ShareClient } from '@/services/share/client'
-import { useAuthStore } from '@/stores/auth'
-import { useConfirmStore } from '@/stores/confirm'
-import { useLocaleStore } from '@/stores/locale'
-import { usePostStore } from '@/stores/post'
-import { useUIStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/shared/auth'
+import { useConfirmStore } from '@/stores/shared/confirm'
+import { useLocaleStore } from '@/stores/shared/locale'
+import { usePostStore } from '@/stores/editor/post'
+import { useUIStore } from '@/stores/shared/ui'
 
 const props = defineProps<{
   open: boolean

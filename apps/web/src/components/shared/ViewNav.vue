@@ -4,7 +4,7 @@ import { ChevronDown, FileText, Home, Lightbulb, Newspaper } from '@lucide/vue'
 import { ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { useUIStore } from '@/stores/ui'
+import { useUIStore } from '@/stores/shared/ui'
 
 const uiStore = useUIStore()
 const open = ref(false)
