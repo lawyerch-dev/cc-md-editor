@@ -69,3 +69,7 @@ folo
 # Reading audit & test data
 AUDIT_READING_MODULE.md
 test/
+
+# 开发日志内部版（不公开）
+dev_docs/articles/internal/
+dev_docs/.drafts/

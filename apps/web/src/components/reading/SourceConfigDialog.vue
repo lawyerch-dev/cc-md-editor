@@ -288,6 +288,21 @@ async function importFullDataFromFile(e: Event) {
         </div>
       </div>
 
+      <!-- RSSHub 自建实例配置 -->
+      <div class="flex items-center gap-2 border-b px-4 py-1.5">
+        <Rss class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <label class="text-[11px] text-muted-foreground whitespace-nowrap">{{ t('reading.rsshubUrlLabel') }}</label>
+        <input
+          v-model="store.rsshubBaseUrl"
+          class="flex-1 h-7 rounded-md border bg-background px-2 text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary"
+          :placeholder="t('reading.rsshubUrlPlaceholder')"
+          :title="t('reading.rsshubUrlHint')"
+        >
+        <span v-if="store.rsshubBaseUrl" class="text-[10px] text-green-600 dark:text-green-400 whitespace-nowrap">
+          {{ t('reading.rsshubUrlEnabled') }}
+        </span>
+      </div>
+
       <!-- Tab Bar -->
       <div class="flex items-center justify-center border-b px-4">
         <button

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ImageServiceOption, ServiceOption } from '@md/shared/types'
 import { Check, ChevronDown, Info, Loader2, RefreshCw, X } from '@lucide/vue'
-import { DEFAULT_SERVICE_TYPE } from '@md/shared/constants'
 import {
   AccordionContent,
   AccordionHeader,
@@ -21,6 +20,33 @@ const { t } = useI18n()
 
 const { fetchJSON } = useAIFetch()
 const localizedAIServices = useLocalizedAIServiceOptions()
+
+// ==================== 供应商级 API Key ====================
+
+const allProviders = computed(() => {
+  const seen = new Set<string>()
+  const result: { value: string, label: string }[] = []
+  const all = [...localizedAIServices.value.serviceOptions, ...localizedAIServices.value.imageServiceOptions]
+  for (const svc of all) {
+    if (svc.value !== `default` && svc.value !== `custom` && !seen.has(svc.value)) {
+      seen.add(svc.value)
+      result.push({ value: svc.value, label: svc.label })
+    }
+  }
+  return result
+})
+
+const providerKeys = ref<Record<string, string>>({})
+
+onMounted(async () => {
+  for (const p of allProviders.value) {
+    providerKeys.value[p.value] = await aiConfig.loadProviderKey(p.value)
+  }
+})
+
+async function onProviderKeyChange(provider: string, key: string) {
+  await aiConfig.saveProviderKey(provider, key)
+}
 
 // 每个模型独立的测试状态
 const textTesting = ref(false)
@@ -162,6 +188,27 @@ defineExpose({
 
 <template>
   <div class="custom-scroll flex-1 text-xs sm:text-sm">
+    <!-- ========== 供应商 API Key ========== -->
+    <div class="mb-4 rounded-lg border">
+      <div class="px-3 py-2.5 text-sm font-semibold">
+        🔑 {{ t('ai.config.providerKeys') }}
+      </div>
+      <div class="space-y-2 px-3 pb-3">
+        <p class="text-xs text-muted-foreground">
+          {{ t('ai.config.providerKeysHint') }}
+        </p>
+        <div v-for="p in allProviders" :key="p.value" class="flex items-center gap-2">
+          <Label class="w-24 shrink-0 text-xs">{{ p.label }}</Label>
+          <PasswordInput
+            :model-value="providerKeys[p.value]"
+            placeholder="sk-..."
+            class="flex-1"
+            @update:model-value="onProviderKeyChange(p.value, $event as string)"
+          />
+        </div>
+      </div>
+    </div>
+
     <AccordionRoot
       type="single"
       collapsible
@@ -203,16 +250,6 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div v-if="aiConfig.textType !== DEFAULT_SERVICE_TYPE">
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiEndpoint') }}</Label>
-              <Input v-model="aiConfig.textEndpoint" :placeholder="t('ai.config.apiEndpointPlaceholder')" />
-            </div>
-
-            <div v-if="aiConfig.textType !== DEFAULT_SERVICE_TYPE">
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiKey') }}</Label>
-              <PasswordInput v-model="aiConfig.textApiKey" placeholder="sk-..." />
             </div>
 
             <div>
@@ -306,16 +343,6 @@ defineExpose({
               </Select>
             </div>
 
-            <div v-if="aiConfig.visionType !== DEFAULT_SERVICE_TYPE">
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiEndpoint') }}</Label>
-              <Input v-model="aiConfig.visionEndpoint" :placeholder="t('ai.config.apiEndpointPlaceholder')" />
-            </div>
-
-            <div v-if="aiConfig.visionType !== DEFAULT_SERVICE_TYPE">
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiKey') }}</Label>
-              <PasswordInput v-model="aiConfig.visionApiKey" placeholder="sk-..." />
-            </div>
-
             <div>
               <div class="mb-1 flex items-center justify-between">
                 <Label class="text-sm font-medium">{{ t('ai.config.modelName') }}</Label>
@@ -382,16 +409,6 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div v-if="aiConfig.imageType !== DEFAULT_SERVICE_TYPE">
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiEndpoint') }}</Label>
-              <Input v-model="aiConfig.imageEndpoint" :placeholder="t('ai.config.apiEndpointPlaceholder')" />
-            </div>
-
-            <div v-if="aiConfig.imageType !== DEFAULT_SERVICE_TYPE">
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.apiKey') }}</Label>
-              <PasswordInput v-model="aiConfig.imageApiKey" placeholder="sk-..." />
             </div>
 
             <div>

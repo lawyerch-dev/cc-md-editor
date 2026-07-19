@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     server: {
+      port: 5180,
       proxy: {
         '/.netlify/functions': {
           target: 'http://localhost:9999',

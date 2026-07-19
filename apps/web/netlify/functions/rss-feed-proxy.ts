@@ -291,6 +291,68 @@ function getRandomUA(): string {
   return FETCH_USER_AGENTS[Math.floor(Math.random() * FETCH_USER_AGENTS.length)]
 }
 
+const MAX_RETRIES = 2
+const BASE_DELAY_MS = 600
+
+/**
+ * Sleep helper — no `new Promise` executor form per project convention.
+ */
+function sleep(ms: number): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>()
+  setTimeout(resolve, ms)
+  return promise
+}
+
+/** 是否属于"值得重试"的瞬断错误 */
+function isRetryableError(err: unknown): boolean {
+  if (!(err instanceof Error))
+    return false
+  const msg = err.message
+  return msg.includes('Client network socket')
+    || msg.includes('ECONNRESET')
+    || msg.includes('ENETUNREACH')
+    || msg.includes('socket hang up')
+    || msg.includes('network')
+    || msg.includes('TLS')
+    || msg.includes('econnrefused')
+    || msg.includes('etimedout')
+    || err.name === 'TimeoutError'
+}
+
+/**
+ * Retry-able fetch for RSS feeds.
+ * Transient and timeout errors get an exponential-backoff retry.
+ */
+async function fetchFeed(url: string): Promise<Response> {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(10_000),
+        headers: {
+          'User-Agent': getRandomUA(),
+          'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, text/html, */*',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        },
+        redirect: 'follow',
+      })
+      // 非 5xx 直接返回（4xx 是客户端问题，重试无意义）
+      if (res.status < 500)
+        return res
+      // 5xx：还有重试次数就等一等
+      if (attempt < MAX_RETRIES)
+        await sleep(BASE_DELAY_MS * attempt + Math.random() * 400)
+    }
+    catch (err) {
+      // 非重试性错误或已达最大次数 → 抛出去
+      if (attempt >= MAX_RETRIES || !isRetryableError(err))
+        throw err
+      await sleep(BASE_DELAY_MS * attempt + Math.random() * 400)
+    }
+  }
+  // 全部重试用完，最后一次 fetch 的结果（走到这里说明所有重试都 5xx）
+  throw new Error('上游服务器持续返回 5xx')
+}
+
 // ── Handler ────────────────────────────────────────────
 
 export default async (req: Request, _context: Context) => {
@@ -311,15 +373,7 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(10_000),
-      headers: {
-        'User-Agent': getRandomUA(),
-        'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, text/html, */*',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-      },
-      redirect: 'follow',
-    })
+    const res = await fetchFeed(url)
 
     if (!res.ok) {
       return Response.json(

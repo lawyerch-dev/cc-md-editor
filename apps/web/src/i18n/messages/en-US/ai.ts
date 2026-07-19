@@ -180,6 +180,8 @@ export default {
   },
   config: {
     title: `AI Settings`,
+    providerKeys: `Provider API Keys`,
+    providerKeysHint: `Set once, shared across text, vision, and image models for the same provider.`,
     serviceType: `Service type`,
     apiEndpoint: `API endpoint`,
     apiEndpointPlaceholder: `Enter API endpoint URL`,

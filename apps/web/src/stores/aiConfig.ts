@@ -12,7 +12,7 @@ import { store } from '@/storage'
  * 各模型在硅基流动 (SiliconFlow) 上的默认模型。
  * 仅作为「首次配置」时的初始选择；用户切换供应商或模型后会被持久化值覆盖。
  */
-const SILICONFLOW_DEFAULT_TEXT_MODEL = `deepseek-ai/DeepSeek-V4-Flash`
+const SILICONFLOW_DEFAULT_TEXT_MODEL = `deepseek-ai/DeepSeek-V3.2`
 const SILICONFLOW_DEFAULT_VISION_MODEL = `Qwen/Qwen3-VL-32B-Instruct`
 const SILICONFLOW_DEFAULT_IMAGE_MODEL = `Qwen/Qwen-Image`
 const SILICONFLOW_TYPE = `siliconflow`
@@ -42,6 +42,15 @@ export const useAIConfigStore = defineStore(`AIConfig`, () => {
   const imageModel = ref<string>(``)
   const imageApiKey = ref<string>(DEFAULT_SERVICE_KEY)
 
+  // ==================== 供应商级 API Key ====================
+  async function loadProviderKey(provider: string): Promise<string> {
+    return await store.get(`ai_provider_key_${provider}`) || ``
+  }
+
+  async function saveProviderKey(provider: string, key: string) {
+    await store.set(`ai_provider_key_${provider}`, key)
+  }
+
   // ==================== 通用初始化逻辑 ====================
   type ServiceOptionLike = ServiceOption | ImageServiceOption
 
@@ -54,12 +63,13 @@ export const useAIConfigStore = defineStore(`AIConfig`, () => {
     prefix: string,
     defaultModel?: string,
   ) {
-    // 异步加载 API Key
+    // 异步加载 API Key（优先供应商级，回退到类型级）
     Promise.resolve().then(async () => {
       const capturedType = typeRef.value
-      const value = await store.get(`${prefix}_key_${capturedType}`)
+      const providerKey = await loadProviderKey(capturedType)
+      const typeKey = await store.get(`${prefix}_key_${capturedType}`)
       if (typeRef.value === capturedType)
-        apiKeyRef.value = value || DEFAULT_SERVICE_KEY
+        apiKeyRef.value = providerKey || typeKey || DEFAULT_SERVICE_KEY
     })
 
     watch(typeRef, async (newType: string) => {
@@ -73,8 +83,10 @@ export const useAIConfigStore = defineStore(`AIConfig`, () => {
       modelRef.value = svc.models.includes(saved) ? saved : preferred
       await store.set(`${prefix}_model_${newType}`, modelRef.value)
 
-      const keyValue = await store.get(`${prefix}_key_${newType}`)
-      apiKeyRef.value = keyValue || DEFAULT_SERVICE_KEY
+      // 优先供应商级密钥，回退到类型级
+      const providerKey = await loadProviderKey(newType)
+      const typeKey = await store.get(`${prefix}_key_${newType}`)
+      apiKeyRef.value = providerKey || typeKey || DEFAULT_SERVICE_KEY
     }, { immediate: true })
 
     watch(apiKeyRef, async (val: string) => {
@@ -99,6 +111,14 @@ export const useAIConfigStore = defineStore(`AIConfig`, () => {
 
   // ==================== Actions ====================
   const reset = async () => {
+    // 清理供应商级密钥
+    const allProviders = new Set([
+      ...serviceOptions.map(s => s.value),
+      ...imageServiceOptions.map(s => s.value),
+    ])
+    for (const provider of allProviders) {
+      await store.remove(`ai_provider_key_${provider}`)
+    }
     // 清理文本和视觉模型的服务数据
     for (const prefix of [`ai_text`, `ai_vision`]) {
       for (const svc of serviceOptions) {
@@ -142,6 +162,10 @@ export const useAIConfigStore = defineStore(`AIConfig`, () => {
     imageEndpoint,
     imageModel,
     imageApiKey,
+
+    // 供应商级 API Key
+    loadProviderKey,
+    saveProviderKey,
 
     // Actions
     reset,

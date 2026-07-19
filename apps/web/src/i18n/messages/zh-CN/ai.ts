@@ -180,6 +180,8 @@ export default {
   },
   config: {
     title: `AI 配置`,
+    providerKeys: `供应商 API 密钥`,
+    providerKeysHint: `配置一次，同供应商的文本、视觉、图片模型共用。`,
     serviceType: `服务类型`,
     apiEndpoint: `API 端点`,
     apiEndpointPlaceholder: `输入 API 端点 URL`,

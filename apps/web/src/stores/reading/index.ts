@@ -1,8 +1,8 @@
 import type { Article, ReadingList, Source } from './types'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { store } from '@/storage'
-import { detectFeedViewType, discoverRSSHubRoutes, fetchFullText, fetchPageHTML, fetchSourceArticles, previewSelectors, probeRSS } from './fetch-strategies'
+import { detectFeedViewType, discoverRSSHubRoutes, fetchFullText, fetchPageHTML, fetchSourceArticles, previewSelectors, probeRSS, setRsshubBaseUrl } from './fetch-strategies'
 import { clearAll as clearAllIDB } from './indexeddb-persistence'
 import {
   loadArticles,
@@ -42,6 +42,8 @@ export const useReadingStore = defineStore('reading', () => {
   const activeArticleId = ref<string | null>(null)
   const pictureLayout = store.reactive<'masonry' | 'grid'>(READING_PICTURE_LAYOUT_KEY, 'masonry')
   const pictureImageOnly = store.reactive<boolean>(READING_PICTURE_IMAGE_ONLY_KEY, false)
+  const rsshubBaseUrl = store.reactive<string>('reading_rsshub_url', '')
+  watch(rsshubBaseUrl, v => setRsshubBaseUrl(v), { immediate: true })
   const searchQuery = ref('')
   const fetchingSourceIds = ref<Record<string, boolean>>({})
   const lastFetchMap = ref<Record<string, number>>({})
@@ -636,6 +638,7 @@ export const useReadingStore = defineStore('reading', () => {
     activeArticleId,
     pictureLayout,
     pictureImageOnly,
+    rsshubBaseUrl,
     searchQuery,
     fetchingSourceIds,
     hydrated,

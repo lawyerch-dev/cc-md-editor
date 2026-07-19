@@ -31,11 +31,12 @@ const showChangelog = ref(false)
 
       <!-- 主题切换 -->
       <button
-        class="flex h-9 w-9 items-center justify-center rounded-lg border bg-card shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+        class="flex h-9 items-center gap-1.5 rounded-lg border bg-card px-2.5 text-xs text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
         @click="uiStore.toggleDark()"
       >
         <Sun v-if="uiStore.isDark" class="h-4 w-4" />
         <Moon v-else class="h-4 w-4" />
+        {{ uiStore.isDark ? t('common.lightMode') : t('common.darkMode') }}
       </button>
 
       <!-- AI 设置 -->
@@ -138,7 +139,7 @@ const showChangelog = ref(false)
     <ChangelogDialog :open="showChangelog" @close="showChangelog = false" />
 
     <!-- AI 配置对话框 -->
-    <div v-if="showAIConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showAIConfig = false">
+    <div v-if="showAIConfig" class="ai-config-dialog fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showAIConfig = false">
       <div class="flex h-[80vh] w-[620px] max-w-[95vw] flex-col rounded-xl border bg-background shadow-2xl overflow-hidden">
         <div class="flex items-center justify-between border-b px-4 py-3 shrink-0">
           <span class="text-sm font-semibold">AI 设置</span>
@@ -146,10 +147,51 @@ const showChangelog = ref(false)
             <X class="h-4 w-4" />
           </Button>
         </div>
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-y-auto p-5">
           <AIConfig />
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+@reference 'tailwindcss';
+
+.ai-config-dialog :deep(.custom-scroll) {
+  font-size: 10px;
+}
+@media (min-width: 640px) {
+  .ai-config-dialog :deep(.custom-scroll) {
+    font-size: 12px;
+  }
+}
+
+.ai-config-dialog :deep([data-radix-collection-item]) {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  font-size: 12px;
+}
+
+.ai-config-dialog :deep([data-state='open']),
+.ai-config-dialog :deep([data-state='closed']) {
+  font-size: 12px;
+}
+
+.ai-config-dialog :deep(label) {
+  font-size: 10px;
+}
+
+.ai-config-dialog :deep(.space-y-3) {
+  row-gap: 0.375rem;
+}
+
+.ai-config-dialog :deep(.space-y-3 > div) {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: 0.75rem;
+  padding-top: 0.375rem;
+}
+</style>

@@ -1,5 +1,44 @@
 import type { Context } from '@netlify/functions'
 
+const MAX_RETRIES = 2
+const BASE_DELAY_MS = 500
+
+/**
+ * Sleep helper — no `new Promise` executor form per project convention.
+ */
+function sleep(ms: number): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>()
+  setTimeout(resolve, ms)
+  return promise
+}
+
+/**
+ * Retry-able fetch against Folo API.
+ * TLS/connection errors get an exponential-backoff retry.
+ */
+async function fetchWithRetry(url: string, init: RequestInit, attempt = 1): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(12_000) })
+  }
+  catch (err) {
+    const isTlsError
+      = err instanceof Error
+        && (err.message.includes('Client network socket')
+          || err.message.includes('TLS')
+          || err.message.includes('ECONNRESET')
+          || err.message.includes('ENETUNREACH')
+          || err.message.includes('socket hang up')
+          || err.message.includes('network'))
+
+    // Non-retryable / last attempt → rethrow
+    if (attempt >= MAX_RETRIES || !isTlsError)
+      throw err
+
+    await sleep(BASE_DELAY_MS * attempt)
+    return fetchWithRetry(url, init, attempt + 1)
+  }
+}
+
 /**
  * Proxy requests to Folo API (api.folo.is)
  * Avoids CORS issues when calling from the browser
@@ -37,7 +76,6 @@ export default async (req: Request, _context: Context) => {
   try {
     const fetchInit: RequestInit = {
       method,
-      signal: AbortSignal.timeout(15_000),
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         'Accept': 'application/json',
@@ -52,7 +90,7 @@ export default async (req: Request, _context: Context) => {
       fetchInit.body = JSON.stringify(body)
     }
 
-    const res = await fetch(apiUrl, fetchInit)
+    const res = await fetchWithRetry(apiUrl, fetchInit)
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '')
@@ -67,7 +105,7 @@ export default async (req: Request, _context: Context) => {
   }
   catch (err) {
     const message = err instanceof Error && err.name === 'TimeoutError'
-      ? 'Folo API timed out (15s)'
+      ? 'Folo API timed out'
       : String(err)
     return Response.json({ ok: false, error: message }, { status: 502 })
   }

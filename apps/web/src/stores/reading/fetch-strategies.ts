@@ -13,6 +13,20 @@ function hashContent(s: string): string {
   return `h${(h >>> 0).toString(36)}`
 }
 
+// ── RSSHub 配置 ────────────────────────────────────
+
+let _rsshubBaseUrl = ''
+
+/** 设置自建 RSSHub 地址（有值时跳过 Folo API，直接走 RSSHub） */
+export function setRsshubBaseUrl(url: string) {
+  _rsshubBaseUrl = url.replace(/\/+$/, '')
+}
+
+/** 获取 RSSHub 地址 */
+export function getRsshubBaseUrl(): string {
+  return _rsshubBaseUrl
+}
+
 // ── 服务端代理（Netlify Function，类似 Folo 的 api.folo.is）──────────
 
 /**
@@ -369,9 +383,19 @@ async function fetchFeed(url: string): Promise<{ title: string, items: FeedItem[
 
 /** 探测 URL 是否为 RSS 源 */
 export async function probeRSS(url: string): Promise<{ isRSS: boolean, title?: string, itemCount?: number, view?: number }> {
-  // rsshub:// 协议 → 通过 Folo API 探测
-  if (url.startsWith('rsshub://'))
+  // rsshub:// 协议 → 自建 RSSHub 时直接探测，否则走 Folo API
+  if (url.startsWith('rsshub://')) {
+    if (_rsshubBaseUrl) {
+      const fetchUrl = `${_rsshubBaseUrl}/${url.slice('rsshub://'.length)}`
+      try {
+        const result = await fetchFeedViaProxy(fetchUrl)
+        if (result.articles.length > 0)
+          return { isRSS: true, title: result.feedTitle, itemCount: result.articles.length }
+      }
+      catch { /* 降级到 Folo */ }
+    }
     return probeFoloRSSHub(url)
+  }
 
   // 优先走服务端 RSS 代理（无 CORS 限制，支持编码检测）
   try {
@@ -531,9 +555,10 @@ async function fetchRSSSource(source: Source): Promise<Article[]> {
   let items: ProxyArticle[] = []
   let srcTitle = source.title
 
-  // 如果配置了 RSSHub 路由路径，优先使用 RSSHub（社区维护，更稳定）
+  // 如果配置了 RSSHub 路由路径，优先使用 RSSHub
+  const rsshubBase = _rsshubBaseUrl || 'https://rsshub.app'
   const fetchUrl = source.rsshubPath
-    ? `https://rsshub.app${source.rsshubPath.startsWith('/') ? '' : '/'}${source.rsshubPath}`
+    ? rsshubBase + (source.rsshubPath.startsWith('/') ? '' : '/') + source.rsshubPath
     : source.url
 
   try {
@@ -606,25 +631,39 @@ const FOLO_VIEW_MAP: Record<number, FeedViewType> = {
   4: 3, // Audios
 }
 
-/** 通过 Folo API 获取 rsshub:// 源的文章 */
+/** 获取 rsshub:// 源的文章 */
 async function fetchFoloSource(source: Source): Promise<Article[]> {
+  // 自建 RSSHub：转换 rsshub:// 为直连 URL，走现有 RSS 代理
+  if (_rsshubBaseUrl) {
+    const rsshubUrl = source.url.startsWith('rsshub://')
+      ? `${_rsshubBaseUrl}/${source.url.slice('rsshub://'.length)}`
+      : source.url
+    const result = await fetchFeedViaProxy(rsshubUrl)
+    return result.articles.map(a => ({
+      ...a,
+      id: `art-${source.id}-${a.id.replace(/^proxy-/, '').slice(0, 40)}`,
+      sourceId: source.id,
+      sourceTitle: source.title,
+      read: false,
+      starred: false,
+      attachments: [],
+    }))
+  }
+
+  // 原有 Folo API 流
   let articles: Article[]
-  // 已有 feedId：优先调 entries API（POST）
   if (source.foloFeedId) {
     try {
       articles = await fetchFoloEntries(source.foloFeedId)
     }
     catch {
-      // POST 失败（CORS 代理不支持 POST）→ 降级为 GET /feeds
       const result = await fetchFoloFeed(source.url)
       articles = result.articles
     }
   }
   else {
-    // 首次获取：用 rsshub:// URL 调 feeds API（GET）
     const result = await fetchFoloFeed(source.url)
     articles = result.articles
-    // 缓存 feedId 和视图类型
     const feedId = result.feed.id
     const foloView = result.foloView
     const mappedView = foloView != null ? (FOLO_VIEW_MAP[foloView] ?? 0) : undefined
@@ -632,7 +671,6 @@ async function fetchFoloSource(source: Source): Promise<Article[]> {
       window.dispatchEvent(new CustomEvent('folo-feed-id', { detail: { sourceId: source.id, feedId, view: mappedView } }))
     }
   }
-  // 统一 sourceId 为 store 中的源 ID
   return articles.map(a => ({ ...a, sourceId: source.id, sourceTitle: source.title }))
 }
 
@@ -897,7 +935,7 @@ async function fetchFoloJSON<T>(url: string, init?: RequestInit): Promise<T> {
       const proxyUrl = `/api/folo${foloPath}`
       const res = await window.fetch(proxyUrl, {
         ...init,
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(6_000),
       })
       if (res.ok)
         return await res.json() as T
@@ -915,7 +953,7 @@ async function fetchFoloJSON<T>(url: string, init?: RequestInit): Promise<T> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: foloPath, method, body }),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(8_000),
       })
       if (res.ok) {
         const data = await res.json()
@@ -937,7 +975,7 @@ async function fetchFoloJSON<T>(url: string, init?: RequestInit): Promise<T> {
     for (const proxy of proxies) {
       try {
         const proxyUrl = proxy.build(url)
-        const res = await window.fetch(proxyUrl, { signal: AbortSignal.timeout(10_000) })
+        const res = await window.fetch(proxyUrl, { signal: AbortSignal.timeout(5_000) })
         if (res.ok)
           return await res.json() as T
       }
@@ -960,8 +998,20 @@ async function fetchFoloJSON<T>(url: string, init?: RequestInit): Promise<T> {
   throw new Error(`Folo API 请求失败: ${lastErrors.join('; ')}`)
 }
 
-/** 探测 rsshub:// 源是否可用（通过 Folo API） */
+/** 探测 rsshub:// 源是否可用 */
 export async function probeFoloRSSHub(rsshubUrl: string): Promise<{ isRSS: boolean, title?: string, itemCount?: number, feedId?: string, view?: number }> {
+  // 自建 RSSHub：直接探测
+  if (_rsshubBaseUrl) {
+    const fetchUrl = `${_rsshubBaseUrl}/${rsshubUrl.slice('rsshub://'.length)}`
+    try {
+      const result = await fetchFeedViaProxy(fetchUrl)
+      if (result.articles.length > 0)
+        return { isRSS: true, title: result.feedTitle, itemCount: result.articles.length }
+    }
+    catch { /* 降级到 Folo */ }
+  }
+
+  // 走 Folo API
   try {
     const { feed, articles, foloView } = await fetchFoloFeed(rsshubUrl)
     const mappedView = foloView != null ? (FOLO_VIEW_MAP[foloView] ?? 0) : undefined

@@ -6,7 +6,8 @@ functions = "apps/web/netlify/functions"
 [dev]
 command = "pnpm web dev"
 framework = "vite"
-targetPort = 5173
+port = 8890
+targetPort = 5180
 publish = "dist"
 
 # 分享页面路由 → Netlify Function
