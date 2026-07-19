@@ -1,3 +1,4 @@
+// @workspace editor
 import type { Text } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import type { MaybeRefOrGetter, Ref } from 'vue'

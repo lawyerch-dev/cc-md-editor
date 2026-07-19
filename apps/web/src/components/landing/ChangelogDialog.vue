@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import { X } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'

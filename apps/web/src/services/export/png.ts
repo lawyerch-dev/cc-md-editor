@@ -1,3 +1,4 @@
+// @workspace editor
 import { sanitizeTitle } from '@md/shared/utils/basicHelpers'
 import { downloadFile } from '@md/shared/utils/fileHelpers'
 import { toPng } from 'html-to-image'

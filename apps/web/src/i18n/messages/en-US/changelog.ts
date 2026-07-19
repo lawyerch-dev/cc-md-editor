@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   'changelog.title': 'Changelog',
   'changelog.button': 'Changelog',

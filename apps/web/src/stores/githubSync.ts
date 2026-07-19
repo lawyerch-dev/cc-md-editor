@@ -1,3 +1,4 @@
+// @workspace shared
 import type { Article, Source } from '@/stores/reading/types'
 import type { Post } from '@/types/post'
 import { watch } from 'vue'

@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { createTable } from '@md/shared/utils/fileHelpers'
 import { useEditorStore } from '@/stores/editor'

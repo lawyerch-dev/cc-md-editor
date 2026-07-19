@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { Template } from '@md/shared'
 import { Calendar, Clock, FileDown, FileInput, FileText, Package, Pencil, Plus, Search, Trash2 } from '@lucide/vue'

@@ -1,3 +1,4 @@
+// @workspace shared
 // @vitest-environment jsdom
 import { MD_DIAGRAM_STATE, MD_DIAGRAM_STATE_ATTR } from '@md/core'
 import { describe, expect, it } from 'vitest'

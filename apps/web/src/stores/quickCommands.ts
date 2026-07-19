@@ -1,3 +1,4 @@
+// @workspace shared
 import { v4 as uuidv4 } from 'uuid'
 import { ref, watch } from 'vue'
 import { t } from '@/i18n/translate'

@@ -1,3 +1,4 @@
+// @workspace shared
 import type { PerThemeSettings, PerThemeSettingsMap, ThemeName } from '@md/shared/configs'
 
 import type { IndexedDBEngine } from '@/storage/engines/indexed-db'

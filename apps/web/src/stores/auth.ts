@@ -1,3 +1,4 @@
+// @workspace shared
 import type { AccountUser } from '@/services/account/types'
 import { t } from '@/i18n/translate'
 import { ApiError, MdApiClient } from '@/services/account/client'

@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { FileText, Globe, Loader2, Upload } from '@lucide/vue'
 import { usePostStore } from '@/stores/post'

@@ -1,3 +1,4 @@
+// @workspace shared
 import { defineContentScript, injectScript } from '#imports'
 
 export default defineContentScript({

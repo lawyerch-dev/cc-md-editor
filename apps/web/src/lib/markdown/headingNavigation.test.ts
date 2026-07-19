@@ -1,3 +1,4 @@
+// @workspace shared
 import type { MarkdownHeading } from './headings'
 import { describe, expect, it } from 'vitest'
 import {

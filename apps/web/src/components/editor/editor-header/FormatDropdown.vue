@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { EditorView } from '@codemirror/view'
 import type { Format } from 'vue-pick-colors'

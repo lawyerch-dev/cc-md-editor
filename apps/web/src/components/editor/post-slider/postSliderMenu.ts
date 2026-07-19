@@ -1,3 +1,4 @@
+// @workspace shared
 import type { InjectionKey, Ref } from 'vue'
 
 export type PostSliderMenuKey = 'header' | string | null

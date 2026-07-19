@@ -1,3 +1,4 @@
+// @workspace shared
 import { storeToRefs } from 'pinia'
 import { store } from '@/storage/manager'
 import { addPrefix } from '@/storage/prefix'

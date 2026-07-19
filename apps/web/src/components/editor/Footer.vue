@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { MarkdownHeading } from '@/lib/markdown/headings'
 import { StateEffect } from '@codemirror/state'

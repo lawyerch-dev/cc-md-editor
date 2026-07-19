@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { Post, PostItemProps } from '@/types/post'
 import {

@@ -1,3 +1,4 @@
+// @workspace shared
 import type { AppLocale } from '@/i18n/types'
 import { LOCALE_STORAGE_KEY } from '@/i18n/constants'
 import { detectInitialLocale } from '@/i18n/detect'

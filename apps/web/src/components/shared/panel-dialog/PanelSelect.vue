@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 import { ChevronDown } from '@lucide/vue'

@@ -1,3 +1,4 @@
+// @workspace shared
 import { MAX_AI_IMAGE_ENTRIES, MAX_IMAGE_MAP_ENTRIES } from '@/storage/keys'
 
 /** 裁剪 JSON 对象 map，保留最近 maxEntries 条 */

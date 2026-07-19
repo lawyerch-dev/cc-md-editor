@@ -1,3 +1,4 @@
+// @workspace shared
 import type { StoredDocument } from '@/storage/db'
 import type { Post } from '@/types/post'
 import { getDatabase } from '@/storage/db'

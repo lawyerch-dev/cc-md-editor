@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   title: `本地上传`,
   selectUpload: `选择上传`,

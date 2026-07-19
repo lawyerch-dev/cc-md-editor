@@ -1,3 +1,4 @@
+// @workspace shared
 export interface ChangelogVersion {
   version: string
   date: string

@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { MpAccount } from '@/stores/mpAccounts'
 import { toTypedSchema } from '@vee-validate/yup'

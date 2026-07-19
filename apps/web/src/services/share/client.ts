@@ -1,3 +1,4 @@
+// @workspace editor
 import type { CreateShareRequest, CreateShareResponse, ListSharesResponse, ShareListItem } from './types'
 import type { AccountUser } from '@/services/account/types'
 import { ApiError, MdApiClient } from '@/services/account/client'

@@ -1,3 +1,4 @@
+// @workspace editor
 export { processClipboardContent, solveWeChatImage } from './clipboard'
 export { exportHTML, exportPureHTML, generatePureHTML } from './html'
 export { getHtmlContent } from './html-content'

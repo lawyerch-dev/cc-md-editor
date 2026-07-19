@@ -1,3 +1,4 @@
+// @workspace shared
 import { defineStore } from 'pinia'
 import { t } from '@/i18n/translate'
 

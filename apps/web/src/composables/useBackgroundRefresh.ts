@@ -1,7 +1,8 @@
+// @workspace reading
 import type { Runtime } from 'wxt/browser'
+import { onMounted, onUnmounted } from 'vue'
 import { browser } from '#imports'
 import { useReadingStore } from '@/stores/reading'
-import { onMounted, onUnmounted } from 'vue'
 
 interface RefreshFeedsMessage {
   type: `refresh-feeds`

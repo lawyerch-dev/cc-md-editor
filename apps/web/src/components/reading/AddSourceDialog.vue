@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { CollectorSelectors, FeedViewType, FetchStrategy, Source } from '@/stores/reading'
 import { Loader2, Plus, Search, Settings2, X } from '@lucide/vue'

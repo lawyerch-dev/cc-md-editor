@@ -1,3 +1,4 @@
+// @workspace editor
 export interface ShareHtmlSnapshot {
   bodyHtml: string
   stylesHtml: string

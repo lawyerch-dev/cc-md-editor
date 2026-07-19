@@ -1,3 +1,4 @@
+// @workspace shared
 import type { EditorView } from '@codemirror/view'
 import { ctrlSign, shiftSign } from '@md/shared/configs'
 import { useEditorDocumentActions } from '@/composables/useEditorDocumentActions'

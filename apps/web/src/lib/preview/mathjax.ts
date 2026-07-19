@@ -1,3 +1,4 @@
+// @workspace shared
 export {
   contentHasMath,
   ensureMathJaxLoaded,

@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { Check, Copy, Expand, UploadCloud } from '@lucide/vue'
 import { downloadFile } from '@md/shared/utils/fileHelpers'

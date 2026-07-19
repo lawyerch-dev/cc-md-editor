@@ -1,3 +1,4 @@
+// @workspace editor
 import { hydratePendingInfographicDiagrams } from '@md/core/extensions'
 
 /** 获取 HTML 内容 */

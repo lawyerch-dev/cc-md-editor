@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import { ChevronDown, FileText, Home, Lightbulb, Newspaper } from '@lucide/vue'
 import { ref } from 'vue'

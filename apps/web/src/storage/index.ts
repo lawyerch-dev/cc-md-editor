@@ -1,3 +1,4 @@
+// @workspace shared
 import { getMeta, setMeta } from '@/storage/db'
 import { IndexedDBEngine } from '@/storage/engines/indexed-db'
 import { LOCALSTORAGE_CLEANED_KEY, MIGRATION_V1_KEY } from '@/storage/keys'

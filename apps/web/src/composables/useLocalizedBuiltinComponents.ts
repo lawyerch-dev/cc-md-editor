@@ -1,3 +1,4 @@
+// @workspace editor
 import type { CustomComponentDef } from '@md/shared'
 import type { AppLocale } from '@/i18n/types'
 import { BUILT_IN_COMPONENTS } from '@md/core/extensions'

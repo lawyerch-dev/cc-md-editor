@@ -1,3 +1,4 @@
+// @workspace shared
 import { t } from '@/i18n/translate'
 
 let lastQuotaWarnAt = 0

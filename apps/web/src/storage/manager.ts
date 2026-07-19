@@ -1,3 +1,4 @@
+// @workspace shared
 import type { Ref } from 'vue'
 import type { StorageEngine } from '@/storage/engine'
 import { customRef, ref, watch } from 'vue'

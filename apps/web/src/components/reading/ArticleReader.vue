@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { BookOpen, ExternalLink, Languages, MessageSquarePlus, Sparkles, Star, X } from '@lucide/vue'

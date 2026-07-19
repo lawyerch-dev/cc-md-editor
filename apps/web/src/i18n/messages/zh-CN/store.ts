@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   editor: {
     contentCleared: `内容已清空`,

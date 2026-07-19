@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { Heart } from '@lucide/vue'
 import { computed } from 'vue'

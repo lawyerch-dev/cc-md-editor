@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { Copy, FolderKanban, Loader2, Menu, Palette, Share2 } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'

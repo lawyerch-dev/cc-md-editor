@@ -1,3 +1,4 @@
+// @workspace editor
 /**
  * 导出 / 分享 / 独立预览的 shell 变量。
  * 这些变量原本由 Web App 的全局样式（index.css 的 :root）提供，主题 CSS 通过

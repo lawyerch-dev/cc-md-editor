@@ -1,3 +1,4 @@
+// @workspace shared
 import type { AccountUser } from './types'
 import { MD_API_URL } from './config'
 

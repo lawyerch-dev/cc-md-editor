@@ -1,3 +1,4 @@
+// @workspace shared
 // types/chrome.d.ts
 declare namespace chrome {
   namespace runtime {

@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { FetchStrategy, Source } from '@/stores/reading'
 import { AlertCircle, CheckCircle2, Loader2, RefreshCcw, Rss, Search, Settings2, Trash2, X } from '@lucide/vue'

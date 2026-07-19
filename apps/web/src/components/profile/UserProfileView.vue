@@ -1,3 +1,4 @@
+<!-- @workspace profile -->
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight, Check } from '@lucide/vue'
 import { ref } from 'vue'

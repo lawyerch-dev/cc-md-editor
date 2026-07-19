@@ -1,3 +1,4 @@
+// @workspace editor
 import type { S3ClientConfig } from '@aws-sdk/client-s3'
 import fetch from '@md/shared/utils/fetch'
 import * as tokenTools from '@md/shared/utils/tokenTools'

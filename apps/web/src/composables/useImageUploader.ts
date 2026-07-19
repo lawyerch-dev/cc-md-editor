@@ -1,3 +1,4 @@
+// @workspace editor
 import { toBase64 } from '@md/shared/utils/fileHelpers'
 import SparkMD5 from 'spark-md5'
 import { ref } from 'vue'

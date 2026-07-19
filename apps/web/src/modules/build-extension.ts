@@ -1,3 +1,4 @@
+// @workspace shared
 import type * as vite from 'vite'
 import type * as wxt from 'wxt'
 import { writeFile } from 'node:fs/promises'

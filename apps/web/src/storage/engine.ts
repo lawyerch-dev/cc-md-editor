@@ -1,3 +1,4 @@
+// @workspace shared
 /**
  * 存储引擎接口 - 完全异步化，支持同步读缓存（initStorage 预加载后）
  */

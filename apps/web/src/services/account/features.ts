@@ -1,3 +1,4 @@
+// @workspace shared
 import type { UserPlan } from './types'
 
 /** 暂时关闭 Pro 能力与升级入口 */

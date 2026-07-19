@@ -1,3 +1,4 @@
+<!-- @workspace ideaBoard -->
 <script setup lang="ts">
 import type { NoteColor, StickyNote } from '@/stores/ideaBoard'
 import { nextTick, ref } from 'vue'

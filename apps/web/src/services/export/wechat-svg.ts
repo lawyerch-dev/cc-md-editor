@@ -1,3 +1,4 @@
+// @workspace editor
 /** WeChat article content column width (px). */
 export const WECHAT_MAX_WIDTH_PX = 677
 export const WECHAT_SVG_MAX_WIDTH = `${WECHAT_MAX_WIDTH_PX}px`

@@ -1,3 +1,4 @@
+// @workspace shared
 import { store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
 import { OAUTH_TOKEN_HASH_KEY } from './config'

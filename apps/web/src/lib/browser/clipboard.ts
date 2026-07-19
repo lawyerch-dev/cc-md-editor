@@ -1,3 +1,4 @@
+// @workspace shared
 import { t } from '@/i18n/translate'
 
 function legacyCopy(text: string): Promise<void> {

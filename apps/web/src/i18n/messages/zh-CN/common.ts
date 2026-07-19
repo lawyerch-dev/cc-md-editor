@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   locale: {
     label: `语言`,

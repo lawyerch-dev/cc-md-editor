@@ -1,3 +1,4 @@
+// @workspace shared
 import type { EditorView } from '@codemirror/view'
 import type { MarkdownHeading } from './headings'
 import { extractMarkdownHeadings } from './headings'

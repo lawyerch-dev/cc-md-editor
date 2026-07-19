@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { ThemeName } from '@md/shared/configs'
 import { Check, CheckSquare, Download, Edit3, Ellipsis, Eye, Plus, X } from '@lucide/vue'

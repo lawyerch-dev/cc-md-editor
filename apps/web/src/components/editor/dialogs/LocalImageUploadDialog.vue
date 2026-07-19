@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { Check, FileImage, FolderOpen, Loader2, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'

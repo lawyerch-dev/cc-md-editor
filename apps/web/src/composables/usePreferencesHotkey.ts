@@ -1,3 +1,4 @@
+// @workspace shared
 import { useUIStore } from '@/stores/ui'
 
 /** 注册偏好设置全局快捷键 Mod+, */

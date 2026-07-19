@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import LandingPage from '@/components/LandingPage.vue'

@@ -1,3 +1,4 @@
+// @workspace reading
 import type { CollectorSelectors } from '@/stores/reading'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/composables/useAIFetch'
 import { useAIConfigStore } from '@/stores/aiConfig'

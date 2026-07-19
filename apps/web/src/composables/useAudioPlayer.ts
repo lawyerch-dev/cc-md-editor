@@ -1,3 +1,4 @@
+// @workspace reading
 /**
  * 全局音频播放器单例 — 类似 Folo 的 AudioPlayer atom。
  * 所有组件共享同一个 <audio> 实例，避免重复创建。

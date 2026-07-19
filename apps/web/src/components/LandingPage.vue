@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import { FileText, Globe, Lightbulb, Moon, Newspaper, ScrollText, Settings, Sun, User, X } from '@lucide/vue'
 import { defineAsyncComponent, ref } from 'vue'

@@ -1,3 +1,4 @@
+// @workspace editor
 export function useDeepLinkImport() {
   const uiStore = useUIStore()
 

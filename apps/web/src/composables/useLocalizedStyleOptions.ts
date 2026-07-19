@@ -1,3 +1,4 @@
+// @workspace editor
 import type { ThemeName } from '@md/shared/configs'
 import type { IConfigOption } from '@md/shared/types'
 import {

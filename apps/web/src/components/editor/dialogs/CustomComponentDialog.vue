@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { ComponentPropDef, ComponentPropType, CustomComponentDef } from '@md/shared'
 import type { MpAccount } from '@/stores/mpAccounts'

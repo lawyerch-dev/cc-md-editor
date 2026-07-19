@@ -1,3 +1,4 @@
+// @workspace reading
 import type { IDBPDatabase } from 'idb'
 import type { Article, ReadingList, Source } from './types'
 import { openDB as idbOpen } from 'idb'

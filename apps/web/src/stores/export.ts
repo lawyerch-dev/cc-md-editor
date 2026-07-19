@@ -1,3 +1,4 @@
+// @workspace editor
 import {
   downloadMD,
   exportHTML,

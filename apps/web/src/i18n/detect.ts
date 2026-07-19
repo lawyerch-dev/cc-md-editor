@@ -1,3 +1,4 @@
+// @workspace shared
 import type { AppLocale } from './types'
 import { store } from '@/storage'
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, SUPPORTED_LOCALES } from './constants'

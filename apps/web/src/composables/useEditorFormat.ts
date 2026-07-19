@@ -1,3 +1,4 @@
+// @workspace editor
 import type { EditorView } from '@codemirror/view'
 import { ctrlKey } from '@md/shared/configs'
 import {

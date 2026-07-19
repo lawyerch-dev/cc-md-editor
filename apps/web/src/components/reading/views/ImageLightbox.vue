@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, ExternalLink, X, ZoomIn, ZoomOut } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'

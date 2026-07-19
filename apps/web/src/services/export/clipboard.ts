@@ -1,3 +1,4 @@
+// @workspace editor
 import { stripUnresolvedAsyncPlaceholders, waitForPreviewReady } from '@/lib/preview/preview-ready'
 import { useEditorStore } from '@/stores/editor'
 import { useRenderStore } from '@/stores/render'

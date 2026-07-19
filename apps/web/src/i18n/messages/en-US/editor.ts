@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   codemirror: {
     contentPlaceholder: `Type "/" to insert quickly`,

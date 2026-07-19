@@ -1,3 +1,4 @@
+// @workspace shared
 import type { ImageServiceOption, ModelFetcher, ServiceOption } from '@md/shared/types'
 
 /**

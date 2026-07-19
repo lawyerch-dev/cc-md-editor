@@ -1,3 +1,4 @@
+// @workspace editor
 import type { CreateTemplateParams, Template, UpdateTemplateParams } from '@md/shared'
 import { v4 as uuidv4 } from 'uuid'
 import { t } from '@/i18n/translate'

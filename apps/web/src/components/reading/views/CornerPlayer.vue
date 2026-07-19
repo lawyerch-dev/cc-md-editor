@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import { Pause, Play, SkipBack, SkipForward, X } from '@lucide/vue'
 import { computed } from 'vue'

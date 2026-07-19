@@ -1,3 +1,4 @@
+// @workspace editor
 import type { EditorView as EditorViewType } from '@codemirror/view'
 import type { SlashCommandItem } from '@/composables/slashCommands'
 import { Prec } from '@codemirror/state'

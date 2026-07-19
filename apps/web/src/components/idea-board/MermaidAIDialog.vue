@@ -1,3 +1,4 @@
+<!-- @workspace ideaBoard -->
 <script setup lang="ts">
 import { Clock, RotateCcw, Settings, Sparkles, Trash2, Wand2, X } from '@lucide/vue'
 import mermaid from 'mermaid'

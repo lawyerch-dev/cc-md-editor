@@ -1,3 +1,4 @@
+// @workspace editor
 import type { Ref } from 'vue'
 
 const SCROLL_HINT_THRESHOLD = 8

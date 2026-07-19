@@ -1,3 +1,4 @@
+// @workspace reading
 /** 获取策略类型 */
 export type FetchStrategy = 'rss' | 'css-selector' | 'folo-rsshub'
 

@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import { Bot, Image as ImageIcon, Wand2 } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'

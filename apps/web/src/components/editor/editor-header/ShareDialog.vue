@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { Component } from 'vue'
 import type { ShareExpiresMode, ShareListItem, SharePasswordMode } from '@/services/share/types'

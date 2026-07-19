@@ -1,3 +1,4 @@
+// @workspace shared
 import type { AppLocale } from './types'
 import { getAppI18n } from './index'
 

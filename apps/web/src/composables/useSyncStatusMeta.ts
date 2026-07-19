@@ -1,3 +1,4 @@
+// @workspace shared
 import type { Component } from 'vue'
 import { AlertCircle, Cloud, CloudCheck, CloudOff, Loader2 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'

@@ -1,3 +1,4 @@
+// @workspace editor
 import type { Ref } from 'vue'
 
 const MENU_WIDTH = 260

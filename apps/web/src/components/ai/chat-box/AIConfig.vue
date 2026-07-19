@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import type { ImageServiceOption, ServiceOption } from '@md/shared/types'
 import { Check, ChevronDown, Info, Loader2, RefreshCw, X } from '@lucide/vue'

@@ -1,3 +1,4 @@
+// @workspace shared
 import {
   hydratePendingInfographicDiagrams,
 } from '@md/core/extensions'

@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import { Info } from '@lucide/vue'
 import { DEFAULT_SERVICE_TYPE } from '@md/shared/constants'

@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { IConfigOption } from '@md/shared/types'
 import type { Component } from 'vue'

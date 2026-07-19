@@ -1,3 +1,4 @@
+// @workspace shared
 import { imageServiceOptions } from '@md/shared/configs'
 import {
   DEFAULT_SERVICE_KEY,

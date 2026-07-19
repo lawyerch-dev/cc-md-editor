@@ -1,3 +1,4 @@
+// @workspace editor
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import { t } from '@/i18n/translate'
 import { useEditorStore } from '@/stores/editor'

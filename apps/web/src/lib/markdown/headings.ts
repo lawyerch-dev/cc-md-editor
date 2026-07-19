@@ -1,3 +1,4 @@
+// @workspace shared
 export interface MarkdownHeading {
   title: string
   level: number

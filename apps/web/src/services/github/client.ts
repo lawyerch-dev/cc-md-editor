@@ -1,3 +1,4 @@
+// @workspace shared
 /**
  * GitHub API 客户端 — 直接读写用户专属仓库
  * 不需要后端，用 Personal Access Token 鉴权

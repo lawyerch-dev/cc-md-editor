@@ -1,3 +1,4 @@
+// @workspace editor
 import { t } from '@/i18n/translate'
 import { isAccountConfigured, MD_API_URL } from '@/services/account/config'
 import { ACCOUNT_TOKEN_KEY } from '@/services/account/oauth'

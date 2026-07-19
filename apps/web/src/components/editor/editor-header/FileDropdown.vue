@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { Cloud, Download, FileCode, FileCog, FileText, FolderKanban, FolderOpen, Package, Settings, Share2, Upload } from '@lucide/vue'
 import { isShareUiEnabled } from '@/services/share/client'

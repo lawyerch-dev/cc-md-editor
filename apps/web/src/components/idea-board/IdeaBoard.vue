@@ -1,3 +1,4 @@
+<!-- @workspace ideaBoard -->
 <script setup lang="ts">
 import { Globe, LayoutGrid, Lightbulb, Moon, Plus, Search, Sparkles, Sun, Trash2 } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'

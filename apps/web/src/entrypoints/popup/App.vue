@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import { browser } from 'wxt/browser'
 import logo from '/mpmd/logo.svg'

@@ -1,3 +1,4 @@
+// @workspace editor
 import { useFolderSourceStore } from '@/stores/folderSource'
 import { usePostStore } from '@/stores/post'
 

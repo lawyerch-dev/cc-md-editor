@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { BookText, Command, Heart, HelpCircle, Keyboard, MessageSquare, Tag } from '@lucide/vue'
 

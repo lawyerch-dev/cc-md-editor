@@ -1,3 +1,4 @@
+// @workspace shared
 import { prefix } from '@md/shared/configs'
 import { addPrefix } from '@/storage/prefix'
 

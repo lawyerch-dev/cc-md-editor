@@ -1,3 +1,4 @@
+// @workspace shared
 import type { SyncSetting } from './types'
 import { store } from '@/storage/manager'
 import { addPrefix } from '@/storage/prefix'

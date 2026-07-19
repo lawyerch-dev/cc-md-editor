@@ -1,3 +1,4 @@
+// @workspace shared
 /** 用户套餐（后续可扩展更多高级能力） */
 export type UserPlan = `free` | `pro`
 

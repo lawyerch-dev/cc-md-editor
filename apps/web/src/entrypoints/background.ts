@@ -1,3 +1,4 @@
+// @workspace shared
 import { browser, defineBackground } from '#imports'
 import { detectInitialLocale } from '@/i18n/detect'
 import enUS from '@/i18n/messages/en-US/store'

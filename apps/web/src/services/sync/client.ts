@@ -1,3 +1,4 @@
+// @workspace shared
 import type { ActivateProResponse, PullResponse, PushRequest, PushResponse } from './types'
 import { MdApiClient } from '@/services/account/client'
 import { isAccountConfigured } from '@/services/account/config'

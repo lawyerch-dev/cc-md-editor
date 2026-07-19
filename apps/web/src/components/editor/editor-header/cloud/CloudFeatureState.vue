@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { Component } from 'vue'
 import { Button } from '@/components/ui/button'

@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { Cloud, Crown, LoaderCircle, LogOut, Settings2, Share2, User } from '@lucide/vue'
 import { storeToRefs } from 'pinia'

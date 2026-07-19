@@ -1,3 +1,4 @@
+// @workspace shared
 import { bootstrap } from './bootstrap'
 import { silenceDevLogs } from './lib/bootstrap/silence-dev-logs'
 

@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   'changelog.title': '更新日志',
   'changelog.button': '更新日志',

@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { MediaItem } from '@/stores/reading'
 

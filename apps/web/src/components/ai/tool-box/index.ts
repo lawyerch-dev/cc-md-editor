@@ -1,3 +1,4 @@
+// @workspace shared
 import type { EditorView } from '@codemirror/view'
 import AIPolishPopover from './ToolBoxPopover.vue'
 

@@ -1,3 +1,4 @@
+// @workspace reading
 import type { Article, ReadingList, Source } from './types'
 import * as idb from './indexeddb-persistence'
 

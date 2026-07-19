@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { Globe, Grid2X2, Grid3X3, Image, Loader2, Moon, Plus, RefreshCcw, Search, Square, Star, Sun, X } from '@lucide/vue'

@@ -1,3 +1,4 @@
+// @workspace shared
 const VALID_IMAGE_SUFFIX = /\.(?:gif|pjp|jfif|jpe|pjpeg|jpe?g|png|webp)$/i
 const MAX_SIZE_MB = 10
 

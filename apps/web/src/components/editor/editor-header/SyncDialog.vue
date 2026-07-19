@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { AlertCircle, Cloud, CloudOff, Loader2, LogIn, RefreshCw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'

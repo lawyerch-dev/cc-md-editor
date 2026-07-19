@@ -1,3 +1,4 @@
+// @workspace shared
 interface Window {
   __MD_UTOOLS__?: boolean
 

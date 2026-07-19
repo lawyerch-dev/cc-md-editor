@@ -1,3 +1,4 @@
+// @workspace shared
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import { detectInitialLocale } from '@/i18n/detect'

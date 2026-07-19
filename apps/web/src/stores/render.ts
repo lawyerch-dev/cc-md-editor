@@ -1,3 +1,4 @@
+// @workspace editor
 import type { RendererAPI } from '@md/shared/types'
 import { t } from '@/i18n/translate'
 import { useCustomComponentStore } from './customComponent'

@@ -1,3 +1,4 @@
+<!-- @workspace ideaBoard -->
 <script setup lang="ts">
 import { Loader2, Send, Settings, X } from '@lucide/vue'
 import { onMounted, ref } from 'vue'

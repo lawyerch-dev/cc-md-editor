@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 import { Pause, Settings, Wand2, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'

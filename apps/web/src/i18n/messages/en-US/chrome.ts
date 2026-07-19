@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   footer: {
     loginAccount: `Sign in`,

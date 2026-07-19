@@ -1,3 +1,4 @@
+// @workspace shared
 import { createApp } from 'vue'
 import { detectInitialLocale } from '@/i18n/detect'
 import { setAppI18n, setupI18n } from '@/i18n/index'

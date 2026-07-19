@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { Download, Pause, Play, SkipBack, SkipForward } from '@lucide/vue'

@@ -1,3 +1,4 @@
+// @workspace shared
 import type { AppLocale, LocaleOption } from './types'
 
 export const LOCALE_STORAGE_KEY = `locale`

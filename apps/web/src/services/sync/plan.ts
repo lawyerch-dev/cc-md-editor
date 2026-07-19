@@ -1,3 +1,4 @@
+// @workspace shared
 export {
   isProPlan,
   SYNC_DEBOUNCE_MS_PRO,

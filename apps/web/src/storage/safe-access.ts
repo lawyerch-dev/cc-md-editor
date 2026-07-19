@@ -1,3 +1,4 @@
+// @workspace shared
 import { store } from '@/storage/manager'
 import { isStorageQuotaError, parseStoredValue, warnStorageQuota } from '@/storage/quota'
 

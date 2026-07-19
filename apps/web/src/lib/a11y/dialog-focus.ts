@@ -1,3 +1,4 @@
+// @workspace shared
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, mergeProps, toValue, watch } from 'vue'
 

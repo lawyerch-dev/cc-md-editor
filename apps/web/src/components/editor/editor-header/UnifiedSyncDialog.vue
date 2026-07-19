@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { Component } from 'vue'
 import { AlertCircle, Cloud, CloudCheck, CloudOff, ExternalLink, Loader2, LogIn, RefreshCw, Upload } from '@lucide/vue'

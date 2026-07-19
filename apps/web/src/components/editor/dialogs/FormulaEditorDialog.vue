@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { escapeHtml, normalizeFormulaInput, wrapFormula } from '@/lib/markdown/formula'
 import { isMathJaxLoaded, loadMathJax } from '@/lib/preview/mathjax'

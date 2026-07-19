@@ -1,3 +1,4 @@
+// @workspace shared
 import { altSign, ctrlSign, shiftSign } from '@md/shared/configs'
 import { t } from '@/i18n/translate'
 

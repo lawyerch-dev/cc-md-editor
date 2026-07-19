@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   reading: {
     title: 'News Reader',

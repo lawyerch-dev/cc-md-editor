@@ -1,3 +1,4 @@
+// @workspace shared
 import type { ImageServiceOption, ServiceOption } from '@md/shared/types'
 import type { MaybeRefOrGetter } from 'vue'
 import { toValue } from 'vue'

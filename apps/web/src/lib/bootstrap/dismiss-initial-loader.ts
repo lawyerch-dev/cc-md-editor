@@ -1,3 +1,4 @@
+// @workspace shared
 const INITIAL_LOADER_ID = `app-initial-loader`
 const DISMISS_FALLBACK_MS = 25_000
 

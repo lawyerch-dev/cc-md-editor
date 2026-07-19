@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   toolbar: {
     expand: `展开 AI 工具栏`,

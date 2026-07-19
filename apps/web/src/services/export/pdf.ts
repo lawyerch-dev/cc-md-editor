@@ -1,3 +1,4 @@
+// @workspace editor
 import { sanitizeTitle } from '@md/shared/utils/basicHelpers'
 import { t } from '@/i18n/translate'
 import { waitForPreviewReady } from '@/lib/preview/preview-ready'

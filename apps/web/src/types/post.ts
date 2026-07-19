@@ -1,3 +1,4 @@
+// @workspace shared
 export interface PostHistory {
   datetime: string
   content: string

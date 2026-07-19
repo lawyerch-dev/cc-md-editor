@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   editor: {
     contentCleared: `Content cleared`,

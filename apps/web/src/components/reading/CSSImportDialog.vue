@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { CollectorSelectors } from '@/stores/reading'
 import { AlertCircle, CheckCircle2, FileUp, X } from '@lucide/vue'

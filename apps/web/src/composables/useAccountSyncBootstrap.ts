@@ -1,3 +1,4 @@
+// @workspace shared
 import { isAccountConfigured } from '@/services/account/config'
 import { isSyncUiEnabled } from '@/services/sync/client'
 

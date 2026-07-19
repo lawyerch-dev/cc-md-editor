@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { Article } from '@/stores/reading'
 import { Loader2, MessageSquarePlus, Sparkles, X } from '@lucide/vue'

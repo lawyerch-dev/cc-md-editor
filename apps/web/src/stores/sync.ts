@@ -1,3 +1,4 @@
+// @workspace shared
 import type { SyncDocument } from '@/services/sync/types'
 import { t } from '@/i18n/translate'
 import { ApiError } from '@/services/account/client'

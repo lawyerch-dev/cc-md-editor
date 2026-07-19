@@ -1,3 +1,4 @@
+// @workspace shared
 import type { I18n } from 'vue-i18n'
 import type { AppLocale } from './types'
 import { createI18n } from 'vue-i18n'

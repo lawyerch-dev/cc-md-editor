@@ -1,3 +1,4 @@
+// @workspace shared
 import { getLocale, t } from '@/i18n/translate'
 
 export function formatRelativeTime(date: Date | string) {

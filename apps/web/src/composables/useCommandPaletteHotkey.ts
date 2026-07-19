@@ -1,3 +1,4 @@
+// @workspace shared
 import { useUIStore } from '@/stores/ui'
 
 /** 注册命令面板全局快捷键 Mod+Shift+P */

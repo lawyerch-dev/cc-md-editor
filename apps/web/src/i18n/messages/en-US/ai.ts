@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   toolbar: {
     expand: `Expand AI toolbar`,

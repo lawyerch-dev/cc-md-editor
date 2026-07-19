@@ -1,3 +1,4 @@
+// @workspace reading
 import type { Article, Source } from './types'
 import initSqlJs from 'sql.js'
 import { saveArticles, saveLists, saveSources } from './persistence'

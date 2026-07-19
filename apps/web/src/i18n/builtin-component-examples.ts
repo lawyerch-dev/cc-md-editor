@@ -1,3 +1,4 @@
+// @workspace shared
 import type { AppLocale } from '@/i18n/types'
 
 const EXAMPLES: Record<AppLocale, Record<string, string>> = {

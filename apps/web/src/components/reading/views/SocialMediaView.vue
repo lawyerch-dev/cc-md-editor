@@ -1,3 +1,4 @@
+<!-- @workspace reading -->
 <script setup lang="ts">
 import type { Article, MediaItem } from '@/stores/reading'
 import { Star } from '@lucide/vue'

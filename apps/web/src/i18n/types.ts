@@ -1,3 +1,4 @@
+// @workspace shared
 export type AppLocale = `zh-CN` | `en-US`
 
 export interface LocaleOption {

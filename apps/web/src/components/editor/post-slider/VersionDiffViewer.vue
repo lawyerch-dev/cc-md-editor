@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import DiffMatchPatch from 'diff-match-patch'
 

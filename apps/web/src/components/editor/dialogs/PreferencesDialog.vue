@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { Settings } from '@lucide/vue'
 import AIConfig from '@/components/ai/chat-box/AIConfig.vue'

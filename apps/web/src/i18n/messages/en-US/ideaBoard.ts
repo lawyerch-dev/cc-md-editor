@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   ideaBoard: {
     title: 'Idea Board',

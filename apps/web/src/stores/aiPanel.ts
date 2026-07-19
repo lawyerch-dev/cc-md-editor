@@ -1,3 +1,4 @@
+// @workspace shared
 import type { Ref } from 'vue'
 
 export interface AIMessage {

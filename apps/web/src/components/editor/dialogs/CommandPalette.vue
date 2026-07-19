@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { PaletteCommand } from '@/composables/useCommandPalette'
 import { Search } from '@lucide/vue'

@@ -1,3 +1,4 @@
+// @workspace editor
 import type { IConfigOption } from '@md/shared/types'
 
 type Translate = (key: string) => string

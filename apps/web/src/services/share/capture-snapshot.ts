@@ -1,3 +1,4 @@
+// @workspace editor
 import { stripUnresolvedAsyncPlaceholders, waitForPreviewReady } from '@/lib/preview/preview-ready'
 import { getHtmlContent, getShareExportStyles } from '@/services/export'
 import { useEditorStore } from '@/stores/editor'

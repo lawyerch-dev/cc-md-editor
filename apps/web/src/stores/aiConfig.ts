@@ -1,3 +1,4 @@
+// @workspace shared
 import type { ImageServiceOption, ServiceOption } from '@md/shared/types'
 import { imageServiceOptions, serviceOptions } from '@md/shared/configs'
 import {

@@ -1,3 +1,4 @@
+// @workspace shared
 /** md-api 后端地址（云同步、账户登录等共用） */
 export const MD_API_URL = (
   import.meta.env.VITE_MD_API_URL

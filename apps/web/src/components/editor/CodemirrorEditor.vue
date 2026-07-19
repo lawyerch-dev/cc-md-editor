@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { defineAsyncComponent, nextTick, onMounted, unref } from 'vue'
 import FloatingAIPanel from '@/components/ai/chat-box/FloatingAIPanel.vue'

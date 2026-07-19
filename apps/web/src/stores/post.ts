@@ -1,3 +1,4 @@
+// @workspace editor
 import type { Post } from '@/types/post'
 import { debounce } from 'es-toolkit'
 import { v4 as uuidv4 } from 'uuid'

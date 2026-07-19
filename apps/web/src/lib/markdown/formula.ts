@@ -1,3 +1,4 @@
+// @workspace shared
 export interface FormulaInput {
   latex: string
   displayMode: boolean

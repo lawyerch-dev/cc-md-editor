@@ -1,3 +1,4 @@
+// @workspace shared
 import { prefix } from '@md/shared/configs'
 
 export function addPrefix(str: string) {

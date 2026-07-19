@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   title: `Local Upload`,
   selectUpload: `Upload`,

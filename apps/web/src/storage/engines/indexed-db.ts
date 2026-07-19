@@ -1,3 +1,4 @@
+// @workspace shared
 import type { KVRecord } from '@/storage/db'
 import type { StorageEngine } from '@/storage/engine'
 import { getDatabase } from '@/storage/db'

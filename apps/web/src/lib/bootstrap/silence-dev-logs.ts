@@ -1,3 +1,4 @@
+// @workspace shared
 /** Suppress noisy Pinia devtools "store installed/disposed" messages in development. */
 export function silenceDevLogs(): void {
   if (!import.meta.env.DEV)

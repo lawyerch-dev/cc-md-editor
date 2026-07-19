@@ -1,3 +1,4 @@
+// @workspace editor
 import type { EditorView } from '@codemirror/view'
 import { t } from '@/i18n/translate'
 

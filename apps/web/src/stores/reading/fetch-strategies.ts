@@ -1,3 +1,4 @@
+// @workspace reading
 import type { Article, CollectorSelectors, FeedViewType, MediaItem, Source } from './types'
 
 /** 清理内容中的视频/音频短代码 */

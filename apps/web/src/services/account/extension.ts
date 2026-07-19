@@ -1,3 +1,4 @@
+// @workspace shared
 import { MD_API_URL, OAUTH_TOKEN_HASH_KEY } from './config'
 
 interface IdentityApi {

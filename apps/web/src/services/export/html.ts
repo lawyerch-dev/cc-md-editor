@@ -1,3 +1,4 @@
+// @workspace editor
 import { markedAlert, MDKatex } from '@md/core/extensions'
 import { sanitizeTitle } from '@md/shared/utils/basicHelpers'
 import { downloadFile } from '@md/shared/utils/fileHelpers'

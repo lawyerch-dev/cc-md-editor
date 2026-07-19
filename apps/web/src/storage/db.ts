@@ -1,3 +1,4 @@
+// @workspace shared
 import type { DBSchema, IDBPDatabase } from 'idb'
 import { openDB } from 'idb'
 import {

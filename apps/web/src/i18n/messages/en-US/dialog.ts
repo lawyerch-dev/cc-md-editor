@@ -1,3 +1,4 @@
+// @workspace shared
 export default {
   share: {
     title: `Share Preview`,

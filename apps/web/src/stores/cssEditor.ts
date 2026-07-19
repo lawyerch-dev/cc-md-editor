@@ -1,3 +1,4 @@
+// @workspace editor
 import type { EditorView } from '@codemirror/view'
 import { cssSetup, DEFAULT_CUSTOM_THEME, theme as editorTheme } from '@md/shared'
 import { sanitizeTitle } from '@md/shared/utils/basicHelpers'

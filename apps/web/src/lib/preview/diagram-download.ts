@@ -1,3 +1,4 @@
+// @workspace shared
 /**
  * Diagram download utilities
  * Supports downloading SVG diagrams (Mermaid, PlantUML, etc.) as .svg or .png

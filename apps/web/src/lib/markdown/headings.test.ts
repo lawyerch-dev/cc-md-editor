@@ -1,3 +1,4 @@
+// @workspace shared
 import { describe, expect, it } from 'vitest'
 import { computeHeadingBreadcrumbs, extractMarkdownHeadings } from './headings'
 

@@ -1,3 +1,4 @@
+// @workspace shared
 import { t } from '@/i18n/translate'
 
 /** 爱发电 Pro 赞助方案（doocs 官方） */

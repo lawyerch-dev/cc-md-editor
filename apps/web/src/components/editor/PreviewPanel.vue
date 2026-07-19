@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { DiagramDownloadOverlay } from '@/lib/preview/diagram-download'
 import { hydratePendingInfographicDiagrams } from '@md/core/extensions'

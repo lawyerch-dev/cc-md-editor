@@ -1,3 +1,4 @@
+// @workspace editor
 import { dismissInitialLoader } from '@/lib/bootstrap/dismiss-initial-loader'
 import { waitForPreviewReady } from '@/lib/preview/preview-ready'
 

@@ -1,3 +1,4 @@
+// @workspace reading
 import type { Article, ReadingList, Source } from './types'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'

@@ -1,3 +1,4 @@
+// @workspace shared
 /**
  * Build common AI API request headers.
  */

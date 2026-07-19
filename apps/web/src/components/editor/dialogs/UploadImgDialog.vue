@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import type { GenericObject } from 'vee-validate'
 import { UploadCloud } from '@lucide/vue'

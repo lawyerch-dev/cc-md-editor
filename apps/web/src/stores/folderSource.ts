@@ -1,3 +1,4 @@
+// @workspace editor
 /**
  * 文件系统节点接口
  */

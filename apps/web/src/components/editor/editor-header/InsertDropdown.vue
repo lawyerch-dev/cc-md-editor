@@ -1,3 +1,4 @@
+<!-- @workspace editor -->
 <script setup lang="ts">
 import { Blocks, Table } from '@lucide/vue'
 import { normalizeFormulaInput } from '@/lib/markdown/formula'

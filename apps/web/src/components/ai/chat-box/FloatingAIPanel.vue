@@ -1,3 +1,4 @@
+<!-- @workspace shared -->
 <script setup lang="ts">
 /* eslint-disable vue/no-unused-refs */ // template refs are used in template
 import type { QuickCommandRuntime } from '@/stores/quickCommands'

@@ -1,3 +1,4 @@
+// @workspace editor
 import type { EditorView as EditorViewType } from '@codemirror/view'
 import type { ThemeName } from '@md/shared/configs'
 import {
