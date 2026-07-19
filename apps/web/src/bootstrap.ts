@@ -4,7 +4,7 @@ import { createApp } from 'vue'
 import { detectInitialLocale } from '@/i18n/detect'
 import { setAppI18n, setupI18n } from '@/i18n/index'
 import { initStorage } from '@/storage'
-import { useLocaleStore } from '@/stores/shared/locale'
+import { useLocaleStore } from '@/shared/stores/locale'
 
 import AppRoot from './App.vue'
 import { dismissInitialLoader } from './lib/bootstrap/dismiss-initial-loader'

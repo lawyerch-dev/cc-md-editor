@@ -3,12 +3,12 @@
 import { FileText, Globe, Lightbulb, Moon, Newspaper, ScrollText, Settings, Sun, User, X } from '@lucide/vue'
 import { defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ChangelogDialog from '@/components/landing/ChangelogDialog.vue'
+import ChangelogDialog from '@/shared/components/landing/ChangelogDialog.vue'
 import { Button } from '@/components/ui/button'
-import { useLocaleStore } from '@/stores/shared/locale'
-import { useUIStore } from '@/stores/shared/ui'
+import { useLocaleStore } from '@/shared/stores/locale'
+import { useUIStore } from '@/shared/stores/ui'
 
-const AIConfig = defineAsyncComponent(() => import('@/components/ai/chat-box/AIConfig.vue'))
+const AIConfig = defineAsyncComponent(() => import('@/shared/components/ai/chat-box/AIConfig.vue'))
 
 const uiStore = useUIStore()
 const localeStore = useLocaleStore()

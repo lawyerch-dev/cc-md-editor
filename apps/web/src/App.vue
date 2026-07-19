@@ -3,18 +3,18 @@
 import { defineAsyncComponent } from 'vue'
 import LandingPage from '@/components/LandingPage.vue'
 import { Toaster } from '@/components/ui/sonner'
-import { useCommandPaletteHotkey } from '@/composables/shared/useCommandPaletteHotkey'
-import { usePreferencesHotkey } from '@/composables/shared/usePreferencesHotkey'
-import { useUIStore } from '@/stores/shared/ui'
+import { useCommandPaletteHotkey } from '@/shared/composables/useCommandPaletteHotkey'
+import { usePreferencesHotkey } from '@/shared/composables/usePreferencesHotkey'
+import { useUIStore } from '@/shared/stores/ui'
 
-const CodemirrorEditor = defineAsyncComponent(() => import('@/components/editor/CodemirrorEditor.vue'))
-const IdeaBoard = defineAsyncComponent(() => import('@/components/idea-board/IdeaBoard.vue'))
-const ReadingView = defineAsyncComponent(() => import('@/components/reading/ReadingView.vue'))
-const UserProfileView = defineAsyncComponent(() => import('@/components/profile/UserProfileView.vue'))
-const CommandPalette = defineAsyncComponent(() => import('@/components/editor/dialogs/CommandPalette.vue'))
-const ConfirmDialog = defineAsyncComponent(() => import('@/components/shared/confirm-dialog/ConfirmDialog.vue'))
-const PreferencesDialog = defineAsyncComponent(() => import('@/components/editor/dialogs/PreferencesDialog.vue'))
-const UnifiedSyncDialog = defineAsyncComponent(() => import('@/components/editor/editor-header/UnifiedSyncDialog.vue'))
+const CodemirrorEditor = defineAsyncComponent(() => import('@/workspaces/editor/components/CodemirrorEditor.vue'))
+const IdeaBoard = defineAsyncComponent(() => import('@/workspaces/idea-board/components/IdeaBoard.vue'))
+const ReadingView = defineAsyncComponent(() => import('@/workspaces/reading/components/ReadingView.vue'))
+const UserProfileView = defineAsyncComponent(() => import('@/workspaces/profile/components/UserProfileView.vue'))
+const CommandPalette = defineAsyncComponent(() => import('@/workspaces/editor/components/dialogs/CommandPalette.vue'))
+const ConfirmDialog = defineAsyncComponent(() => import('@/shared/components/navigation/confirm-dialog/ConfirmDialog.vue'))
+const PreferencesDialog = defineAsyncComponent(() => import('@/workspaces/editor/components/dialogs/PreferencesDialog.vue'))
+const UnifiedSyncDialog = defineAsyncComponent(() => import('@/workspaces/editor/components/editor-header/UnifiedSyncDialog.vue'))
 
 const uiStore = useUIStore()
 const { isDark, currentView, isShowPreferencesDialog, isShowSyncDialog } = storeToRefs(uiStore)
