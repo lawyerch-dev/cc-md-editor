@@ -42,7 +42,10 @@ const allProviders = computed(() => {
 
 const providerKeys = ref<Record<string, string>>({})
 const configuredProviders = computed(() =>
-  allProviders.value.filter(p => providerKeys.value[p.value]).length,
+  allProviders.value.filter(p => providerKeys.value[p.value]),
+)
+const unconfiguredProviders = computed(() =>
+  allProviders.value.filter(p => !providerKeys.value[p.value]),
 )
 
 onMounted(async () => {
@@ -200,8 +203,8 @@ defineExpose({
       <CollapsibleTrigger class="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 hover:bg-muted/30">
         <Key class="h-4 w-4 text-muted-foreground" />
         <span class="flex-1 text-left text-sm font-medium">{{ t('ai.config.providerKeys') }}</span>
-        <span v-if="configuredProviders > 0" class="text-xs text-green-600 dark:text-green-400">
-          {{ configuredProviders }} {{ t('ai.config.configured') }}
+        <span v-if="configuredProviders.length > 0" class="text-xs text-green-600 dark:text-green-400">
+          {{ configuredProviders.length }} {{ t('ai.config.configured') }}
         </span>
         <ChevronDown class="h-4 w-4 text-muted-foreground transition-transform" :class="{ 'rotate-180': providerKeysOpen }" />
       </CollapsibleTrigger>
@@ -210,20 +213,42 @@ defineExpose({
           <p class="mb-3 text-xs text-muted-foreground">
             {{ t('ai.config.providerKeysHint') }}
           </p>
-          <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            <div v-for="p in allProviders" :key="p.value" class="flex items-center gap-2">
-              <Label class="w-20 shrink-0 text-xs" :class="{ 'text-green-600 dark:text-green-400': providerKeys[p.value] }">
-                <span class="inline-flex items-center gap-1">
-                  <Check v-if="providerKeys[p.value]" class="h-3 w-3" />
-                  {{ p.label }}
-                </span>
-              </Label>
-              <PasswordInput
-                :model-value="providerKeys[p.value]"
-                placeholder="sk-..."
-                class="flex-1"
-                @update:model-value="onProviderKeyChange(p.value, $event as string)"
-              />
+
+          <!-- 已配置 -->
+          <div v-if="configuredProviders.length > 0" class="mb-3">
+            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div v-for="p in configuredProviders" :key="p.value" class="flex items-center gap-2">
+                <Label class="w-20 shrink-0 text-xs text-green-600 dark:text-green-400">
+                  <span class="inline-flex items-center gap-1">
+                    <Check class="h-3 w-3" />
+                    {{ p.label }}
+                  </span>
+                </Label>
+                <PasswordInput
+                  :model-value="providerKeys[p.value]"
+                  placeholder="sk-..."
+                  class="flex-1"
+                  @update:model-value="onProviderKeyChange(p.value, $event as string)"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- 分隔线 -->
+          <div v-if="configuredProviders.length > 0 && unconfiguredProviders.length > 0" class="mb-3 border-t border-dashed" />
+
+          <!-- 未配置 -->
+          <div v-if="unconfiguredProviders.length > 0">
+            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div v-for="p in unconfiguredProviders" :key="p.value" class="flex items-center gap-2">
+                <Label class="w-20 shrink-0 text-xs">{{ p.label }}</Label>
+                <PasswordInput
+                  :model-value="providerKeys[p.value]"
+                  placeholder="sk-..."
+                  class="flex-1"
+                  @update:model-value="onProviderKeyChange(p.value, $event as string)"
+                />
+              </div>
             </div>
           </div>
         </div>
