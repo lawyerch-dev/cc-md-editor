@@ -1,11 +1,13 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
-import { BarChart3, FileText, Globe, Lightbulb, Moon, Newspaper, Rocket, ScrollText, Settings, ShieldCheck, Sparkles, Sun, Trophy, User, Users, Wallet, X } from '@lucide/vue'
+import type { WorkspaceCard } from '@/shared/config/workspaces'
+import { Globe, Moon, ScrollText, Settings, Sun, X } from '@lucide/vue'
 import { defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import ChangelogDialog from '@/shared/components/landing/ChangelogDialog.vue'
 import DecorativeBackground from '@/shared/components/landing/DecorativeBackground.vue'
+import { workspaceLayers } from '@/shared/config/workspaces'
 import { useLocaleStore } from '@/shared/stores/locale'
 import { useUIStore } from '@/shared/stores/ui'
 
@@ -32,49 +34,6 @@ const warmWhiteStyle = computed(() => {
     '--accent-foreground': '30 12% 14%',
   }
 })
-
-interface WorkspaceCard {
-  key: string
-  icon: unknown
-  iconClass: string
-  borderClass: string
-  view?: 'reading' | 'ideaBoard' | 'editor' | 'profile' | 'coach' | 'report'
-  status: 'available' | 'dev'
-}
-
-interface Layer {
-  key: 'input' | 'output' | 'mobility'
-  cards: WorkspaceCard[]
-}
-
-const layers: Layer[] = [
-  {
-    key: 'input',
-    cards: [
-      { key: 'reading', icon: Newspaper, iconClass: 'text-blue-500', borderClass: 'hover:border-blue-500', view: 'reading', status: 'available' },
-      { key: 'ideaBoard', icon: Lightbulb, iconClass: 'text-amber-500', borderClass: 'hover:border-amber-500', view: 'ideaBoard', status: 'available' },
-      { key: 'profile', icon: User, iconClass: 'text-emerald-500', borderClass: 'hover:border-emerald-500', view: 'profile', status: 'available' },
-    ],
-  },
-  {
-    key: 'output',
-    cards: [
-      { key: 'editor', icon: FileText, iconClass: 'text-primary', borderClass: 'hover:border-primary', view: 'editor', status: 'available' },
-      { key: 'outputHub', icon: Rocket, iconClass: 'text-rose-500', borderClass: 'hover:border-rose-500', status: 'dev' },
-      { key: 'reputation', icon: Trophy, iconClass: 'text-violet-500', borderClass: 'hover:border-violet-500', status: 'dev' },
-      { key: 'coach', icon: Sparkles, iconClass: 'text-cyan-500', borderClass: 'hover:border-cyan-500', view: 'coach', status: 'available' },
-    ],
-  },
-  {
-    key: 'mobility',
-    cards: [
-      { key: 'report', icon: BarChart3, iconClass: 'text-indigo-500', borderClass: 'hover:border-indigo-500', view: 'report', status: 'available' },
-      { key: 'trustAccount', icon: ShieldCheck, iconClass: 'text-teal-500', borderClass: 'hover:border-teal-500', status: 'dev' },
-      { key: 'network', icon: Users, iconClass: 'text-orange-500', borderClass: 'hover:border-orange-500', status: 'dev' },
-      { key: 'monetize', icon: Wallet, iconClass: 'text-lime-600', borderClass: 'hover:border-lime-500', status: 'dev' },
-    ],
-  },
-]
 
 function handleCardClick(card: WorkspaceCard) {
   if (card.status === 'dev')
@@ -157,7 +116,7 @@ function layerIndexClass(layerKey: string) {
         <!-- 三层横向布局 -->
         <div class="mt-10 grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
           <section
-            v-for="layer in layers"
+            v-for="layer in workspaceLayers"
             :key="layer.key"
             class="animate-in flex flex-col gap-4"
             :class="layerIndexClass(layer.key)"

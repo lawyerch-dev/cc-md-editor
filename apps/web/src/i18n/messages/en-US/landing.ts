@@ -5,6 +5,7 @@ export default {
     subtitle: `From input to output, from trust to mobility`,
     badge: `✨ v2.0 All New`,
     philosophy: `Real mobility comes not from solitary awakening, but from relentless output, earned trust, and built reputation—until leverage follows.`,
+    home: `Home`,
     section: {
       input: `Input Layer · Absorb & Position`,
       output: `Output Layer · Produce & Express`,
@@ -24,7 +25,7 @@ export default {
         desc: `Whiteboard canvas, free creation`,
       },
       editor: {
-        name: `Markdown Editor`,
+        name: `Editor`,
         desc: `Writing, formatting, preview`,
       },
       profile: {
@@ -44,7 +45,7 @@ export default {
         desc: `Multi-platform distribution`,
       },
       reputation: {
-        name: `Reputation Card`,
+        name: `Reputation`,
         desc: `Personal brand, portfolio`,
       },
       trustAccount: {

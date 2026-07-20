@@ -5,6 +5,7 @@ export default {
     subtitle: `从输入到输出，从信任到跃迁`,
     badge: `✨ v2.0 全新升级`,
     philosophy: `真正的跃迁不是独自觉醒，而是持续输出、赢得信任、积累名声，最终撬动资源。`,
+    home: `首页`,
     section: {
       input: `输入层 · 吸收与定位`,
       output: `输出层 · 生产与表达`,
@@ -24,7 +25,7 @@ export default {
         desc: `白板画布、自由创作`,
       },
       editor: {
-        name: `Markdown 编辑器`,
+        name: `编辑器`,
         desc: `写作、排版、预览`,
       },
       profile: {
@@ -40,11 +41,11 @@ export default {
         desc: `输出统计、复盘分析`,
       },
       outputHub: {
-        name: `内容输出中心`,
+        name: `输出中心`,
         desc: `多平台分发、发布节奏`,
       },
       reputation: {
-        name: `影响力名片`,
+        name: `影响力`,
         desc: `个人品牌、作品沉淀`,
       },
       trustAccount: {
