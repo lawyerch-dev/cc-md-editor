@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import { BarChart3, Globe, Lightbulb, Moon, PenLine, Satellite, ScrollText, Settings, Sun, Target, X } from '@lucide/vue'
-import { defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
+import { defineAsyncComponent, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import ChangelogDialog from '@/shared/components/landing/ChangelogDialog.vue'
@@ -119,28 +119,9 @@ function connectorStyle(index: number) {
 }
 
 const zoneRefs = ref<HTMLElement[]>([])
-let observer: IntersectionObserver | null = null
-
-onMounted(() => {
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('zone-visible')
-          observer?.unobserve(entry.target)
-        }
-      })
-    },
-    { threshold: 0.15 },
-  )
-  zoneRefs.value.forEach((el) => {
-    if (el)
-      observer?.observe(el)
-  })
-})
 
 onBeforeUnmount(() => {
-  observer?.disconnect()
+  // cleanup if needed
 })
 </script>
 
@@ -416,37 +397,39 @@ onBeforeUnmount(() => {
   opacity: 0;
   transform: translateY(32px) scale(0.97);
   filter: blur(6px);
-  transition: opacity 0.9s cubic-bezier(0.32, 0.72, 0, 1), transform 0.9s cubic-bezier(0.32, 0.72, 0, 1),
-    filter 0.9s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: zone-reveal 0.9s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
-.zone-enter.zone-visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  filter: blur(0);
+@keyframes zone-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
 }
 
 /* ─── Card staggered entry ─── */
 .card-enter {
   opacity: 0;
   transform: translateY(16px);
-  transition: opacity 0.6s cubic-bezier(0.32, 0.72, 0, 1), transform 0.6s cubic-bezier(0.32, 0.72, 0, 1),
-    background-color 0.5s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: card-reveal 0.6s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
-.zone-visible .card-enter {
-  opacity: 1;
-  transform: translateY(0);
+@keyframes card-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.zone-visible .card-enter:nth-child(1) {
-  transition-delay: 0.15s;
+.card-enter:nth-child(1) {
+  animation-delay: 0.15s;
 }
-.zone-visible .card-enter:nth-child(2) {
-  transition-delay: 0.25s;
+.card-enter:nth-child(2) {
+  animation-delay: 0.25s;
 }
-.zone-visible .card-enter:nth-child(3) {
-  transition-delay: 0.35s;
+.card-enter:nth-child(3) {
+  animation-delay: 0.35s;
 }
 
 /* ─── AI config dialog overrides ─── */
