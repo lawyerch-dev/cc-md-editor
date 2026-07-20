@@ -2,7 +2,9 @@ minimumReleaseAge: 0
 
 shellEmulator: true
 
-trustPolicy: no-downgrade
+# no-downgrade 暂不可用：chokidar@4.0.3、langium@3.3.1 缺 provenance attestation
+# 均为构建时间接依赖，无已知 CVE。待上游补发 attestation 后恢复 no-downgrade
+trustPolicy: warn
 
 packages:
   - apps/*
@@ -53,6 +55,7 @@ overrides:
 
 allowBuilds:
   '@vscode/vsce-sign': true
+  better-sqlite3: true
   core-js: true
   esbuild: true
   keytar: true
