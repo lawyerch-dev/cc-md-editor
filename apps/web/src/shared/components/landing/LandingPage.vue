@@ -191,43 +191,47 @@ onBeforeUnmount(() => {
 
         <!-- Flywheel -->
         <div
-          class="flywheel-container relative h-[320px] w-[320px]"
+          class="relative h-[320px] w-[320px]"
           :class="{ 'paused': flywheelHover }"
           @mouseenter="flywheelHover = true"
           @mouseleave="flywheelHover = false"
         >
-          <!-- Ambient glow -->
-          <div class="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-500/8 via-blue-500/8 to-rose-500/8 blur-3xl" />
-          <!-- Outer ring -->
-          <div class="absolute inset-4 rounded-full bg-card/50 shadow-[0_8px_60px_rgba(0,0,0,0.04)] ring-1 ring-border/20 backdrop-blur-sm" />
-          <!-- Inner core -->
-          <div class="absolute inset-8 rounded-full bg-card shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] ring-1 ring-border/10" />
-          <!-- Orbit track -->
-          <div class="absolute inset-0 rounded-full border border-dashed border-border/20" />
-
-          <!-- Rotating zone icons -->
-          <button
-            v-for="(zone, index) in zones"
-            :key="zone.id"
-            class="flywheel-node absolute flex h-12 w-12 cursor-pointer items-center justify-center rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.06)] ring-1 ring-border/20 transition-all duration-300 hover:scale-110 hover:shadow-[0_6px_30px_rgba(0,0,0,0.1)]"
-            :class="{ 'ring-2 scale-110': activeZoneId === zone.id }"
-            :style="flywheelStyle(zone, index)"
-            @click.stop="onFlywheelClick(zone.id)"
-          >
-            <component :is="zone.icon" class="h-5 w-5" :style="{ color: zone.gradientFrom }" />
-          </button>
-
-          <!-- Connectors -->
-          <div
-            v-for="(zone, index) in zones"
-            :key="`connector-${zone.id}`"
-            class="flywheel-connector absolute left-1/2 top-1/2 h-px origin-left"
-            :style="connectorStyle(index)"
-          >
-            <div class="h-px w-20" :style="{ background: `linear-gradient(to right, ${zone.gradientFrom}30, transparent)` }" />
+          <!-- Rotating layer (background only) -->
+          <div class="flywheel-container absolute inset-0">
+            <!-- Ambient glow -->
+            <div class="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-500/8 via-blue-500/8 to-rose-500/8 blur-3xl" />
+            <!-- Outer ring -->
+            <div class="absolute inset-4 rounded-full bg-card/50 shadow-[0_8px_60px_rgba(0,0,0,0.04)] ring-1 ring-border/20 backdrop-blur-sm" />
+            <!-- Inner core -->
+            <div class="absolute inset-8 rounded-full bg-card shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] ring-1 ring-border/10" />
+            <!-- Orbit track -->
+            <div class="absolute inset-0 rounded-full border border-dashed border-border/20" />
+            <!-- Connectors -->
+            <div
+              v-for="(zone, index) in zones"
+              :key="`connector-${zone.id}`"
+              class="flywheel-connector absolute left-1/2 top-1/2 h-px origin-left"
+              :style="connectorStyle(index)"
+            >
+              <div class="h-px w-20" :style="{ background: `linear-gradient(to right, ${zone.gradientFrom}30, transparent)` }" />
+            </div>
           </div>
 
-          <!-- Center label -->
+          <!-- Static layer (icons — fixed position, clickable) -->
+          <div class="absolute inset-0">
+            <button
+              v-for="(zone, index) in zones"
+              :key="zone.id"
+              class="absolute flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-card shadow-[0_4px_20px_rgba(0,0,0,0.06)] ring-1 ring-border/20 transition-all duration-300 hover:scale-110 hover:shadow-[0_6px_30px_rgba(0,0,0,0.1)]"
+              :class="{ 'ring-2 scale-110': activeZoneId === zone.id }"
+              :style="flywheelStyle(zone, index)"
+              @click="onFlywheelClick(zone.id)"
+            >
+              <component :is="zone.icon" class="h-5 w-5" :style="{ color: zone.gradientFrom }" />
+            </button>
+          </div>
+
+          <!-- Center label (static) -->
           <div class="absolute inset-0 flex flex-col items-center justify-center">
             <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">Flywheel</div>
             <div class="mt-1 text-xs font-bold text-foreground/70">5 Zones</div>
@@ -320,7 +324,7 @@ onBeforeUnmount(() => {
 }
 
 .flywheel-node {
-  animation: flywheel-counter-spin 40s linear infinite;
+  /* Icons stay fixed — no counter-rotation */
 }
 
 .flywheel-connector {
