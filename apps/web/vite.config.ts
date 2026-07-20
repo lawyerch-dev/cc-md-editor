@@ -65,7 +65,7 @@ export default defineConfig(({ mode }) => {
         : []),
       AutoImport({
         imports: [`vue`, `pinia`, `@vueuse/core`, `vue-i18n`],
-        dirs: [`./src/shared/stores`, `./src/workspaces/editor/stores`, `./src/workspaces/reading/stores`, `./src/workspaces/idea-board/stores`, `./src/lib/toast`, `./src/workspaces/editor/composables`, `./src/shared/composables`, `./src/workspaces/reading/composables`],
+        dirs: [`./src/**/stores`, `./src/lib/toast`, `./src/**/composables`],
       }),
       Components({
         resolvers: [],
