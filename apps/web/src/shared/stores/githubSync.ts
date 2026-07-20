@@ -1,6 +1,6 @@
 // @workspace shared
 import type { Article, Source } from '@/workspaces/reading/stores/types'
-import type { Post } from '@/types/post'
+import type { Post } from '@/shared/types/post'
 import { watch } from 'vue'
 import { formatLocalDateTime } from '@/i18n/translate'
 import { GitHubSyncClient } from '@/shared/services/github/client'

@@ -1,6 +1,6 @@
 // @workspace shared
 import type { SyncDocument } from './types'
-import type { Post, PostHistory } from '@/types/post'
+import type { Post, PostHistory } from '@/shared/types/post'
 import { formatLocalDateTime } from '@/i18n/translate'
 
 export function toMs(value: Date | string | number | undefined): number {

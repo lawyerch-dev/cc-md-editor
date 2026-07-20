@@ -2,7 +2,7 @@
 import type { PerThemeSettings, PerThemeSettingsMap, ThemeName } from '@md/shared/configs'
 
 import type { IndexedDBEngine } from '@/storage/engines/indexed-db'
-import type { Post } from '@/types/post'
+import type { Post } from '@/shared/types/post'
 import { defaultPerThemeSettings, defaultStyleConfig } from '@md/shared/configs'
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '@/storage/db'

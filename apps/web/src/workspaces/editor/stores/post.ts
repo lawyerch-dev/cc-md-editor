@@ -1,5 +1,5 @@
 // @workspace editor
-import type { Post } from '@/types/post'
+import type { Post } from '@/shared/types/post'
 import { debounce } from 'es-toolkit'
 import { v4 as uuidv4 } from 'uuid'
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
@@ -8,7 +8,7 @@ import { documentRepo, getLoadedDocuments, storageReady, store } from '@/storage
 import { addPrefix } from '@/storage/prefix'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 
-export type { Post } from '@/types/post'
+export type { Post } from '@/shared/types/post'
 
 function createDefaultPost(): Post {
   return {

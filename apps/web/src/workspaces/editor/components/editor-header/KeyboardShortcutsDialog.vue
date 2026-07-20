@@ -4,7 +4,7 @@ import { Keyboard } from '@lucide/vue'
 import { computed } from 'vue'
 import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
 import { useCommandPalette } from '@/shared/composables/useCommandPalette'
-import { buildKeyboardShortcutCategories } from '@/configs/keyboard-shortcuts'
+import { buildKeyboardShortcutCategories } from '@/lib/keyboard-shortcuts'
 
 const props = defineProps<{
   open: boolean
