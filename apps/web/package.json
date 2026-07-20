@@ -7,6 +7,7 @@
   },
   "scripts": {
     "start": "pnpm run dev",
+    "predev": "lsof -ti :5180 | xargs kill -9 2>/dev/null; lsof -ti :8890 | xargs kill -9 2>/dev/null",
     "dev": "vite",
     "build": "run-p type-check \"build:only {@}\" --",
     "build:only": "vite build",

@@ -1,43 +1,26 @@
 // @workspace shared
 export default {
   landing: {
-    eyebrow: `Flywheel System`,
     title: `New-AI Workspace`,
-    subtitle: `Five workspaces, one flywheel. Input drives insight, insight drives output, output generates feedback, feedback accelerates growth.`,
-    enter: `Enter`,
-    zones: {
-      coach: {
-        name: `Coach`,
-        desc: `AI Diagnosis · Goal Planning`,
-        cardDiag: `AI Diagnosis`,
-        cardDiagDesc: `Deep self-awareness & ability assessment`,
-        cardGoal: `Goal Setting`,
-        cardGoalDesc: `Structured goal breakdown & tracking`,
+    subtitle: `Choose a workspace to enter`,
+    workspaces: {
+      reading: {
+        name: `Reading`,
+        desc: `RSS feeds, note ideas`,
       },
-      radar: {
-        name: `Radar`,
-        desc: `Info Input · Serving Output`,
-        cardFeed: `Feed`,
-        cardFeedDesc: `RSS subscriptions, smart summaries`,
+      ideaBoard: {
+        name: `Idea Board`,
+        desc: `Whiteboard canvas, free creation`,
       },
-      insight: {
-        name: `Insight`,
-        desc: `Idea Connection · Output Incubation`,
-        cardBoard: `Whiteboard`,
-        cardBoardDesc: `Free creation, inspiration linking`,
+      editor: {
+        name: `Markdown Editor`,
+        desc: `Writing, formatting, preview`,
       },
-      output: {
-        name: `Output`,
-        desc: `Relentless Creation · Growth Engine`,
-        cardEditor: `Editor`,
-        cardEditorDesc: `Markdown writing & formatting`,
-      },
-      report: {
-        name: `Report`,
-        desc: `Data Feedback · Flywheel Acceleration`,
-        cardEntry: `Data Entry`,
-        cardEntryDesc: `Track progress, quantify growth`,
+      profile: {
+        name: `My Profile`,
+        desc: `Self-analysis & career planning`,
       },
     },
+    aiSettings: `AI Settings`,
   },
 }
