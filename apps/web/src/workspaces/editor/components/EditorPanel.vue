@@ -6,27 +6,27 @@ import { history, markdownSetup, replaceDocumentWithoutHistory, resetEditorHisto
 import { toBase64 } from '@md/shared/utils/fileHelpers'
 import imageCompression from 'browser-image-compression'
 import { defineAsyncComponent } from 'vue'
-import SlashCommandMenu from '@/workspaces/editor/components/SlashCommandMenu.vue'
 import { SearchTab } from '@/components/ui/search-tab'
-import { useEditorRefresh } from '@/workspaces/editor/composables/useEditorRefresh'
-import { useImageUploader } from '@/workspaces/editor/composables/useImageUploader'
-import { completeInitialPreviewBoot } from '@/workspaces/editor/composables/useInitialPreviewBoot'
-import { useLocalizedUploadHostOptions } from '@/workspaces/editor/composables/useLocalizedUploadHosts'
-import { useSlashCommand } from '@/workspaces/editor/composables/useSlashCommand'
 import { formatLocalDateTime } from '@/i18n/translate'
 import { jumpToAdjacentHeading } from '@/lib/markdown/headingNavigation'
 import { contentHasMath, loadMathJax, MATHJAX_READY_EVENT } from '@/lib/preview/mathjax'
 import { validateImageFile } from '@/lib/upload/validate-image'
 import { fileUpload } from '@/shared/services/upload'
+import { useUIStore } from '@/shared/stores/ui'
 import { store } from '@/storage'
+import EditorContextMenu from '@/workspaces/editor/components/EditorContextMenu.vue'
+import SlashCommandMenu from '@/workspaces/editor/components/SlashCommandMenu.vue'
+import { useEditorRefresh } from '@/workspaces/editor/composables/useEditorRefresh'
+import { useImageUploader } from '@/workspaces/editor/composables/useImageUploader'
+import { completeInitialPreviewBoot } from '@/workspaces/editor/composables/useInitialPreviewBoot'
+import { useLocalizedUploadHostOptions } from '@/workspaces/editor/composables/useLocalizedUploadHosts'
+import { useSlashCommand } from '@/workspaces/editor/composables/useSlashCommand'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { usePostStore } from '@/workspaces/editor/stores/post'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
 import { useThemeStore } from '@/workspaces/editor/stores/theme'
-import { useUIStore } from '@/shared/stores/ui'
 
 const SidebarAIToolbar = defineAsyncComponent(() => import('@/shared/components/ai/SidebarAIToolbar.vue'))
-const EditorContextMenu = defineAsyncComponent(() => import('@/workspaces/editor/components/EditorContextMenu.vue'))
 
 const { t, locale } = useI18n()
 const uploadHostOptions = useLocalizedUploadHostOptions()
@@ -492,6 +492,7 @@ function createFormTextArea(dom: HTMLDivElement) {
   })
 
   codeMirrorView.value = view
+  view.focus()
   return view
 }
 
