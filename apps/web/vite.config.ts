@@ -65,7 +65,7 @@ export default defineConfig(({ mode }) => {
         : []),
       AutoImport({
         imports: [`vue`, `pinia`, `@vueuse/core`, `vue-i18n`],
-        dirs: [`./src/**/stores`, `./src/lib/toast`, `./src/**/composables`],
+        dirs: [`./src/**/stores/index.ts`, `./src/lib/toast`, `./src/**/composables`],
       }),
       Components({
         resolvers: [],
