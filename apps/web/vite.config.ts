@@ -70,6 +70,7 @@ export default defineConfig(({ mode }) => {
       Components({
         resolvers: [],
         dirs: [
+          `./src/components/ui`,
           `./src/workspaces/editor/components`,
           `./src/workspaces/reading/components`,
           `./src/workspaces/idea-board/components`,
@@ -78,8 +79,6 @@ export default defineConfig(({ mode }) => {
           `./src/shared/components/navigation`,
           `./src/shared/components/landing`,
         ],
-        directoryAsNamespace: false,
-        deep: false,
       }),
       isUTools && utoolsLocalAssetsPlugin(),
       // Strip modulepreload for large vendor chunks — they'll load on demand via dynamic import
