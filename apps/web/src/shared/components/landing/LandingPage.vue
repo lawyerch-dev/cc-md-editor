@@ -3,8 +3,8 @@
 import { FileText, Globe, Lightbulb, Moon, Newspaper, ScrollText, Settings, Sun, User, X } from '@lucide/vue'
 import { defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ChangelogDialog from '@/shared/components/landing/ChangelogDialog.vue'
 import { Button } from '@/components/ui/button'
+import ChangelogDialog from '@/shared/components/landing/ChangelogDialog.vue'
 import { useLocaleStore } from '@/shared/stores/locale'
 import { useUIStore } from '@/shared/stores/ui'
 
@@ -62,7 +62,7 @@ const showChangelog = ref(false)
     <div class="flex flex-col items-center gap-8">
       <div class="text-center">
         <h1 class="text-3xl font-bold tracking-tight">
-          CC 写作工具箱
+          new-ai智能工作台
         </h1>
         <p class="mt-2 text-muted-foreground">
           选择你要进入的工作区
