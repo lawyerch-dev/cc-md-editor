@@ -3,9 +3,9 @@
 import type { Post, PostAccount } from '@md/shared/types'
 import { Check, ChevronDown, ChevronRight, Info, Loader2, Minus, Send } from '@lucide/vue'
 import { CheckboxIndicator, CheckboxRoot, Primitive } from 'reka-ui'
+import { useUIStore } from '@/shared/stores/ui'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
-import { useUIStore } from '@/shared/stores/ui'
 
 defineOptions({
   inheritAttrs: false,

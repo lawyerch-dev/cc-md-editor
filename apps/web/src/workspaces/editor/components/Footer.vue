@@ -24,10 +24,10 @@ import {
 } from '@/lib/markdown/headingNavigation'
 import { computeHeadingBreadcrumbs, extractMarkdownHeadings } from '@/lib/markdown/headings'
 import { isShareUiEnabled } from '@/shared/services/share/client'
+import { useUIStore } from '@/shared/stores/ui'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { usePostStore } from '@/workspaces/editor/stores/post'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
-import { useUIStore } from '@/shared/stores/ui'
 
 const renderStore = useRenderStore()
 const editorStore = useEditorStore()

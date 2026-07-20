@@ -4,14 +4,14 @@ import type { ThemeName } from '@md/shared/configs'
 import { Check, CheckSquare, Download, Edit3, Ellipsis, Eye, Plus, X } from '@lucide/vue'
 import { exportMergedTheme } from '@md/core/theme'
 import { themeMap } from '@md/shared'
-import { getThemeLabel } from '@/workspaces/editor/composables/useLocalizedStyleOptions'
 import { copyPlain } from '@/lib/browser/clipboard'
 import { useConfirmStore } from '@/shared/stores/confirm'
+import { useUIStore } from '@/shared/stores/ui'
+import { getThemeLabel } from '@/workspaces/editor/composables/useLocalizedStyleOptions'
 import { useCssEditorStore } from '@/workspaces/editor/stores/cssEditor'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
 import { useThemeStore } from '@/workspaces/editor/stores/theme'
-import { useUIStore } from '@/shared/stores/ui'
 
 const { t } = useI18n()
 const confirmStore = useConfirmStore()

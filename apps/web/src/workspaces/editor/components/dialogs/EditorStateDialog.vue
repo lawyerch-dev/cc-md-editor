@@ -3,13 +3,13 @@
 import { Check, Copy, Expand, UploadCloud } from '@lucide/vue'
 import { downloadFile } from '@md/shared/utils/fileHelpers'
 import { computed } from 'vue'
-import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
 import { copyPlain } from '@/lib/browser/clipboard'
+import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
+import { useUIStore } from '@/shared/stores/ui'
 import { useCssEditorStore } from '@/workspaces/editor/stores/cssEditor'
 import { usePostStore } from '@/workspaces/editor/stores/post'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
 import { useThemeStore } from '@/workspaces/editor/stores/theme'
-import { useUIStore } from '@/shared/stores/ui'
 
 const props = defineProps<{
   open: boolean

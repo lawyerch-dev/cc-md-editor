@@ -3,9 +3,9 @@
 import { CheckSquare, ChevronsDownUp, ChevronsUpDown, Download, Ellipsis, FileText, Plus, Regex, Replace, ReplaceAll, Search, Upload, X } from '@lucide/vue'
 import { downloadMD, exportPostsAsZip } from '@/shared/services/export'
 import { useConfirmStore } from '@/shared/stores/confirm'
+import { useUIStore } from '@/shared/stores/ui'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { usePostStore } from '@/workspaces/editor/stores/post'
-import { useUIStore } from '@/shared/stores/ui'
 import {
   getPostSliderDropdownContentProps,
   providePostSliderMenu,

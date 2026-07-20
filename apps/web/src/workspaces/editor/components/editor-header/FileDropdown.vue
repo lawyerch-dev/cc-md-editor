@@ -3,9 +3,9 @@
 import { Cloud, Download, FileCode, FileCog, FileText, FolderKanban, FolderOpen, Package, Settings, Share2, Upload } from '@lucide/vue'
 import { isShareUiEnabled } from '@/shared/services/share/client'
 import { isSyncUiEnabled } from '@/shared/services/sync/client'
+import { useUIStore } from '@/shared/stores/ui'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useExportStore } from '@/workspaces/editor/stores/export'
-import { useUIStore } from '@/shared/stores/ui'
 
 const props = withDefaults(defineProps<{
   asSub?: boolean

@@ -3,16 +3,16 @@
 import { Cloud, Crown, LoaderCircle, LogOut, Settings2, Share2, User } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
-import CloudFeatureState from '@/workspaces/editor/components/editor-header/cloud/CloudFeatureState.vue'
+import { Button } from '@/components/ui/button'
 import GitHubIcon from '@/shared/components/icons/GitHubIcon.vue'
 import PanelCard from '@/shared/components/navigation/panel-dialog/PanelCard.vue'
 import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
-import { Button } from '@/components/ui/button'
 import { isShareProUser, isShareUiEnabled } from '@/shared/services/share/client'
 import { isSyncUiEnabled } from '@/shared/services/sync/client'
 import { useAuthStore } from '@/shared/stores/auth'
 import { useSyncStore } from '@/shared/stores/sync'
 import { useUIStore } from '@/shared/stores/ui'
+import CloudFeatureState from '@/workspaces/editor/components/editor-header/cloud/CloudFeatureState.vue'
 
 const props = defineProps<{
   open: boolean

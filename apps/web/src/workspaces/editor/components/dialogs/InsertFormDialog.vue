@@ -1,8 +1,8 @@
 <!-- @workspace editor -->
 <script setup lang="ts">
 import { createTable } from '@md/shared/utils/fileHelpers'
-import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useUIStore } from '@/shared/stores/ui'
+import { useEditorStore } from '@/workspaces/editor/stores/editor'
 
 const { t } = useI18n()
 

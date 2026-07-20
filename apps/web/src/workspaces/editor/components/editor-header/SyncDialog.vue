@@ -3,17 +3,17 @@
 import { AlertCircle, Cloud, CloudOff, Loader2, LogIn, RefreshCw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import CloudFeatureState from '@/workspaces/editor/components/editor-header/cloud/CloudFeatureState.vue'
-import PanelCard from '@/shared/components/navigation/panel-dialog/PanelCard.vue'
-import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import PanelCard from '@/shared/components/navigation/panel-dialog/PanelCard.vue'
+import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
 import { useSyncStatusMeta } from '@/shared/composables/useSyncStatusMeta'
 import { isSyncConfigured } from '@/shared/services/sync/client'
 import { useAuthStore } from '@/shared/stores/auth'
 import { useLocaleStore } from '@/shared/stores/locale'
 import { useSyncStore } from '@/shared/stores/sync'
 import { useUIStore } from '@/shared/stores/ui'
+import CloudFeatureState from '@/workspaces/editor/components/editor-header/cloud/CloudFeatureState.vue'
 
 const props = defineProps<{
   open: boolean

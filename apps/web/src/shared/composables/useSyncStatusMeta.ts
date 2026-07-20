@@ -4,11 +4,11 @@ import { AlertCircle, Cloud, CloudCheck, CloudOff, Loader2 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { t } from '@/i18n/translate'
-import { store } from '@/storage'
-import { addPrefix } from '@/storage/prefix'
 import { useAuthStore } from '@/shared/stores/auth'
 import { useGitHubSyncStore } from '@/shared/stores/githubSync'
 import { useSyncStore } from '@/shared/stores/sync'
+import { store } from '@/storage'
+import { addPrefix } from '@/storage/prefix'
 
 export type SyncUiState = `syncing` | `synced` | `error` | `pending`
 

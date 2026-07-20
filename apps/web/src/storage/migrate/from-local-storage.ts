@@ -1,8 +1,8 @@
 // @workspace shared
 import type { PerThemeSettings, PerThemeSettingsMap, ThemeName } from '@md/shared/configs'
 
-import type { IndexedDBEngine } from '@/storage/engines/indexed-db'
 import type { Post } from '@/shared/types/post'
+import type { IndexedDBEngine } from '@/storage/engines/indexed-db'
 import { defaultPerThemeSettings, defaultStyleConfig } from '@md/shared/configs'
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '@/storage/db'

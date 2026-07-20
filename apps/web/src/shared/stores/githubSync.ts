@@ -1,14 +1,14 @@
+import type { Post } from '@/shared/types/post'
 // @workspace shared
 import type { Article, Source } from '@/workspaces/reading/stores/types'
-import type { Post } from '@/shared/types/post'
 import { watch } from 'vue'
 import { formatLocalDateTime } from '@/i18n/translate'
 import { GitHubSyncClient } from '@/shared/services/github/client'
 import { store } from '@/storage'
 import { isCacheKey } from '@/storage/keys'
 import { addPrefix } from '@/storage/prefix'
-import { useIdeaBoardStore } from '@/workspaces/idea-board/stores'
 import { usePostStore } from '@/workspaces/editor/stores/post'
+import { useIdeaBoardStore } from '@/workspaces/idea-board/stores'
 import { useReadingStore } from '@/workspaces/reading/stores'
 import { saveArticles as saveIDBArticles, saveSources as saveIDBSources } from '@/workspaces/reading/stores/indexeddb-persistence'
 

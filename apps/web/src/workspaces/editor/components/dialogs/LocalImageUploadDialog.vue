@@ -10,8 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { progress as Progress } from '@/components/ui/progress'
-import { useImageUploader } from '@/workspaces/editor/composables/useImageUploader'
 import { useUIStore } from '@/shared/stores/ui'
+import { useImageUploader } from '@/workspaces/editor/composables/useImageUploader'
 
 const { t } = useI18n()
 const uiStore = useUIStore()

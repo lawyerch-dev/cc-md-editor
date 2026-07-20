@@ -14,9 +14,9 @@ import {
   Trash2,
 } from '@lucide/vue'
 import { downloadMD } from '@/shared/services/export'
+import { useUIStore } from '@/shared/stores/ui'
 import { usePostStore } from '@/workspaces/editor/stores/post'
 import { useTemplateStore } from '@/workspaces/editor/stores/template'
-import { useUIStore } from '@/shared/stores/ui'
 import {
   getPostSliderDropdownContentProps,
   updatePostSliderMenuOpen,

@@ -1,9 +1,9 @@
 // @workspace editor
 import type { RendererAPI } from '@md/shared/types'
 import { t } from '@/i18n/translate'
+import { useUIStore } from '@/shared/stores/ui'
 import { useCustomComponentStore } from './customComponent'
 import { useThemeStore } from './theme'
-import { useUIStore } from '@/shared/stores/ui'
 
 /**
  * 渲染 Store

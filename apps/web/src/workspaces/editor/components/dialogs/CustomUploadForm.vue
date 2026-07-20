@@ -4,8 +4,8 @@ import { Compartment } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { javascriptSetup, theme } from '@md/shared'
 import { removeLeft } from '@md/shared/utils/basicHelpers'
-import { store } from '@/storage'
 import { useUIStore } from '@/shared/stores/ui'
+import { store } from '@/storage'
 
 const { t } = useI18n()
 

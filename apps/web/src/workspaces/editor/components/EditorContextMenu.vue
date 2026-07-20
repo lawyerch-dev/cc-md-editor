@@ -30,17 +30,17 @@ import {
   Wand2,
 } from '@lucide/vue'
 import { altSign, headingLevels as baseHeadingLevels, ctrlKey, ctrlSign, shiftSign } from '@md/shared/configs'
-import { useEditorDocumentActions } from '@/workspaces/editor/composables/useEditorDocumentActions'
-import { useEditorFormat } from '@/workspaces/editor/composables/useEditorFormat'
 import { copyPlain, readPlainFromClipboard } from '@/lib/browser/clipboard'
 import { normalizeFormulaInput } from '@/lib/markdown/formula'
 import { useConfirmStore } from '@/shared/stores/confirm'
+import { useUIStore } from '@/shared/stores/ui'
+import { useEditorDocumentActions } from '@/workspaces/editor/composables/useEditorDocumentActions'
+import { useEditorFormat } from '@/workspaces/editor/composables/useEditorFormat'
 import { useCssEditorStore } from '@/workspaces/editor/stores/cssEditor'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useExportStore } from '@/workspaces/editor/stores/export'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
 import { useThemeStore } from '@/workspaces/editor/stores/theme'
-import { useUIStore } from '@/shared/stores/ui'
 
 const confirmStore = useConfirmStore()
 const cssEditorStore = useCssEditorStore()

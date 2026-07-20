@@ -3,8 +3,8 @@
 import type { Component } from 'vue'
 import { BookOpen, Code2, FileText, FunctionSquare, PieChart } from '@lucide/vue'
 import { computed, ref } from 'vue'
-import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
 
 const props = defineProps<{
   open: boolean

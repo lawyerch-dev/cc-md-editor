@@ -3,8 +3,8 @@
 import { Bot, Image as ImageIcon, Wand2 } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'
 import { useAIPanelStore } from '@/shared/stores/aiPanel'
-import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useUIStore } from '@/shared/stores/ui'
+import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { AIPolishPopover } from './tool-box'
 
 defineProps<{

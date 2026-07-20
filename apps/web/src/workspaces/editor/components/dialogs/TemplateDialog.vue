@@ -3,10 +3,10 @@
 import type { Template } from '@md/shared'
 import { Calendar, Clock, FileDown, FileInput, FileText, Package, Pencil, Plus, Search, Trash2 } from '@lucide/vue'
 import { useConfirmStore } from '@/shared/stores/confirm'
+import { useUIStore } from '@/shared/stores/ui'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { usePostStore } from '@/workspaces/editor/stores/post'
 import { useTemplateStore } from '@/workspaces/editor/stores/template'
-import { useUIStore } from '@/shared/stores/ui'
 
 const { t, locale } = useI18n()
 const confirmStore = useConfirmStore()

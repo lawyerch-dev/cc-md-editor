@@ -5,9 +5,9 @@ import { hydratePendingInfographicDiagrams } from '@md/core/extensions'
 import { hljs } from '@md/core/renderer'
 import { highlightPendingBlocks } from '@md/core/utils'
 import { setupDiagramDownloadOverlay } from '@/lib/preview/diagram-download'
+import { useUIStore } from '@/shared/stores/ui'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
 import { useThemeStore } from '@/workspaces/editor/stores/theme'
-import { useUIStore } from '@/shared/stores/ui'
 
 const props = defineProps<{
   backLight: boolean

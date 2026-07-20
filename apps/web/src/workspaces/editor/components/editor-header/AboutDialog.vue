@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ExternalLink, HelpCircle } from '@lucide/vue'
 import { computed } from 'vue'
-import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
 import { Button } from '@/components/ui/button'
+import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
 
 const props = defineProps<{
   open: boolean

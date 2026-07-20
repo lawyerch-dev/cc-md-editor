@@ -8,13 +8,13 @@ import {
   formatLink,
   formatStrikethrough,
 } from '@md/shared/editor'
+import { t } from '@/i18n/translate'
+import { useUIStore } from '@/shared/stores/ui'
 import { useEditorDocumentActions } from '@/workspaces/editor/composables/useEditorDocumentActions'
 import { createLocalizedStyleOptions } from '@/workspaces/editor/composables/useLocalizedStyleOptions'
-import { t } from '@/i18n/translate'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
 import { useThemeStore } from '@/workspaces/editor/stores/theme'
-import { useUIStore } from '@/shared/stores/ui'
 
 export type SlashCommandGroup = 'basic' | 'common' | 'edit' | 'style'
 

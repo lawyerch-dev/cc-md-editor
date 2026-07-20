@@ -31,13 +31,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
 import { copyPlain } from '@/lib/browser/clipboard'
-import { store } from '@/storage'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
 import useAIConfigStore from '@/shared/stores/aiConfig'
-import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useQuickCommandsStore } from '@/shared/stores/quickCommands'
 import { useUIStore } from '@/shared/stores/ui'
+import { store } from '@/storage'
+import { useEditorStore } from '@/workspaces/editor/stores/editor'
 
 const props = defineProps<{ open: boolean }>()
 

@@ -1,17 +1,17 @@
 <!-- @workspace editor -->
 <script setup lang="ts">
 import { Settings } from '@lucide/vue'
-import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
-import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
-import PanelSelect from '@/shared/components/navigation/panel-dialog/PanelSelect.vue'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useEditorRefresh } from '@/workspaces/editor/composables/useEditorRefresh'
 import { LOCALE_OPTIONS } from '@/i18n/constants'
+import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
+import PanelDialog from '@/shared/components/navigation/panel-dialog/PanelDialog.vue'
+import PanelSelect from '@/shared/components/navigation/panel-dialog/PanelSelect.vue'
 import { useLocaleStore } from '@/shared/stores/locale'
-import { useThemeStore } from '@/workspaces/editor/stores/theme'
 import { useUIStore } from '@/shared/stores/ui'
+import { useEditorRefresh } from '@/workspaces/editor/composables/useEditorRefresh'
+import { useThemeStore } from '@/workspaces/editor/stores/theme'
 
 const props = defineProps<{
   open: boolean

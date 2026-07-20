@@ -6,12 +6,12 @@ import { Blocks, Check, ChevronDown, Copy, Download, Lock, Pencil, Plus, Rss, Tr
 import { previewComponent } from '@md/core/extensions'
 import { escapeHtml } from '@md/core/utils'
 import DOMPurify from 'isomorphic-dompurify'
-import { useLocalizedBuiltinComponents } from '@/workspaces/editor/composables/useLocalizedBuiltinComponents'
 import { useConfirmStore } from '@/shared/stores/confirm'
+import { useUIStore } from '@/shared/stores/ui'
+import { useLocalizedBuiltinComponents } from '@/workspaces/editor/composables/useLocalizedBuiltinComponents'
 import { useCustomComponentStore } from '@/workspaces/editor/stores/customComponent'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useMpAccountsStore } from '@/workspaces/editor/stores/mpAccounts'
-import { useUIStore } from '@/shared/stores/ui'
 
 const { t } = useI18n()
 const confirmStore = useConfirmStore()

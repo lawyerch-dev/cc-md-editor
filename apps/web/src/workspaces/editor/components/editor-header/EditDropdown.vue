@@ -14,10 +14,10 @@ import {
 } from '@lucide/vue'
 import { altSign, ctrlSign, shiftSign } from '@md/shared/configs'
 import { redoAction, undoAction } from '@md/shared/editor'
-import { useEditorDocumentActions } from '@/workspaces/editor/composables/useEditorDocumentActions'
 import { copyPlain, readPlainFromClipboard } from '@/lib/browser/clipboard'
-import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useUIStore } from '@/shared/stores/ui'
+import { useEditorDocumentActions } from '@/workspaces/editor/composables/useEditorDocumentActions'
+import { useEditorStore } from '@/workspaces/editor/stores/editor'
 
 const props = withDefaults(defineProps<{
   asSub?: boolean

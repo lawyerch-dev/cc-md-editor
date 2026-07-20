@@ -1,21 +1,21 @@
 // @workspace shared
 import { storeToRefs } from 'pinia'
+import { useAIConfigStore } from '@/shared/stores/aiConfig'
+import { useLocaleStore } from '@/shared/stores/locale'
+import { useQuickCommandsStore } from '@/shared/stores/quickCommands'
+import { useUIStore } from '@/shared/stores/ui'
 import { store } from '@/storage/manager'
 import { addPrefix } from '@/storage/prefix'
 import { parseStoredValue } from '@/storage/quota'
-import { useAIConfigStore } from '@/shared/stores/aiConfig'
 import { useCssEditorStore } from '@/workspaces/editor/stores/cssEditor'
 import { useCustomComponentStore } from '@/workspaces/editor/stores/customComponent'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
-import { useIdeaBoardStore } from '@/workspaces/idea-board/stores'
-import { useLocaleStore } from '@/shared/stores/locale'
 import { usePostStore } from '@/workspaces/editor/stores/post'
-import { useQuickCommandsStore } from '@/shared/stores/quickCommands'
-import { useReadingStore } from '@/workspaces/reading/stores'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
 import { useTemplateStore } from '@/workspaces/editor/stores/template'
 import { useThemeStore } from '@/workspaces/editor/stores/theme'
-import { useUIStore } from '@/shared/stores/ui'
+import { useIdeaBoardStore } from '@/workspaces/idea-board/stores'
+import { useReadingStore } from '@/workspaces/reading/stores'
 
 const PREVIEW_REFRESH_KEYS = new Set([
   addPrefix(`theme`),

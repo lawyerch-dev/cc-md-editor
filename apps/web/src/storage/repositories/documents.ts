@@ -1,6 +1,6 @@
+import type { Post } from '@/shared/types/post'
 // @workspace shared
 import type { StoredDocument } from '@/storage/db'
-import type { Post } from '@/shared/types/post'
 import { getDatabase } from '@/storage/db'
 import { LEGACY_POSTS_KEY, STORE_DOCUMENTS } from '@/storage/keys'
 import { store } from '@/storage/manager'

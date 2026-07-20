@@ -9,12 +9,12 @@ import {
   codeBlockThemeOptions,
 } from '@md/shared/configs'
 import PickColors from 'vue-pick-colors'
+import { useConfirmStore } from '@/shared/stores/confirm'
+import { useUIStore } from '@/shared/stores/ui'
 import { useEditorRefresh } from '@/workspaces/editor/composables/useEditorRefresh'
 import { useLocalizedStyleOptions } from '@/workspaces/editor/composables/useLocalizedStyleOptions'
-import { useConfirmStore } from '@/shared/stores/confirm'
 import { useCssEditorStore } from '@/workspaces/editor/stores/cssEditor'
 import { useThemeStore } from '@/workspaces/editor/stores/theme'
-import { useUIStore } from '@/shared/stores/ui'
 
 const props = withDefaults(defineProps<{
   asSub?: boolean

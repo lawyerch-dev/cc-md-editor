@@ -1,9 +1,9 @@
 // @workspace editor
 import { stripUnresolvedAsyncPlaceholders, waitForPreviewReady } from '@/lib/preview/preview-ready'
 import { getHtmlContent, getShareExportStyles } from '@/shared/services/export'
+import { useUIStore } from '@/shared/stores/ui'
 import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useRenderStore } from '@/workspaces/editor/stores/render'
-import { useUIStore } from '@/shared/stores/ui'
 
 /** 捕获浅色模式分享快照（编辑器处于深色模式时会临时按浅色重渲染） */
 export async function captureShareSnapshot(): Promise<{ bodyHtml: string, stylesHtml: string }> {
