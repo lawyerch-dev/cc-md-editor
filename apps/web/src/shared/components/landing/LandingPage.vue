@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import { BarChart3, Globe, Lightbulb, Moon, PenLine, Satellite, ScrollText, Settings, Sun, Target, X } from '@lucide/vue'
-import { computed, defineAsyncComponent, ref } from 'vue'
+import { defineAsyncComponent, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import ChangelogDialog from '@/shared/components/landing/ChangelogDialog.vue'
@@ -17,254 +17,457 @@ const { t } = useI18n()
 const showAIConfig = ref(false)
 const showChangelog = ref(false)
 
-interface FunctionCard { id: string, nameKey: string, descKey: string, view: string }
-interface WorkspaceZone { id: string, nameKey: string, descKey: string, icon: Component, color: string, cards: FunctionCard[] }
+interface FunctionCard {
+  id: string
+  nameKey: string
+  descKey: string
+  view: string
+}
+
+interface WorkspaceZone {
+  id: string
+  nameKey: string
+  descKey: string
+  icon: Component
+  gradientFrom: string
+  gradientTo: string
+  accentVar: string
+  cards: FunctionCard[]
+}
 
 const zones: WorkspaceZone[] = [
   {
-    id: 'coach', nameKey: 'landing.zones.coach.name', descKey: 'landing.zones.coach.desc',
-    icon: Target, color: '#818cf8',
+    id: 'coach',
+    nameKey: 'landing.zones.coach.name',
+    descKey: 'landing.zones.coach.desc',
+    icon: Target,
+    gradientFrom: '#818cf8',
+    gradientTo: '#6366f1',
+    accentVar: '239 68 68',
     cards: [
       { id: 'coach-diag', nameKey: 'landing.zones.coach.cardDiag', descKey: 'landing.zones.coach.cardDiagDesc', view: 'coach' },
       { id: 'coach-goal', nameKey: 'landing.zones.coach.cardGoal', descKey: 'landing.zones.coach.cardGoalDesc', view: 'coach' },
     ],
   },
   {
-    id: 'radar', nameKey: 'landing.zones.radar.name', descKey: 'landing.zones.radar.desc',
-    icon: Satellite, color: '#60a5fa',
-    cards: [{ id: 'radar-feed', nameKey: 'landing.zones.radar.cardFeed', descKey: 'landing.zones.radar.cardFeedDesc', view: 'reading' }],
+    id: 'radar',
+    nameKey: 'landing.zones.radar.name',
+    descKey: 'landing.zones.radar.desc',
+    icon: Satellite,
+    gradientFrom: '#60a5fa',
+    gradientTo: '#3b82f6',
+    accentVar: '59 130 246',
+    cards: [
+      { id: 'radar-feed', nameKey: 'landing.zones.radar.cardFeed', descKey: 'landing.zones.radar.cardFeedDesc', view: 'reading' },
+    ],
   },
   {
-    id: 'insight', nameKey: 'landing.zones.insight.name', descKey: 'landing.zones.insight.desc',
-    icon: Lightbulb, color: '#fbbf24',
-    cards: [{ id: 'insight-board', nameKey: 'landing.zones.insight.cardBoard', descKey: 'landing.zones.insight.cardBoardDesc', view: 'ideaBoard' }],
+    id: 'insight',
+    nameKey: 'landing.zones.insight.name',
+    descKey: 'landing.zones.insight.desc',
+    icon: Lightbulb,
+    gradientFrom: '#fbbf24',
+    gradientTo: '#f59e0b',
+    accentVar: '245 158 11',
+    cards: [
+      { id: 'insight-board', nameKey: 'landing.zones.insight.cardBoard', descKey: 'landing.zones.insight.cardBoardDesc', view: 'ideaBoard' },
+    ],
   },
   {
-    id: 'output', nameKey: 'landing.zones.output.name', descKey: 'landing.zones.output.desc',
-    icon: PenLine, color: '#34d399',
-    cards: [{ id: 'output-editor', nameKey: 'landing.zones.output.cardEditor', descKey: 'landing.zones.output.cardEditorDesc', view: 'editor' }],
+    id: 'output',
+    nameKey: 'landing.zones.output.name',
+    descKey: 'landing.zones.output.desc',
+    icon: PenLine,
+    gradientFrom: '#34d399',
+    gradientTo: '#10b981',
+    accentVar: '16 185 129',
+    cards: [
+      { id: 'output-editor', nameKey: 'landing.zones.output.cardEditor', descKey: 'landing.zones.output.cardEditorDesc', view: 'editor' },
+    ],
   },
   {
-    id: 'report', nameKey: 'landing.zones.report.name', descKey: 'landing.zones.report.desc',
-    icon: BarChart3, color: '#fb7185',
-    cards: [{ id: 'report-entry', nameKey: 'landing.zones.report.cardEntry', descKey: 'landing.zones.report.cardEntryDesc', view: 'report' }],
+    id: 'report',
+    nameKey: 'landing.zones.report.name',
+    descKey: 'landing.zones.report.desc',
+    icon: BarChart3,
+    gradientFrom: '#fb7185',
+    gradientTo: '#f43f5e',
+    accentVar: '244 63 94',
+    cards: [
+      { id: 'report-entry', nameKey: 'landing.zones.report.cardEntry', descKey: 'landing.zones.report.cardEntryDesc', view: 'report' },
+    ],
   },
 ]
 
-const activeZoneId = ref('coach')
-const activeZone = computed(() => zones.find(z => z.id === activeZoneId.value) ?? zones[0])
+const FLYWHEEL_RADIUS = 120
 
-// Keyboard 1-5
-function onKey(e: KeyboardEvent) {
-  const idx = Number.parseInt(e.key) - 1
-  if (idx >= 0 && idx < zones.length) activeZoneId.value = zones[idx].id
+function flywheelStyle(zone: WorkspaceZone, index: number) {
+  const angle = (index * 72 - 90) * (Math.PI / 180)
+  const x = Math.cos(angle) * FLYWHEEL_RADIUS
+  const y = Math.sin(angle) * FLYWHEEL_RADIUS
+  return {
+    'left': `calc(50% + ${x}px - 24px)`,
+    'top': `calc(50% + ${y}px - 24px)`,
+    '--zone-color': zone.gradientFrom,
+    'animationDelay': `${index * 0.6}s`,
+  }
 }
+
+function connectorStyle(index: number) {
+  const angle = index * 72 - 90
+  return { transform: `rotate(${angle}deg)` }
+}
+
+const zoneRefs = ref<HTMLElement[]>([])
+
+onBeforeUnmount(() => {
+  // cleanup if needed
+})
 </script>
 
 <template>
-  <div class="relative flex h-[100dvh] overflow-hidden bg-background" @keydown="onKey">
-    <!-- ─── Top-right toolbar ─── -->
+  <div class="relative min-h-[100dvh] overflow-x-hidden bg-background">
+    <!-- ─── Floating toolbar ─── -->
     <div class="fixed right-6 top-6 z-40 flex items-center gap-2">
-      <button class="tb" @click="localeStore.setLocale(localeStore.locale === 'zh-CN' ? 'en-US' : 'zh-CN')">
-        <Globe class="h-3.5 w-3.5" /> {{ localeStore.locale === 'zh-CN' ? '中文' : 'EN' }}
+      <button
+        class="flex h-9 items-center gap-1.5 rounded-full bg-card/80 px-3 text-xs text-muted-foreground shadow-[0_2px_20px_rgba(0,0,0,0.06)] backdrop-blur-md ring-1 ring-border/40 transition-all duration-500 hover:bg-accent hover:text-foreground"
+        style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
+        @click="localeStore.setLocale(localeStore.locale === 'zh-CN' ? 'en-US' : 'zh-CN')"
+      >
+        <Globe class="h-3.5 w-3.5" />
+        {{ localeStore.locale === 'zh-CN' ? '中文' : 'EN' }}
       </button>
-      <button class="tb" @click="uiStore.toggleDark()">
-        <Sun v-if="uiStore.isDark" class="h-3.5 w-3.5" /><Moon v-else class="h-3.5 w-3.5" />
+      <button
+        class="flex h-9 items-center gap-1.5 rounded-full bg-card/80 px-3 text-xs text-muted-foreground shadow-[0_2px_20px_rgba(0,0,0,0.06)] backdrop-blur-md ring-1 ring-border/40 transition-all duration-500 hover:bg-accent hover:text-foreground"
+        style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
+        @click="uiStore.toggleDark()"
+      >
+        <Sun v-if="uiStore.isDark" class="h-3.5 w-3.5" />
+        <Moon v-else class="h-3.5 w-3.5" />
         {{ uiStore.isDark ? t('common.lightMode') : t('common.darkMode') }}
       </button>
-      <button class="tb" @click="showAIConfig = true"><Settings class="h-3.5 w-3.5" /> AI</button>
-      <button class="tb" @click="showChangelog = true"><ScrollText class="h-3.5 w-3.5" /> {{ t('changelog.button') }}</button>
+      <button
+        class="flex h-9 items-center gap-1.5 rounded-full bg-card/80 px-3 text-xs text-muted-foreground shadow-[0_2px_20px_rgba(0,0,0,0.06)] backdrop-blur-md ring-1 ring-border/40 transition-all duration-500 hover:bg-accent hover:text-foreground"
+        style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
+        @click="showAIConfig = true"
+      >
+        <Settings class="h-3.5 w-3.5" />
+        AI
+      </button>
+      <button
+        class="flex h-9 items-center gap-1.5 rounded-full bg-card/80 px-3 text-xs text-muted-foreground shadow-[0_2px_20px_rgba(0,0,0,0.06)] backdrop-blur-md ring-1 ring-border/40 transition-all duration-500 hover:bg-accent hover:text-foreground"
+        style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
+        @click="showChangelog = true"
+      >
+        <ScrollText class="h-3.5 w-3.5" />
+        {{ t('changelog.button') }}
+      </button>
     </div>
 
-    <!-- ════════ LEFT: Arc Sidebar ════════ -->
-    <aside class="arc-sidebar relative flex w-[260px] shrink-0 flex-col overflow-hidden">
-      <!-- Background -->
-      <div class="absolute inset-0 bg-[#08080f]" />
-      <div class="absolute inset-0 opacity-20 transition-all duration-1000" :style="{ background: `radial-gradient(ellipse at 30% 50%, ${activeZone.color}18, transparent 60%)` }" />
-
-      <!-- Brand -->
-      <div class="relative z-10 px-6 pt-10 pb-8">
-        <div class="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.03] px-2.5 py-0.5 text-[9px] uppercase tracking-[0.2em] text-white/20">
-          <span class="inline-block h-1 w-1 rounded-full bg-white/25" />
-          {{ t('landing.eyebrow') }}
-        </div>
-        <h1 class="text-lg font-extrabold leading-tight tracking-[-0.02em] text-white/85">
-          {{ t('landing.title') }}
-        </h1>
-        <p class="mt-1.5 text-[11px] leading-relaxed text-white/20">
-          {{ t('landing.subtitle') }}
-        </p>
+    <!-- ─── Hero Section ─── -->
+    <section class="flex flex-col items-center px-4 pb-12 pt-32 md:pb-16 md:pt-40">
+      <!-- Eyebrow -->
+      <div class="mb-6 inline-flex items-center gap-2 rounded-full bg-muted/60 px-4 py-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground ring-1 ring-border/30">
+        <span class="inline-block h-1.5 w-1.5 rounded-full bg-foreground/30" />
+        {{ t('landing.eyebrow') }}
       </div>
 
-      <!-- Arc navigation -->
-      <nav class="relative z-10 flex-1 px-3">
-        <!-- SVG arc track behind items -->
-        <svg class="pointer-events-none absolute left-0 top-0 h-full w-full" viewBox="0 0 260 500" preserveAspectRatio="none" fill="none">
-          <path
-            d="M 20 40 Q 80 120, 30 250 Q -10 380, 60 460"
-            stroke="rgba(255,255,255,0.03)"
-            stroke-width="1.5"
-            stroke-dasharray="4 6"
-            fill="none"
+      <!-- Title -->
+      <h1
+        class="text-center text-[clamp(2.5rem,6vw,5rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground"
+        style="font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
+      >
+        {{ t('landing.title') }}
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="mt-6 max-w-xl text-center text-base leading-relaxed text-muted-foreground/80 md:text-lg">
+        {{ t('landing.subtitle') }}
+      </p>
+    </section>
+
+    <!-- ─── Flywheel Center ─── -->
+    <section class="flex justify-center px-4 pb-16 md:pb-24">
+      <div class="flywheel-container relative h-[360px] w-[360px] md:h-[420px] md:w-[420px]">
+        <!-- Ambient glow -->
+        <div class="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-500/8 via-blue-500/8 to-rose-500/8 blur-3xl" />
+
+        <!-- Outer ring -->
+        <div class="absolute inset-4 rounded-full bg-card/50 shadow-[0_8px_60px_rgba(0,0,0,0.04)] ring-1 ring-border/20 backdrop-blur-sm" />
+
+        <!-- Inner core -->
+        <div class="absolute inset-8 rounded-full bg-card shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] ring-1 ring-border/10" />
+
+        <!-- Orbit track -->
+        <div class="absolute inset-0 rounded-full border border-dashed border-border/20" />
+
+        <!-- Rotating zone icons -->
+        <div
+          v-for="(zone, index) in zones"
+          :key="zone.id"
+          class="flywheel-node absolute flex h-12 w-12 items-center justify-center rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.06)] ring-1 ring-border/20"
+          :style="flywheelStyle(zone, index)"
+        >
+          <component :is="zone.icon" class="h-5 w-5" :style="{ color: zone.gradientFrom }" />
+        </div>
+
+        <!-- Connectors -->
+        <div
+          v-for="(zone, index) in zones"
+          :key="`connector-${zone.id}`"
+          class="flywheel-connector absolute left-1/2 top-1/2 h-px origin-left"
+          :style="connectorStyle(index)"
+        >
+          <div
+            class="h-px w-24 md:w-28"
+            :style="{ background: `linear-gradient(to right, ${zone.gradientFrom}30, transparent)` }"
           />
-        </svg>
+        </div>
 
-        <!-- Zone items -->
-        <div class="relative flex flex-col gap-1">
-          <button
-            v-for="(zone, i) in zones" :key="zone.id"
-            class="zone-item group relative flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all duration-500"
-            :class="activeZoneId === zone.id ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'"
-            :style="{
-              marginLeft: activeZoneId === zone.id ? '0' : `${Math.sin(i * 0.8) * 8 + 8}px`,
-              transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
-            }"
-            @click="activeZoneId = zone.id"
+        <!-- Center label -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
+            Flywheel
+          </div>
+          <div class="mt-1 text-xs font-bold text-foreground/70">
+            5 Zones
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Workspace Zones ─── -->
+    <section class="mx-auto max-w-6xl px-4 pb-32 md:px-8">
+      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <template v-for="(zone, zoneIndex) in zones" :key="zone.id">
+          <!-- Zone with 2 cards → spans 2 cols on lg -->
+          <div
+            :ref="(el) => { if (el) zoneRefs[zoneIndex] = el as HTMLElement }"
+            class="zone-enter group/zone"
+            :class="zone.cards.length > 1 ? 'md:col-span-2 lg:col-span-2' : ''"
+            :style="{ transitionDelay: `${zoneIndex * 100}ms` }"
           >
-            <!-- Active indicator bar -->
+            <!-- Zone outer shell (Double-Bezel) -->
             <div
-              class="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full transition-all duration-500"
-              :style="{ background: activeZoneId === zone.id ? zone.color : 'transparent', boxShadow: activeZoneId === zone.id ? `0 0 12px ${zone.color}40` : 'none' }"
-            />
-
-            <!-- Icon -->
-            <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-500"
+              class="rounded-[2rem] p-[3px] transition-shadow duration-700"
               :style="{
-                background: activeZoneId === zone.id ? zone.color + '15' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${activeZoneId === zone.id ? zone.color + '25' : 'rgba(255,255,255,0.04)'}`,
+                background: `linear-gradient(135deg, ${zone.gradientFrom}12, ${zone.gradientTo}08)`,
+                transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
               }"
             >
-              <component
-                :is="zone.icon"
-                class="h-4 w-4 transition-all duration-500"
-                :style="{ color: activeZoneId === zone.id ? zone.color : 'rgba(255,255,255,0.25)' }"
-              />
-            </div>
+              <!-- Zone inner core -->
+              <div class="rounded-[calc(2rem-3px)] bg-card p-6 shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] ring-1 ring-border/10 dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.05)]">
+                <!-- Zone header -->
+                <div class="mb-5 flex items-center gap-3">
+                  <div
+                    class="flex h-10 w-10 items-center justify-center rounded-xl"
+                    :style="{ background: `linear-gradient(135deg, ${zone.gradientFrom}20, ${zone.gradientTo}10)` }"
+                  >
+                    <component :is="zone.icon" class="h-5 w-5" :style="{ color: zone.gradientFrom }" />
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-bold text-foreground">
+                      {{ t(zone.nameKey) }}
+                    </h3>
+                    <p class="text-[11px] text-muted-foreground/70">
+                      {{ t(zone.descKey) }}
+                    </p>
+                  </div>
+                </div>
 
-            <!-- Text -->
-            <div class="flex-1 min-w-0">
-              <div
-                class="text-[13px] font-medium transition-all duration-500"
-                :style="{ color: activeZoneId === zone.id ? zone.color : 'rgba(255,255,255,0.4)' }"
-              >
-                {{ t(zone.nameKey) }}
+                <!-- Cards grid -->
+                <div class="grid gap-3" :class="zone.cards.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'">
+                  <button
+                    v-for="card in zone.cards"
+                    :key="card.id"
+                    class="card-enter group/card relative flex flex-col rounded-2xl bg-muted/30 p-4 text-left ring-1 ring-border/20 transition-all duration-500 hover:-translate-y-0.5 hover:bg-muted/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:bg-muted/20 dark:hover:bg-muted/30"
+                    style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
+                    @click="uiStore.setCurrentView(card.view as any)"
+                  >
+                    <div class="flex items-start justify-between">
+                      <div class="flex-1 pr-2">
+                        <h4 class="text-sm font-semibold text-foreground">
+                          {{ t(card.nameKey) }}
+                        </h4>
+                        <p class="mt-1 text-xs leading-relaxed text-muted-foreground/70">
+                          {{ t(card.descKey) }}
+                        </p>
+                      </div>
+
+                      <!-- Button-in-Button CTA -->
+                      <div
+                        class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-500 group-hover/card:translate-x-0.5 group-hover/card:-translate-y-px group-hover/card:scale-110"
+                        :style="{
+                          background: `linear-gradient(135deg, ${zone.gradientFrom}20, ${zone.gradientTo}10)`,
+                          transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                        }"
+                      >
+                        <svg
+                          class="h-3.5 w-3.5 transition-transform duration-500"
+                          :style="{ color: zone.gradientFrom, transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)' }"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M4.5 11.5L11.5 4.5M11.5 4.5H6M11.5 4.5V10" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <!-- Bottom accent line -->
+                    <div
+                      class="mt-3 h-px w-0 transition-all duration-700 group-hover/card:w-full"
+                      :style="{
+                        background: `linear-gradient(to right, ${zone.gradientFrom}40, transparent)`,
+                        transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                      }"
+                    />
+                  </button>
+                </div>
               </div>
-              <div
-                class="text-[10px] transition-all duration-500"
-                :style="{ color: activeZoneId === zone.id ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)' }"
-              >
-                {{ t(zone.descKey) }}
-              </div>
-            </div>
-
-            <!-- Keyboard hint -->
-            <span
-              class="text-[10px] font-mono transition-all duration-300"
-              :style="{ color: activeZoneId === zone.id ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.06)' }"
-            >
-              {{ i + 1 }}
-            </span>
-          </button>
-        </div>
-      </nav>
-
-      <!-- Bottom accent -->
-      <div class="relative z-10 px-6 pb-8">
-        <div class="h-px w-full bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
-        <p class="mt-4 text-[10px] text-white/10">New-AI Workspace</p>
-      </div>
-    </aside>
-
-    <!-- ════════ RIGHT: Content ════════ -->
-    <main class="flex flex-1 items-center overflow-y-auto">
-      <div class="w-full max-w-2xl px-16 py-20 lg:px-24">
-        <Transition name="zone-slide" mode="out-in">
-          <div :key="activeZoneId" class="zone-content">
-            <!-- Eyebrow -->
-            <div
-              class="mb-5 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em]"
-              :style="{ color: activeZone.color, background: activeZone.color + '08', border: `1px solid ${activeZone.color}12` }"
-            >
-              <component :is="activeZone.icon" class="h-3 w-3" />
-              {{ t(activeZone.nameKey) }}
-            </div>
-
-            <!-- Title -->
-            <h2
-              class="text-[2rem] font-extrabold leading-tight tracking-[-0.03em] text-foreground"
-              style="font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
-            >
-              {{ t(activeZone.nameKey) }}
-            </h2>
-            <p class="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground/50">
-              {{ t(activeZone.descKey) }}
-            </p>
-
-            <!-- Cards -->
-            <div class="mt-10 space-y-3">
-              <button
-                v-for="card in activeZone.cards" :key="card.id"
-                class="group flex w-full items-center gap-4 rounded-2xl border border-border/30 bg-card p-5 text-left transition-all duration-500 hover:-translate-y-0.5 hover:border-border/50 hover:shadow-lg"
-                style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
-                @click="uiStore.setCurrentView(card.view as any)"
-              >
-                <div
-                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-500 group-hover:scale-105"
-                  :style="{ background: activeZone.color + '0c', border: `1px solid ${activeZone.color}12` }"
-                >
-                  <component :is="activeZone.icon" class="h-5 w-5" :style="{ color: activeZone.color }" />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="text-sm font-semibold text-foreground">{{ t(card.nameKey) }}</div>
-                  <div class="mt-0.5 text-xs text-muted-foreground/50">{{ t(card.descKey) }}</div>
-                </div>
-                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/20 transition-all duration-500 group-hover:border-border/40">
-                  <svg class="h-3.5 w-3.5 text-muted-foreground/30 transition-all duration-500 group-hover:text-foreground/50 group-hover:translate-x-0.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 4l4 4-4 4" />
-                  </svg>
-                </div>
-              </button>
             </div>
           </div>
-        </Transition>
+        </template>
       </div>
-    </main>
+    </section>
 
-    <!-- Dialogs -->
-    <div v-if="showAIConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="showAIConfig = false">
+    <!-- ─── AI Config Dialog ─── -->
+    <div
+      v-if="showAIConfig"
+      class="ai-config-dialog fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      @click.self="showAIConfig = false"
+    >
       <div class="flex h-[80vh] w-[620px] max-w-[95vw] flex-col overflow-hidden rounded-[2rem] border bg-background shadow-2xl">
         <div class="flex shrink-0 items-center justify-between border-b px-6 py-4">
           <span class="text-sm font-semibold">AI 设置</span>
-          <Button variant="ghost" size="icon" class="h-7 w-7" @click="showAIConfig = false"><X class="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" class="h-7 w-7" @click="showAIConfig = false">
+            <X class="h-4 w-4" />
+          </Button>
         </div>
-        <div class="flex-1 overflow-y-auto p-5"><AIConfig /></div>
+        <div class="flex-1 overflow-y-auto p-5">
+          <AIConfig />
+        </div>
       </div>
     </div>
+
+    <!-- ─── Changelog Dialog ─── -->
     <ChangelogDialog :open="showChangelog" @close="showChangelog = false" />
   </div>
 </template>
 
 <style scoped>
-.tb {
-  display: flex; height: 2.25rem; align-items: center; gap: 0.375rem;
-  border-radius: 9999px; padding: 0 0.75rem; font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-  background: hsl(var(--card) / 0.8);
-  box-shadow: 0 2px 20px rgba(0,0,0,0.06);
-  backdrop-filter: blur(12px);
-  outline: 1px solid hsl(var(--border) / 0.4);
-  transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+@reference 'tailwindcss';
+
+/* ─── Flywheel rotation ─── */
+.flywheel-container {
+  animation: flywheel-spin 40s linear infinite;
 }
-.tb:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
 
-.zone-slide-enter-active { transition: opacity 0.4s cubic-bezier(0.32,0.72,0,1), transform 0.4s cubic-bezier(0.32,0.72,0,1); }
-.zone-slide-leave-active { transition: opacity 0.2s cubic-bezier(0.32,0.72,0,1), transform 0.2s cubic-bezier(0.32,0.72,0,1); }
-.zone-slide-enter-from { opacity: 0; transform: translateY(16px); }
-.zone-slide-leave-to { opacity: 0; transform: translateY(-8px); }
+.flywheel-node {
+  animation: flywheel-counter-spin 40s linear infinite;
+}
 
-.zone-content button:nth-child(1) { animation: fadeUp 0.5s cubic-bezier(0.32,0.72,0,1) 0.05s both; }
-.zone-content button:nth-child(2) { animation: fadeUp 0.5s cubic-bezier(0.32,0.72,0,1) 0.12s both; }
-.zone-content button:nth-child(3) { animation: fadeUp 0.5s cubic-bezier(0.32,0.72,0,1) 0.19s both; }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.flywheel-connector {
+  animation: flywheel-spin 40s linear infinite;
+}
+
+@keyframes flywheel-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes flywheel-counter-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* ─── Zone scroll entry ─── */
+.zone-enter {
+  opacity: 0;
+  transform: translateY(32px) scale(0.97);
+  filter: blur(6px);
+  animation: zone-reveal 0.9s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes zone-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* ─── Card staggered entry ─── */
+.card-enter {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: card-reveal 0.6s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes card-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-enter:nth-child(1) {
+  animation-delay: 0.15s;
+}
+.card-enter:nth-child(2) {
+  animation-delay: 0.25s;
+}
+.card-enter:nth-child(3) {
+  animation-delay: 0.35s;
+}
+
+/* ─── AI config dialog overrides ─── */
+.ai-config-dialog :deep(.custom-scroll) {
+  font-size: 10px;
+}
+
+@media (min-width: 640px) {
+  .ai-config-dialog :deep(.custom-scroll) {
+    font-size: 12px;
+  }
+}
+
+.ai-config-dialog :deep([data-radix-collection-item]) {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  font-size: 12px;
+}
+
+.ai-config-dialog :deep([data-state='open']),
+.ai-config-dialog :deep([data-state='closed']) {
+  font-size: 12px;
+}
+
+.ai-config-dialog :deep(label) {
+  font-size: 10px;
+}
+
+.ai-config-dialog :deep(.space-y-3) {
+  row-gap: 0.375rem;
+}
+
+.ai-config-dialog :deep(.space-y-3 > div) {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: 0.75rem;
+  padding-top: 0.375rem;
+}
 </style>
