@@ -17,7 +17,7 @@
   },
   "scripts": {
     "start": "pnpm dev",
-    "dev": "rm -rf apps/web/node_modules/.vite apps/web/.netlify/functions-serve && netlify dev --filter @md/web",
+    "dev": "lsof -ti :5180,:8890 | xargs kill -9 2>/dev/null; rm -rf apps/web/node_modules/.vite apps/web/.netlify/functions-serve && netlify dev --filter @md/web",
     "dev:vite": "pnpm web dev",
     "web": "pnpm --filter @md/web",
     "vscode": "pnpm --prefix ./apps/vscode",
