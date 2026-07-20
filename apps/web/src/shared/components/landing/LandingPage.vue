@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import { BarChart3, Globe, Lightbulb, Moon, PenLine, Satellite, ScrollText, Settings, Sun, Target, X } from '@lucide/vue'
-import { defineAsyncComponent, onBeforeUnmount, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import ChangelogDialog from '@/shared/components/landing/ChangelogDialog.vue'
@@ -99,35 +99,65 @@ const zones: WorkspaceZone[] = [
   },
 ]
 
-const FLYWHEEL_RADIUS = 120
+const activeZoneId = ref('coach')
+const activeZone = computed(() => zones.find(z => z.id === activeZoneId.value) ?? zones[0])
 
-function flywheelStyle(zone: WorkspaceZone, index: number) {
-  const angle = (index * 72 - 90) * (Math.PI / 180)
-  const x = Math.cos(angle) * FLYWHEEL_RADIUS
-  const y = Math.sin(angle) * FLYWHEEL_RADIUS
+/** Arc geometry for desktop: 5 nodes along a vertical arc */
+const ARC_CENTER_X = 50 // percent
+const ARC_CENTER_Y = 50 // percent
+const ARC_RADIUS = 38 // percent of container
+const ARC_SPAN_DEG = 120 // total arc span in degrees
+const ARC_START_DEG = -90 - ARC_SPAN_DEG / 2 // start from top
+
+interface ArcPos { x: number, y: number }
+
+function arcPos(index: number): ArcPos {
+  const angleDeg = ARC_START_DEG + (index / (zones.length - 1)) * ARC_SPAN_DEG
+  const angleRad = (angleDeg * Math.PI) / 180
   return {
-    'left': `calc(50% + ${x}px - 24px)`,
-    'top': `calc(50% + ${y}px - 24px)`,
-    '--zone-color': zone.gradientFrom,
-    'animationDelay': `${index * 0.6}s`,
+    x: ARC_CENTER_X + ARC_RADIUS * Math.cos(angleRad),
+    y: ARC_CENTER_Y + ARC_RADIUS * Math.sin(angleRad),
   }
 }
 
-function connectorStyle(index: number) {
-  const angle = index * 72 - 90
-  return { transform: `rotate(${angle}deg)` }
+function arcNodeStyle(index: number) {
+  const { x, y } = arcPos(index)
+  return {
+    left: `${x}%`,
+    top: `${y}%`,
+    transform: 'translate(-50%, -50%)',
+  }
 }
 
-const zoneRefs = ref<HTMLElement[]>([])
+function arcLabelStyle(index: number) {
+  const { x, y } = arcPos(index)
+  // Labels on the left side of the arc go to the left, right side go to the right
+  const offsetX = index <= 1 ? 42 : -42
+  return {
+    left: `calc(${x}% + ${offsetX}px)`,
+    top: `${y}%`,
+    transform: 'translateY(-50%)',
+  }
+}
 
-onBeforeUnmount(() => {
-  // cleanup if needed
+/** SVG arc path through all 5 nodes */
+const arcPathD = computed(() => {
+  const pts = zones.map((_, i) => {
+    const angleDeg = ARC_START_DEG + (i / (zones.length - 1)) * ARC_SPAN_DEG
+    const angleRad = (angleDeg * Math.PI) / 180
+    return {
+      x: ARC_CENTER_X + ARC_RADIUS * Math.cos(angleRad),
+      y: ARC_CENTER_Y + ARC_RADIUS * Math.sin(angleRad),
+    }
+  })
+  // Quadratic bezier through 3 control points for a smooth arc
+  return `M ${pts[0].x} ${pts[0].y} Q ${pts[2].x} ${pts[2].y - 8} ${pts[4].x} ${pts[4].y}`
 })
 </script>
 
 <template>
   <div class="relative min-h-[100dvh] overflow-x-hidden bg-background">
-    <!-- ─── Floating toolbar ─── -->
+    <!-- ─── Floating toolbar (unchanged) ─── -->
     <div class="fixed right-6 top-6 z-40 flex items-center gap-2">
       <button
         class="flex h-9 items-center gap-1.5 rounded-full bg-card/80 px-3 text-xs text-muted-foreground shadow-[0_2px_20px_rgba(0,0,0,0.06)] backdrop-blur-md ring-1 ring-border/40 transition-all duration-500 hover:bg-accent hover:text-foreground"
@@ -164,175 +194,332 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <!-- ─── Hero Section ─── -->
-    <section class="flex flex-col items-center px-4 pb-12 pt-32 md:pb-16 md:pt-40">
-      <!-- Eyebrow -->
-      <div class="mb-6 inline-flex items-center gap-2 rounded-full bg-muted/60 px-4 py-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground ring-1 ring-border/30">
-        <span class="inline-block h-1.5 w-1.5 rounded-full bg-foreground/30" />
-        {{ t('landing.eyebrow') }}
-      </div>
+    <!-- ─── Desktop: split layout ─── -->
+    <div class="hidden min-h-[100dvh] md:flex">
+      <!-- LEFT: Flywheel arc -->
+      <aside class="relative flex w-[38%] shrink-0 flex-col items-center justify-center overflow-hidden">
+        <!-- Subtle gradient background -->
+        <div class="absolute inset-0 bg-gradient-to-b from-muted/30 via-muted/10 to-transparent" />
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_40%,rgba(129,140,248,0.06),transparent_70%)]" />
 
-      <!-- Title -->
-      <h1
-        class="text-center text-[clamp(2.5rem,6vw,5rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground"
-        style="font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
-      >
-        {{ t('landing.title') }}
-      </h1>
-
-      <!-- Subtitle -->
-      <p class="mt-6 max-w-xl text-center text-base leading-relaxed text-muted-foreground/80 md:text-lg">
-        {{ t('landing.subtitle') }}
-      </p>
-    </section>
-
-    <!-- ─── Flywheel Center ─── -->
-    <section class="flex justify-center px-4 pb-16 md:pb-24">
-      <div class="flywheel-container relative h-[360px] w-[360px] md:h-[420px] md:w-[420px]">
-        <!-- Ambient glow -->
-        <div class="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-500/8 via-blue-500/8 to-rose-500/8 blur-3xl" />
-
-        <!-- Outer ring -->
-        <div class="absolute inset-4 rounded-full bg-card/50 shadow-[0_8px_60px_rgba(0,0,0,0.04)] ring-1 ring-border/20 backdrop-blur-sm" />
-
-        <!-- Inner core -->
-        <div class="absolute inset-8 rounded-full bg-card shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] ring-1 ring-border/10" />
-
-        <!-- Orbit track -->
-        <div class="absolute inset-0 rounded-full border border-dashed border-border/20" />
-
-        <!-- Rotating zone icons -->
-        <div
-          v-for="(zone, index) in zones"
-          :key="zone.id"
-          class="flywheel-node absolute flex h-12 w-12 items-center justify-center rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.06)] ring-1 ring-border/20"
-          :style="flywheelStyle(zone, index)"
-        >
-          <component :is="zone.icon" class="h-5 w-5" :style="{ color: zone.gradientFrom }" />
-        </div>
-
-        <!-- Connectors -->
-        <div
-          v-for="(zone, index) in zones"
-          :key="`connector-${zone.id}`"
-          class="flywheel-connector absolute left-1/2 top-1/2 h-px origin-left"
-          :style="connectorStyle(index)"
-        >
-          <div
-            class="h-px w-24 md:w-28"
-            :style="{ background: `linear-gradient(to right, ${zone.gradientFrom}30, transparent)` }"
-          />
-        </div>
-
-        <!-- Center label -->
-        <div class="absolute inset-0 flex flex-col items-center justify-center">
-          <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
-            Flywheel
+        <!-- Eyebrow + title -->
+        <div class="relative z-10 mb-10 text-center">
+          <div class="mb-4 inline-flex items-center gap-2 rounded-full bg-muted/60 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground ring-1 ring-border/30">
+            <span class="inline-block h-1.5 w-1.5 rounded-full bg-foreground/30" />
+            {{ t('landing.eyebrow') }}
           </div>
-          <div class="mt-1 text-xs font-bold text-foreground/70">
-            5 Zones
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── Workspace Zones ─── -->
-    <section class="mx-auto max-w-6xl px-4 pb-32 md:px-8">
-      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <template v-for="(zone, zoneIndex) in zones" :key="zone.id">
-          <!-- Zone with 2 cards → spans 2 cols on lg -->
-          <div
-            :ref="(el) => { if (el) zoneRefs[zoneIndex] = el as HTMLElement }"
-            class="zone-enter group/zone"
-            :class="zone.cards.length > 1 ? 'md:col-span-2 lg:col-span-2' : ''"
-            :style="{ transitionDelay: `${zoneIndex * 100}ms` }"
+          <h1
+            class="text-[clamp(1.8rem,3.5vw,3rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground"
+            style="font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
           >
-            <!-- Zone outer shell (Double-Bezel) -->
+            {{ t('landing.title') }}
+          </h1>
+          <p class="mt-3 max-w-xs text-center text-sm leading-relaxed text-muted-foreground/70">
+            {{ t('landing.subtitle') }}
+          </p>
+        </div>
+
+        <!-- Arc flywheel -->
+        <div class="arc-flywheel relative h-[340px] w-[340px]">
+          <!-- SVG arc track -->
+          <svg class="absolute inset-0 h-full w-full" viewBox="0 0 100 100" fill="none">
+            <path
+              :d="arcPathD"
+              class="arc-path stroke-border/20"
+              stroke-width="0.4"
+              stroke-dasharray="2 2"
+              fill="none"
+            />
+          </svg>
+
+          <!-- Ambient glow behind active node -->
+          <div
+            class="absolute h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl transition-all duration-700"
+            :style="{
+              ...arcNodeStyle(zones.indexOf(activeZone)),
+              background: `radial-gradient(circle, ${activeZone.gradientFrom}18, transparent)`,
+            }"
+          />
+
+          <!-- Zone nodes -->
+          <button
+            v-for="(zone, index) in zones"
+            :key="zone.id"
+            class="arc-node absolute z-10 flex items-center justify-center rounded-full transition-all duration-500"
+            :class="activeZoneId === zone.id ? 'h-14 w-14' : 'h-11 w-11 hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)]'"
+            :style="{
+              ...arcNodeStyle(index),
+              background: activeZoneId === zone.id
+                ? `linear-gradient(135deg, ${zone.gradientFrom}20, ${zone.gradientTo}10)`
+                : 'var(--card)',
+              boxShadow: activeZoneId === zone.id
+                ? `0 4px 24px rgba(0,0,0,0.08), inset 0 0 0 2px ${zone.gradientFrom}`
+                : '0 2px 12px rgba(0,0,0,0.04), inset 0 0 0 1px var(--border)',
+            }"
+            @click="activeZoneId = zone.id"
+          >
+            <component
+              :is="zone.icon"
+              class="transition-all duration-500"
+              :class="activeZoneId === zone.id ? 'h-6 w-6' : 'h-5 w-5'"
+              :style="{ color: activeZoneId === zone.id ? zone.gradientFrom : 'var(--muted-foreground)' }"
+            />
+            <!-- Active indicator dot -->
+            <span
+              v-if="activeZoneId === zone.id"
+              class="absolute -bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full"
+              :style="{ background: zone.gradientFrom }"
+            />
+          </button>
+
+          <!-- Zone labels (visible for active) -->
+          <div
+            v-for="(zone, index) in zones"
+            :key="`label-${zone.id}`"
+            class="arc-label pointer-events-none absolute z-20 transition-all duration-500"
+            :style="arcLabelStyle(index)"
+          >
             <div
-              class="rounded-[2rem] p-[3px] transition-shadow duration-700"
-              :style="{
-                background: `linear-gradient(135deg, ${zone.gradientFrom}12, ${zone.gradientTo}08)`,
-                transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
-              }"
+              class="whitespace-nowrap text-[11px] font-medium transition-all duration-500"
+              :class="activeZoneId === zone.id ? 'opacity-100 text-foreground' : 'opacity-0'"
             >
-              <!-- Zone inner core -->
-              <div class="rounded-[calc(2rem-3px)] bg-card p-6 shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] ring-1 ring-border/10 dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.05)]">
-                <!-- Zone header -->
-                <div class="mb-5 flex items-center gap-3">
-                  <div
-                    class="flex h-10 w-10 items-center justify-center rounded-xl"
-                    :style="{ background: `linear-gradient(135deg, ${zone.gradientFrom}20, ${zone.gradientTo}10)` }"
-                  >
-                    <component :is="zone.icon" class="h-5 w-5" :style="{ color: zone.gradientFrom }" />
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-bold text-foreground">
-                      {{ t(zone.nameKey) }}
-                    </h3>
-                    <p class="text-[11px] text-muted-foreground/70">
-                      {{ t(zone.descKey) }}
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Cards grid -->
-                <div class="grid gap-3" :class="zone.cards.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'">
-                  <button
-                    v-for="card in zone.cards"
-                    :key="card.id"
-                    class="card-enter group/card relative flex flex-col rounded-2xl bg-muted/30 p-4 text-left ring-1 ring-border/20 transition-all duration-500 hover:-translate-y-0.5 hover:bg-muted/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:bg-muted/20 dark:hover:bg-muted/30"
-                    style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
-                    @click="uiStore.setCurrentView(card.view as any)"
-                  >
-                    <div class="flex items-start justify-between">
-                      <div class="flex-1 pr-2">
-                        <h4 class="text-sm font-semibold text-foreground">
-                          {{ t(card.nameKey) }}
-                        </h4>
-                        <p class="mt-1 text-xs leading-relaxed text-muted-foreground/70">
-                          {{ t(card.descKey) }}
-                        </p>
-                      </div>
-
-                      <!-- Button-in-Button CTA -->
-                      <div
-                        class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-500 group-hover/card:translate-x-0.5 group-hover/card:-translate-y-px group-hover/card:scale-110"
-                        :style="{
-                          background: `linear-gradient(135deg, ${zone.gradientFrom}20, ${zone.gradientTo}10)`,
-                          transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
-                        }"
-                      >
-                        <svg
-                          class="h-3.5 w-3.5 transition-transform duration-500"
-                          :style="{ color: zone.gradientFrom, transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)' }"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="1.5"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path d="M4.5 11.5L11.5 4.5M11.5 4.5H6M11.5 4.5V10" />
-                        </svg>
-                      </div>
-                    </div>
-
-                    <!-- Bottom accent line -->
-                    <div
-                      class="mt-3 h-px w-0 transition-all duration-700 group-hover/card:w-full"
-                      :style="{
-                        background: `linear-gradient(to right, ${zone.gradientFrom}40, transparent)`,
-                        transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
-                      }"
-                    />
-                  </button>
-                </div>
-              </div>
+              {{ t(zone.nameKey) }}
             </div>
           </div>
-        </template>
+        </div>
+      </aside>
+
+      <!-- RIGHT: Active zone content -->
+      <main class="flex flex-1 flex-col justify-center overflow-y-auto px-12 py-20 lg:px-20">
+        <Transition name="zone-fade" mode="out-in">
+          <div :key="activeZoneId" class="zone-content">
+            <!-- Zone header -->
+            <div class="mb-8 flex items-center gap-4">
+              <div
+                class="flex h-12 w-12 items-center justify-center rounded-2xl"
+                :style="{ background: `linear-gradient(135deg, ${activeZone.gradientFrom}20, ${activeZone.gradientTo}10)` }"
+              >
+                <component :is="activeZone.icon" class="h-6 w-6" :style="{ color: activeZone.gradientFrom }" />
+              </div>
+              <div>
+                <h2 class="text-xl font-bold text-foreground">
+                  {{ t(activeZone.nameKey) }}
+                </h2>
+                <p class="text-sm text-muted-foreground/70">
+                  {{ t(activeZone.descKey) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Function cards -->
+            <div class="grid gap-4" :class="activeZone.cards.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1 max-w-md'">
+              <button
+                v-for="card in activeZone.cards"
+                :key="card.id"
+                class="card-enter group relative flex flex-col rounded-2xl p-5 text-left transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]"
+                style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
+                @click="uiStore.setCurrentView(card.view as any)"
+              >
+                <!-- Double-Bezel outer -->
+                <div
+                  class="absolute inset-0 rounded-2xl p-[2px]"
+                  :style="{
+                    background: `linear-gradient(135deg, ${activeZone.gradientFrom}15, ${activeZone.gradientTo}08)`,
+                  }"
+                />
+                <!-- Double-Bezel inner -->
+                <div class="relative rounded-[calc(1rem-2px)] bg-card p-5 ring-1 ring-border/10 shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.05)]">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1 pr-3">
+                      <h3 class="text-base font-semibold text-foreground">
+                        {{ t(card.nameKey) }}
+                      </h3>
+                      <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground/70">
+                        {{ t(card.descKey) }}
+                      </p>
+                    </div>
+                    <!-- CTA arrow -->
+                    <div
+                      class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-px group-hover:scale-110"
+                      :style="{
+                        background: `linear-gradient(135deg, ${activeZone.gradientFrom}20, ${activeZone.gradientTo}10)`,
+                        transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                      }"
+                    >
+                      <svg
+                        class="h-4 w-4 transition-transform duration-500"
+                        :style="{ color: activeZone.gradientFrom, transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)' }"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M4.5 11.5L11.5 4.5M11.5 4.5H6M11.5 4.5V10" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <!-- Bottom accent line -->
+                  <div
+                    class="mt-4 h-px w-0 transition-all duration-700 group-hover:w-full"
+                    :style="{
+                      background: `linear-gradient(to right, ${activeZone.gradientFrom}40, transparent)`,
+                      transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                    }"
+                  />
+                </div>
+              </button>
+            </div>
+
+            <!-- Zone indicator pills -->
+            <div class="mt-10 flex items-center gap-2">
+              <button
+                v-for="zone in zones"
+                :key="`pill-${zone.id}`"
+                class="h-1.5 rounded-full transition-all duration-500"
+                :class="activeZoneId === zone.id ? 'w-6' : 'w-1.5 hover:w-3'"
+                :style="{
+                  background: activeZoneId === zone.id ? zone.gradientFrom : 'var(--border)',
+                  transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                }"
+                @click="activeZoneId = zone.id"
+              />
+            </div>
+          </div>
+        </Transition>
+      </main>
+    </div>
+
+    <!-- ─── Mobile: stacked layout ─── -->
+    <div class="flex min-h-[100dvh] flex-col md:hidden">
+      <!-- Mobile header -->
+      <div class="px-4 pb-4 pt-20 text-center">
+        <div class="mb-3 inline-flex items-center gap-2 rounded-full bg-muted/60 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground ring-1 ring-border/30">
+          <span class="inline-block h-1.5 w-1.5 rounded-full bg-foreground/30" />
+          {{ t('landing.eyebrow') }}
+        </div>
+        <h1
+          class="text-[clamp(2rem,8vw,3.5rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground"
+          style="font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
+        >
+          {{ t('landing.title') }}
+        </h1>
+        <p class="mt-3 text-sm leading-relaxed text-muted-foreground/70">
+          {{ t('landing.subtitle') }}
+        </p>
       </div>
-    </section>
+
+      <!-- Mobile horizontal zone nav -->
+      <div class="sticky top-0 z-30 bg-background/80 backdrop-blur-md">
+        <div class="flex items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
+          <button
+            v-for="zone in zones"
+            :key="`mobile-${zone.id}`"
+            class="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-300"
+            :class="activeZoneId === zone.id
+              ? 'shadow-sm ring-1'
+              : 'text-muted-foreground hover:text-foreground'"
+            :style="{
+              background: activeZoneId === zone.id ? `${zone.gradientFrom}15` : 'transparent',
+              ringColor: activeZoneId === zone.id ? `${zone.gradientFrom}40` : 'transparent',
+            }"
+            @click="activeZoneId = zone.id"
+          >
+            <component
+              :is="zone.icon"
+              class="h-3.5 w-3.5"
+              :style="{ color: activeZoneId === zone.id ? zone.gradientFrom : undefined }"
+            />
+            {{ t(zone.nameKey).split(' ')[0] }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile cards -->
+      <div class="flex-1 px-4 pb-16 pt-4">
+        <Transition name="zone-fade" mode="out-in">
+          <div :key="activeZoneId">
+            <!-- Zone header -->
+            <div class="mb-5 flex items-center gap-3">
+              <div
+                class="flex h-10 w-10 items-center justify-center rounded-xl"
+                :style="{ background: `linear-gradient(135deg, ${activeZone.gradientFrom}20, ${activeZone.gradientTo}10)` }"
+              >
+                <component :is="activeZone.icon" class="h-5 w-5" :style="{ color: activeZone.gradientFrom }" />
+              </div>
+              <div>
+                <h2 class="text-base font-bold text-foreground">
+                  {{ t(activeZone.nameKey) }}
+                </h2>
+                <p class="text-xs text-muted-foreground/70">
+                  {{ t(activeZone.descKey) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Cards -->
+            <div class="grid gap-3">
+              <button
+                v-for="card in activeZone.cards"
+                :key="card.id"
+                class="group relative flex flex-col rounded-2xl p-4 text-left transition-all duration-500 active:scale-[0.98]"
+                style="transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1)"
+                @click="uiStore.setCurrentView(card.view as any)"
+              >
+                <!-- Double-Bezel outer -->
+                <div
+                  class="absolute inset-0 rounded-2xl p-[2px]"
+                  :style="{ background: `linear-gradient(135deg, ${activeZone.gradientFrom}15, ${activeZone.gradientTo}08)` }"
+                />
+                <div class="relative rounded-[calc(1rem-2px)] bg-card p-4 ring-1 ring-border/10">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1 pr-2">
+                      <h3 class="text-sm font-semibold text-foreground">
+                        {{ t(card.nameKey) }}
+                      </h3>
+                      <p class="mt-1 text-xs leading-relaxed text-muted-foreground/70">
+                        {{ t(card.descKey) }}
+                      </p>
+                    </div>
+                    <div
+                      class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                      :style="{ background: `linear-gradient(135deg, ${activeZone.gradientFrom}20, ${activeZone.gradientTo}10)` }"
+                    >
+                      <svg
+                        class="h-3.5 w-3.5"
+                        :style="{ color: activeZone.gradientFrom }"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M4.5 11.5L11.5 4.5M11.5 4.5H6M11.5 4.5V10" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <!-- Zone pills -->
+            <div class="mt-8 flex items-center justify-center gap-2">
+              <button
+                v-for="zone in zones"
+                :key="`mpill-${zone.id}`"
+                class="h-1.5 rounded-full transition-all duration-500"
+                :class="activeZoneId === zone.id ? 'w-6' : 'w-1.5'"
+                :style="{ background: activeZoneId === zone.id ? zone.gradientFrom : 'var(--border)' }"
+                @click="activeZoneId = zone.id"
+              />
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </div>
 
     <!-- ─── AI Config Dialog ─── -->
     <div
@@ -361,58 +548,87 @@ onBeforeUnmount(() => {
 <style scoped>
 @reference 'tailwindcss';
 
-/* ─── Flywheel rotation ─── */
-.flywheel-container {
-  animation: flywheel-spin 40s linear infinite;
+/* ─── Arc flywheel subtle pulse ─── */
+.arc-flywheel {
+  animation: arc-breathe 8s ease-in-out infinite;
 }
 
-.flywheel-node {
-  animation: flywheel-counter-spin 40s linear infinite;
-}
-
-.flywheel-connector {
-  animation: flywheel-spin 40s linear infinite;
-}
-
-@keyframes flywheel-spin {
-  from {
-    transform: rotate(0deg);
+@keyframes arc-breathe {
+  0%,
+  100% {
+    transform: scale(1);
   }
+  50% {
+    transform: scale(1.015);
+  }
+}
+
+/* ─── Arc nodes gentle float ─── */
+.arc-node {
+  animation: node-float 6s ease-in-out infinite;
+}
+
+.arc-node:nth-child(2) {
+  animation-delay: 0.4s;
+}
+.arc-node:nth-child(3) {
+  animation-delay: 0.8s;
+}
+.arc-node:nth-child(4) {
+  animation-delay: 1.2s;
+}
+.arc-node:nth-child(5) {
+  animation-delay: 1.6s;
+}
+.arc-node:nth-child(6) {
+  animation-delay: 2s;
+}
+
+@keyframes node-float {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translateY(0);
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(-3px);
+  }
+}
+
+/* ─── Arc path dash animation ─── */
+.arc-path {
+  animation: dash-flow 20s linear infinite;
+}
+
+@keyframes dash-flow {
   to {
-    transform: rotate(360deg);
+    stroke-dashoffset: -40;
   }
 }
 
-@keyframes flywheel-counter-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(-360deg);
-  }
+/* ─── Zone content transitions ─── */
+.zone-fade-enter-active {
+  transition: all 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* ─── Zone scroll entry ─── */
-.zone-enter {
+.zone-fade-leave-active {
+  transition: all 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.zone-fade-enter-from {
   opacity: 0;
-  transform: translateY(32px) scale(0.97);
-  filter: blur(6px);
-  animation: zone-reveal 0.9s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  transform: translateY(12px);
 }
 
-@keyframes zone-reveal {
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
+.zone-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
-/* ─── Card staggered entry ─── */
+/* ─── Card entry animation ─── */
 .card-enter {
   opacity: 0;
   transform: translateY(16px);
-  animation: card-reveal 0.6s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: card-reveal 0.5s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
 @keyframes card-reveal {
@@ -423,13 +639,22 @@ onBeforeUnmount(() => {
 }
 
 .card-enter:nth-child(1) {
-  animation-delay: 0.15s;
+  animation-delay: 0.08s;
 }
 .card-enter:nth-child(2) {
-  animation-delay: 0.25s;
+  animation-delay: 0.16s;
 }
 .card-enter:nth-child(3) {
-  animation-delay: 0.35s;
+  animation-delay: 0.24s;
+}
+
+/* ─── Hide scrollbar on mobile nav ─── */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* ─── AI config dialog overrides ─── */
