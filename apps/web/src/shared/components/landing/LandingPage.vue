@@ -405,7 +405,9 @@ const pageRef = ref<HTMLElement | null>(null)
 
 /* ─── Toolbar buttons ─── */
 .toolbar-btn {
-  @apply flex h-9 items-center gap-1.5 rounded-full bg-card/80 px-3 text-xs text-muted-foreground shadow-[0_2px_20px_rgba(0,0,0,0.06)] backdrop-blur-md ring-1 ring-border/40 transition-all duration-500 hover:bg-accent hover:text-foreground;
+  @apply flex h-9 items-center gap-1.5 rounded-full px-3 text-xs text-muted-foreground backdrop-blur-md ring-1 ring-border/40 transition-all duration-500 hover:bg-accent hover:text-foreground;
+  background: hsl(var(--card) / 0.8);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.06);
   transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
