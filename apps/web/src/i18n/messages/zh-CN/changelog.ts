@@ -3,6 +3,14 @@ export default {
   'changelog.title': '更新日志',
   'changelog.button': '更新日志',
 
+  // v2.0.0
+  'changelog.v200.title': '首页全新升级与阶层跃迁框架',
+  'changelog.v200.item1': '首页改为 Bento 横向三列布局：输入层、输出层、跃迁层',
+  'changelog.v200.item2': '新增 5 张跃迁层功能卡片（开发中）：内容输出中心、影响力名片、信任账户、关系网络、价值变现',
+  'changelog.v200.item3': '补全成长教练、数据报告入口，统一在首页展示',
+  'changelog.v200.item4': '首页加入「从输入到输出，从信任到跃迁」的核心理念',
+  'changelog.v200.item5': '浅色模式首页采用暖白风格，卡片与背景使用暖调色彩',
+
   // v1.7.0
   'changelog.v170.title': '多媒体视图与数据管理',
   'changelog.v170.item1': '新增图片网格/瀑布流、视频网格、音频播放器等多种媒体视图',

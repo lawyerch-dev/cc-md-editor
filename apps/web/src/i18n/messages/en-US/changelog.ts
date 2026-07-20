@@ -3,6 +3,14 @@ export default {
   'changelog.title': 'Changelog',
   'changelog.button': 'Changelog',
 
+  // v2.0.0
+  'changelog.v200.title': 'New Landing Page & Mobility Framework',
+  'changelog.v200.item1': 'Redesigned landing page with Bento horizontal three-column layout: input, output, and mobility layers',
+  'changelog.v200.item2': 'Added 5 mobility-layer feature cards (in development): Output Hub, Reputation Card, Trust Account, Network, and Monetize',
+  'changelog.v200.item3': 'Exposed Growth Coach and Reports entries on the landing page',
+  'changelog.v200.item4': 'Added core philosophy to landing page: from input to output, from trust to mobility',
+  'changelog.v200.item5': 'Light mode landing page now uses a warm-white color palette for backgrounds and cards',
+
   // v1.7.0
   'changelog.v170.title': 'Media Views & Data Management',
   'changelog.v170.item1': 'New picture grid/masonry, video grid, audio player and other media views',
