@@ -41,6 +41,9 @@ const allProviders = computed(() => {
 })
 
 const providerKeys = ref<Record<string, string>>({})
+const configuredProviders = computed(() =>
+  allProviders.value.filter(p => providerKeys.value[p.value]).length,
+)
 
 onMounted(async () => {
   for (const p of allProviders.value) {
@@ -197,6 +200,9 @@ defineExpose({
       <CollapsibleTrigger class="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 hover:bg-muted/30">
         <Key class="h-4 w-4 text-muted-foreground" />
         <span class="flex-1 text-left text-sm font-medium">{{ t('ai.config.providerKeys') }}</span>
+        <span v-if="configuredProviders > 0" class="text-xs text-green-600 dark:text-green-400">
+          {{ configuredProviders }} {{ t('ai.config.configured') }}
+        </span>
         <ChevronDown class="h-4 w-4 text-muted-foreground transition-transform" :class="{ 'rotate-180': providerKeysOpen }" />
       </CollapsibleTrigger>
       <CollapsibleContent class="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
@@ -206,7 +212,12 @@ defineExpose({
           </p>
           <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div v-for="p in allProviders" :key="p.value" class="flex items-center gap-2">
-              <Label class="w-20 shrink-0 text-xs">{{ p.label }}</Label>
+              <Label class="w-20 shrink-0 text-xs" :class="{ 'text-green-600 dark:text-green-400': providerKeys[p.value] }">
+                <span class="inline-flex items-center gap-1">
+                  <Check v-if="providerKeys[p.value]" class="h-3 w-3" />
+                  {{ p.label }}
+                </span>
+              </Label>
               <PasswordInput
                 :model-value="providerKeys[p.value]"
                 placeholder="sk-..."

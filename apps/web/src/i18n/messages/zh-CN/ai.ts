@@ -211,6 +211,7 @@ export default {
     tabTextHint: `用于文字生成、AI 助手对话等`,
     tabVisionHint: `分析图片内容，白板截图生成文章`,
     tabImageHint: `AI 生成封面图、插图等`,
+    configured: `已配置`,
   },
   imageConfig: {
     title: `AI 图像生成配置`,

@@ -211,6 +211,7 @@ export default {
     tabTextHint: `For text generation, AI assistant chat, etc.`,
     tabVisionHint: `Analyze images, generate articles from whiteboard screenshots`,
     tabImageHint: `AI-generated cover images, illustrations, etc.`,
+    configured: `configured`,
   },
   imageConfig: {
     title: `AI Image Settings`,
