@@ -38,10 +38,10 @@ export const useUIStore = defineStore(`ui`, () => {
     viewMode.value = mode
   }
 
-  // 主视图：editor（编辑器）| ideaBoard（想法便签墙）
-  const currentView = ref<'landing' | 'editor' | 'ideaBoard' | 'reading' | 'profile'>('landing')
+  // 主视图
+  const currentView = ref<'landing' | 'editor' | 'ideaBoard' | 'reading' | 'profile' | 'coach' | 'report'>('landing')
 
-  function setCurrentView(view: 'landing' | 'editor' | 'ideaBoard' | 'reading' | 'profile') {
+  function setCurrentView(view: 'landing' | 'editor' | 'ideaBoard' | 'reading' | 'profile' | 'coach' | 'report') {
     currentView.value = view
   }
 

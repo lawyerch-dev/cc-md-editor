@@ -1,6 +1,6 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
-import { ChevronDown, FileText, Home, Lightbulb, Newspaper } from '@lucide/vue'
+import { ChevronDown, FileText, Home, Lightbulb, Newspaper, Target } from '@lucide/vue'
 import { ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -14,6 +14,7 @@ const views = [
   { id: 'reading' as const, label: '资讯', icon: Newspaper, color: 'text-blue-500' },
   { id: 'ideaBoard' as const, label: '想法库', icon: Lightbulb, color: 'text-amber-500' },
   { id: 'editor' as const, label: '编辑器', icon: FileText, color: '' },
+  { id: 'coach' as const, label: '知己', icon: Target, color: 'text-emerald-500' },
 ]
 
 const currentView = views.find(v => v.id === uiStore.currentView) || views[0]

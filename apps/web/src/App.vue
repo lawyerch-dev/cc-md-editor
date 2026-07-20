@@ -1,19 +1,21 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
-import LandingPage from '@/shared/components/landing/LandingPage.vue'
 import { Toaster } from '@/components/ui/sonner'
-import { useCommandPaletteHotkey } from '@/shared/composables/useCommandPaletteHotkey'
-import { usePreferencesHotkey } from '@/shared/composables/usePreferencesHotkey'
-import { usePlatformEnv } from '@/shared/composables/usePlatformEnv'
+import LandingPage from '@/shared/components/landing/LandingPage.vue'
 import { useAccountSyncBootstrap } from '@/shared/composables/useAccountSyncBootstrap'
-import { useDeepLinkImport } from '@/workspaces/editor/composables/useDeepLinkImport'
+import { useCommandPaletteHotkey } from '@/shared/composables/useCommandPaletteHotkey'
+import { usePlatformEnv } from '@/shared/composables/usePlatformEnv'
+import { usePreferencesHotkey } from '@/shared/composables/usePreferencesHotkey'
 import { useUIStore } from '@/shared/stores/ui'
+import { useDeepLinkImport } from '@/workspaces/editor/composables/useDeepLinkImport'
 
 const CodemirrorEditor = defineAsyncComponent(() => import('@/workspaces/editor/components/CodemirrorEditor.vue'))
 const IdeaBoard = defineAsyncComponent(() => import('@/workspaces/idea-board/components/IdeaBoard.vue'))
 const ReadingView = defineAsyncComponent(() => import('@/workspaces/reading/components/ReadingView.vue'))
 const UserProfileView = defineAsyncComponent(() => import('@/workspaces/profile/components/UserProfileView.vue'))
+const CoachView = defineAsyncComponent(() => import('@/workspaces/coach/components/CoachView.vue'))
+const ReportView = defineAsyncComponent(() => import('@/workspaces/report/components/ReportView.vue'))
 const CommandPalette = defineAsyncComponent(() => import('@/workspaces/editor/components/dialogs/CommandPalette.vue'))
 const ConfirmDialog = defineAsyncComponent(() => import('@/shared/components/navigation/confirm-dialog/ConfirmDialog.vue'))
 const PreferencesDialog = defineAsyncComponent(() => import('@/workspaces/editor/components/dialogs/PreferencesDialog.vue'))
@@ -39,6 +41,8 @@ usePreferencesHotkey()
     v-else-if="currentView === 'reading'"
   />
   <UserProfileView v-else-if="currentView === 'profile'" />
+  <CoachView v-else-if="currentView === 'coach'" />
+  <ReportView v-else-if="currentView === 'report'" />
 
   <CommandPalette />
 
