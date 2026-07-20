@@ -20,26 +20,22 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
 import { copyPlain } from '@/lib/browser/clipboard'
-import { store } from '@/storage'
+import { useAIContext } from '@/shared/composables/ai'
+import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
 import useAIConfigStore from '@/shared/stores/aiConfig'
 import { useAIPanelStore } from '@/shared/stores/aiPanel'
-import { useEditorStore } from '@/workspaces/editor/stores/editor'
-import { usePostStore } from '@/workspaces/editor/stores/post'
 import { useQuickCommandsStore } from '@/shared/stores/quickCommands'
+import { store } from '@/storage'
 import AIConfig from './AIConfig.vue'
 
 const FEEDBACK_INDICATOR_TIMEOUT_MS = 1500
 
 const panelStore = useAIPanelStore()
-const editorStore = useEditorStore()
-const { editor } = storeToRefs(editorStore)
 const configStore = useAIConfigStore()
 const { apiKey, endpoint, model, temperature, maxToken, type } = storeToRefs(configStore)
-const postStore = usePostStore()
-const { currentPost } = storeToRefs(postStore)
 const quickCmdStore = useQuickCommandsStore()
+const { collectContext, executeAction } = useAIContext()
 
 const { t } = useI18n()
 
@@ -323,7 +319,7 @@ async function streamResponse(replyMessage: ChatMessage) {
   }
 
   const quoteMessages: ChatMessage[] = isQuoteAllContent.value
-    ? [{ role: `system`, content: t(`ai.chat.systemQuote`, { content: editor.value?.state.doc.toString() ?? `` }) }]
+    ? [{ role: `system` as const, content: t(`ai.chat.systemQuote`, { content: (await collectContext()).documentContent ?? `` }) }]
     : []
 
   // Build preset context from enabled always-on presets
@@ -333,8 +329,8 @@ async function streamResponse(replyMessage: ChatMessage) {
       const now = new Date()
       presetContexts.push(`当前日期时间：${now.toLocaleString(`zh-CN`, { dateStyle: `full`, timeStyle: `short` })}（星期${[`日`, `一`, `二`, `三`, `四`, `五`, `六`][now.getDay()]}）`)
     }
-    else if (p.id === `editor` && editor.value) {
-      const doc = editor.value.state.doc.toString()
+    else if (p.id === `editor`) {
+      const doc = (await collectContext()).documentContent ?? ``
       if (doc.trim())
         presetContexts.push(`当前编辑器内容：\n${doc}`)
     }
@@ -404,7 +400,7 @@ async function streamResponse(replyMessage: ChatMessage) {
 
 // ── Actions ──
 function insertToDocument(text: string, index: number) {
-  editorStore.insertAtCursor(text)
+  executeAction({ type: `text-insert`, position: `cursor`, content: text })
   insertedIndex.value = index
   setTimeout(() => (insertedIndex.value = null), FEEDBACK_INDICATOR_TIMEOUT_MS)
   toast.success(t(`ai.chat.insertedToDoc`))
@@ -480,9 +476,9 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-function applyQuickCommand(cmd: QuickCommandRuntime) {
-  const selected = editorStore.getSelection()
-  input.value = cmd.buildPrompt(selected)
+async function applyQuickCommand(cmd: QuickCommandRuntime) {
+  const ctx = await collectContext()
+  input.value = cmd.buildPrompt(ctx.selectedText ?? ``)
   historyIndex.value = null
   nextTick(() => {
     const textarea = chatContainerRef.value?.querySelector(`textarea`)
@@ -807,8 +803,8 @@ function resetToAnchor() {
                 <input v-model="isQuoteAllContent" type="checkbox" class="rounded">
                 {{ t('ai.chat.quoteFullText') }}
               </label>
-              <span v-if="currentPost" class="flex-1 min-w-0 mx-2 truncate text-center text-muted-foreground/60">
-                当前:{{ currentPost.title }}
+              <span class="flex-1 min-w-0 mx-2 truncate text-center text-muted-foreground/60">
+                AI 助手
               </span>
               <Button variant="ghost" size="sm" class="h-5 text-xs px-1.5 shrink-0" @click.stop="resetMessages">
                 <Plus class="w-3 h-3 mr-0.5" />

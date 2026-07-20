@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import FloatingAIPanel from '@/shared/components/ai/chat-box/FloatingAIPanel.vue'
 import SyncButton from '@/shared/components/navigation/SyncButton.vue'
 import ViewNav from '@/shared/components/navigation/ViewNav.vue'
+import { useAIContext } from '@/shared/composables/ai'
 import { useLocaleStore } from '@/shared/stores/locale'
 import { useUIStore } from '@/shared/stores/ui'
 import AIDraftDialog from './AIDraftDialog.vue'
@@ -392,7 +394,7 @@ for (const key of [OLD_KEY, OLD_SINGLE]) {
 }
 
 // 同步完成后从 localStorage 重载场景数据
-onMounted(() => {
+onMounted(async () => {
   const handler = () => {
     scenes.value = loadScenes()
     if (!activeSceneId.value && scenes.value.length > 0)
@@ -400,6 +402,38 @@ onMounted(() => {
   }
   window.addEventListener('md:scenes-synced', handler)
   onUnmounted(() => window.removeEventListener('md:scenes-synced', handler))
+
+  // 注册想法库 AI 适配器
+  const { register, unregister, setActiveWorkspace } = useAIContext()
+  const { useIdeaBoardAdapter } = await import('../composables/useIdeaBoardAIAdapter')
+  const adapter = useIdeaBoardAdapter({
+    getSceneInfo: () => activeScene.value ? { title: activeScene.value.title, desc: activeScene.value.desc } : null,
+    getScreenshot: async () => {
+      if (!excalidrawRef.value)
+        return null
+      return excalidrawRef.value.exportToFile()
+    },
+    addElements: async (json: string) => {
+      if (!excalidrawRef.value)
+        return false
+      return excalidrawRef.value.addJsonElements(json)
+    },
+  })
+  register(adapter)
+  setActiveWorkspace('ideaBoard')
+
+  // Cmd+J 打开 AI 面板
+  const handleKeydown = (e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+      e.preventDefault()
+      uiStore.toggleAIDialog()
+    }
+  }
+  document.addEventListener('keydown', handleKeydown)
+  onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeydown)
+    unregister('ideaBoard')
+  })
 })
 </script>
 
@@ -657,5 +691,8 @@ onMounted(() => {
       @insert="handleMermaidInsert"
       @insert-json="handleJsonInsert"
     />
+
+    <!-- AI 浮动面板 -->
+    <FloatingAIPanel />
   </div>
 </template>
