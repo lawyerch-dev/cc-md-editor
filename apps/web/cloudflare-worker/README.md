@@ -1,4 +1,4 @@
-# worker/
+# cloudflare-worker/
 
 Cloudflare Worker 代理，用于解决微信公众号 API 的跨域问题。
 

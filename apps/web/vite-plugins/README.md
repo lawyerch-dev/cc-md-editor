@@ -1,4 +1,4 @@
-# plugins/
+# vite-plugins/
 
 Vite 构建插件。
 
