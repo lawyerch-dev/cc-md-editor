@@ -8,7 +8,7 @@ import {
   getHtmlContent,
 } from '@/shared/services/export'
 import { usePostStore } from './post'
-import { useUIStore } from './ui'
+import { useUIStore } from '@/shared/stores/ui'
 
 /**
  * 导出功能 Store
