@@ -2,10 +2,12 @@ minimumReleaseAge: 0
 
 shellEmulator: true
 
-# no-downgrade 暂不可用：chokidar@4.0.3、langium@3.3.1 缺 provenance attestation
-# 均为构建时间接依赖，无已知 CVE。待上游补发 attestation 后恢复 no-downgrade
-
-trustPolicy: warn
+trustPolicy: no-downgrade
+# chokidar@4.0.3、langium@3.3.1 为构建时间接依赖，缺 provenance attestation
+# 无已知 CVE，通过 trustPolicyExclude 豁免，保持其他包的 no-downgrade 防护
+trustPolicyExclude:
+  - chokidar@4.0.3
+  - langium@3.3.1
 
 packages:
   - apps/*

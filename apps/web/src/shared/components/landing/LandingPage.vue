@@ -5,6 +5,7 @@ import { defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import ChangelogDialog from '@/shared/components/landing/ChangelogDialog.vue'
+import DecorativeBackground from '@/shared/components/landing/DecorativeBackground.vue'
 import { useLocaleStore } from '@/shared/stores/locale'
 import { useUIStore } from '@/shared/stores/ui'
 
@@ -19,6 +20,7 @@ const showChangelog = ref(false)
 
 <template>
   <div class="flex h-screen items-center justify-center bg-background">
+    <DecorativeBackground />
     <!-- 右上角工具栏 -->
     <div class="absolute right-6 top-6 flex items-center gap-2">
       <!-- 语言切换 -->
@@ -59,12 +61,15 @@ const showChangelog = ref(false)
       </button>
     </div>
 
-    <div class="flex flex-col items-center gap-8">
+    <div class="flex flex-col items-center gap-10">
       <div class="text-center">
-        <h1 class="text-3xl font-bold tracking-tight">
+        <div class="animate-in mb-3 inline-flex items-center gap-1.5 rounded-full border bg-muted px-3 py-1 text-xs text-muted-foreground">
+          {{ t('landing.badge') }}
+        </div>
+        <h1 class="animate-in animate-in-delay-1 text-5xl font-bold tracking-tight lg:text-6xl">
           {{ t('landing.title') }}
         </h1>
-        <p class="mt-2 text-muted-foreground">
+        <p class="animate-in animate-in-delay-2 mt-2 text-muted-foreground">
           {{ t('landing.subtitle') }}
         </p>
       </div>
@@ -72,12 +77,12 @@ const showChangelog = ref(false)
       <div class="flex gap-6">
         <!-- 资讯阅读 -->
         <button
-          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all hover:border-blue-500 hover:shadow-md"
+          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all duration-300 hover:border-blue-500 hover:shadow-md hover:shadow-lg hover:-translate-y-1 animate-in animate-in-delay-3"
           @click="uiStore.setCurrentView('reading')"
         >
-          <Newspaper class="h-10 w-10 text-blue-500 transition-transform group-hover:scale-110" />
+          <Newspaper class="h-10 w-10 text-blue-500 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
           <div class="text-center">
-            <h2 class="text-lg font-semibold">
+            <h2 class="text-lg font-semibold group-hover:text-foreground transition-colors duration-300">
               {{ t('landing.workspaces.reading.name') }}
             </h2>
             <p class="mt-1 text-sm text-muted-foreground">
@@ -88,12 +93,12 @@ const showChangelog = ref(false)
 
         <!-- 想法库 -->
         <button
-          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all hover:border-amber-500 hover:shadow-md"
+          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all duration-300 hover:border-amber-500 hover:shadow-md hover:shadow-lg hover:-translate-y-1 animate-in animate-in-delay-4"
           @click="uiStore.setCurrentView('ideaBoard')"
         >
-          <Lightbulb class="h-10 w-10 text-amber-500 transition-transform group-hover:scale-110" />
+          <Lightbulb class="h-10 w-10 text-amber-500 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
           <div class="text-center">
-            <h2 class="text-lg font-semibold">
+            <h2 class="text-lg font-semibold group-hover:text-foreground transition-colors duration-300">
               {{ t('landing.workspaces.ideaBoard.name') }}
             </h2>
             <p class="mt-1 text-sm text-muted-foreground">
@@ -104,12 +109,12 @@ const showChangelog = ref(false)
 
         <!-- MD 编辑器 -->
         <button
-          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all hover:border-primary hover:shadow-md"
+          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all duration-300 hover:border-primary hover:shadow-md hover:shadow-lg hover:-translate-y-1 animate-in animate-in-delay-4"
           @click="uiStore.setCurrentView('editor')"
         >
-          <FileText class="h-10 w-10 text-primary transition-transform group-hover:scale-110" />
+          <FileText class="h-10 w-10 text-primary transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
           <div class="text-center">
-            <h2 class="text-lg font-semibold">
+            <h2 class="text-lg font-semibold group-hover:text-foreground transition-colors duration-300">
               {{ t('landing.workspaces.editor.name') }}
             </h2>
             <p class="mt-1 text-sm text-muted-foreground">
@@ -120,12 +125,12 @@ const showChangelog = ref(false)
 
         <!-- 我的画像 -->
         <button
-          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all hover:border-emerald-500 hover:shadow-md"
+          class="group flex w-56 flex-col items-center gap-4 rounded-xl border bg-card p-8 shadow-sm transition-all duration-300 hover:border-emerald-500 hover:shadow-md hover:shadow-lg hover:-translate-y-1 animate-in animate-in-delay-5"
           @click="uiStore.setCurrentView('profile')"
         >
-          <User class="h-10 w-10 text-emerald-500 transition-transform group-hover:scale-110" />
+          <User class="h-10 w-10 text-emerald-500 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
           <div class="text-center">
-            <h2 class="text-lg font-semibold">
+            <h2 class="text-lg font-semibold group-hover:text-foreground transition-colors duration-300">
               {{ t('landing.workspaces.profile.name') }}
             </h2>
             <p class="mt-1 text-sm text-muted-foreground">
@@ -158,6 +163,47 @@ const showChangelog = ref(false)
 
 <style scoped>
 @reference 'tailwindcss';
+
+/* Entrance animations */
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  opacity: 0;
+  animation: fade-slide-up 0.6s ease-out forwards;
+}
+
+.animate-in-delay-1 {
+  animation-delay: 0.1s;
+}
+.animate-in-delay-2 {
+  animation-delay: 0.2s;
+}
+.animate-in-delay-3 {
+  animation-delay: 0.3s;
+}
+.animate-in-delay-4 {
+  animation-delay: 0.4s;
+}
+.animate-in-delay-5 {
+  animation-delay: 0.5s;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    opacity: 1;
+    animation: none;
+  }
+}
 
 .ai-config-dialog :deep(.custom-scroll) {
   font-size: 10px;

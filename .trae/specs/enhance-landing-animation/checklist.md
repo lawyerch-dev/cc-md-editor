@@ -1,0 +1,24 @@
+# 验收清单
+
+- [x] **Checkpoint 1**: 装饰性背景组件正常运行，浮动几何元素有动画效果，不遮挡内容
+  - `DecorativeBackground.vue` 使用 `position: fixed; z-index: 0; pointer-events: none`，CSS `@keyframes` 驱动旋转/浮动/漂移动画
+- [x] **Checkpoint 2**: 排版增强完成 — 标题字号增大，角标显示正确
+  - h1: `text-5xl lg:text-6xl`，badge 元素使用 `rounded-full border bg-muted` 样式
+- [x] **Checkpoint 3**: i18n 新增文案中英文双语覆盖完整
+  - zh-CN: `✨ v2.0 全新升级`，en-US: `✨ v2.0 All New`
+- [x] **Checkpoint 4**: 入场动画生效 — 标题和卡片按顺序交错滑入
+  - Badge → h1 → subtitle → cards 使用 `animate-in-delay-1` 到 `animate-in-delay-5` 交错
+- [x] **Checkpoint 5**: `prefers-reduced-motion` 被正确处理
+  - `@media (prefers-reduced-motion: reduce)` 中设置 `animation: none; opacity: 1`
+- [x] **Checkpoint 6**: 卡片悬停效果增强 — scale、边框发光、图标动画均生效
+  - `hover:-translate-y-1`(上移)、`hover:shadow-lg`(加深阴影)、`group-hover:rotate-6`(图标旋转)
+- [x] **Checkpoint 7**: 动态背景效果存在且性能良好
+  - 仅使用 `transform`/`opacity` 动画（GPU 加速），`will-change: transform`
+- [x] **Checkpoint 8**: 暗色/亮色模式下所有效果正常
+  - 使用 `hsl(var(--primary) / opacity)` 主题 CSS 变量自适应
+- [x] **Checkpoint 9**: 顶部工具栏功能（语言切换、主题切换、AI 设置、更新日志）正常
+  - 代码未改动，保留所有原有按钮和事件处理
+- [x] **Checkpoint 10**: 4 个工作区卡片点击导航功能正常
+  - `@click` 事件处理器保持原样，导航逻辑未改动
+- [x] **Checkpoint 11**: ESLint 和类型检查通过
+  - `pnpm run lint` exit code 0，`pnpm run type-check` exit code 0

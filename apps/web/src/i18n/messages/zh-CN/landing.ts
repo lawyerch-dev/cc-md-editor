@@ -3,6 +3,7 @@ export default {
   landing: {
     title: `New-AI 智能工作台`,
     subtitle: `选择你要进入的工作区`,
+    badge: `✨ v2.0 全新升级`,
     workspaces: {
       reading: {
         name: `资讯阅读`,

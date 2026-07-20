@@ -3,6 +3,7 @@ export default {
   landing: {
     title: `New-AI Workspace`,
     subtitle: `Choose a workspace to enter`,
+    badge: `✨ v2.0 All New`,
     workspaces: {
       reading: {
         name: `Reading`,
