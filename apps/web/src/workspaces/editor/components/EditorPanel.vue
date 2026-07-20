@@ -26,6 +26,7 @@ import { useThemeStore } from '@/workspaces/editor/stores/theme'
 import { useUIStore } from '@/shared/stores/ui'
 
 const SidebarAIToolbar = defineAsyncComponent(() => import('@/shared/components/ai/SidebarAIToolbar.vue'))
+const EditorContextMenu = defineAsyncComponent(() => import('@/workspaces/editor/components/EditorContextMenu.vue'))
 
 const { t, locale } = useI18n()
 const uploadHostOptions = useLocalizedUploadHostOptions()

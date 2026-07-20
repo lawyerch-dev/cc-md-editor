@@ -2,6 +2,8 @@
 <script setup lang="ts">
 import { defineAsyncComponent, nextTick, onMounted, unref } from 'vue'
 import FloatingAIPanel from '@/shared/components/ai/chat-box/FloatingAIPanel.vue'
+import EditorHeader from '@/workspaces/editor/components/editor-header/index.vue'
+import Footer from '@/workspaces/editor/components/Footer.vue'
 import EditorPanel from '@/workspaces/editor/components/EditorPanel.vue'
 import PreviewPanel from '@/workspaces/editor/components/PreviewPanel.vue'
 import {
