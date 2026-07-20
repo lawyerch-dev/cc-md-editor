@@ -1,7 +1,7 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
-import LandingPage from '@/components/LandingPage.vue'
+import LandingPage from '@/shared/components/landing/LandingPage.vue'
 import { Toaster } from '@/components/ui/sonner'
 import { useCommandPaletteHotkey } from '@/shared/composables/useCommandPaletteHotkey'
 import { usePreferencesHotkey } from '@/shared/composables/usePreferencesHotkey'
