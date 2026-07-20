@@ -6,11 +6,11 @@ export default {
     enUS: `English`,
   },
   meta: {
-    title: `微信 Markdown 编辑器 | Doocs`,
-    description: `Wechat Markdown Editor | 一款高度简洁的微信 Markdown 编辑器`,
+    title: `New-AI 智能工作台`,
+    description: `New-AI 智能工作台 | AI 驱动的智能写作与创作平台`,
   },
   loader: {
-    tagline: `致力于让 Markdown 编辑更简单`,
+    tagline: `AI 驱动的智能写作与创作`,
     loading: `正在加载编辑器`,
     timeout: `加载时间过长，请尝试刷新页面或按 F12 查看控制台是否有异常信息`,
   },

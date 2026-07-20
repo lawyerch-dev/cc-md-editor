@@ -62,7 +62,7 @@ const showChangelog = ref(false)
     <div class="flex flex-col items-center gap-8">
       <div class="text-center">
         <h1 class="text-3xl font-bold tracking-tight">
-          new-ai智能工作台
+          New-AI 智能工作台
         </h1>
         <p class="mt-2 text-muted-foreground">
           选择你要进入的工作区
