@@ -64,8 +64,7 @@ async function mountExcalidraw() {
 
     await import('@excalidraw/excalidraw/index.css')
 
-    loading.value = false
-    emit('ready')
+    let readyEmitted = false
 
     const App = () => {
       const excalidrawProps = {
@@ -95,7 +94,14 @@ async function mountExcalidraw() {
         { style: { height: '100%', width: '100%' } },
         React.createElement(Excalidraw, {
           ...excalidrawProps,
-          excalidrawAPI: (api: typeof excalidrawRef) => { excalidrawRef = api },
+          excalidrawAPI: (api: typeof excalidrawRef) => {
+            excalidrawRef = api
+            if (!readyEmitted) {
+              readyEmitted = true
+              loading.value = false
+              emit('ready')
+            }
+          },
         } as any),
       )
     }
@@ -158,6 +164,13 @@ defineExpose({
   },
 
   getRef: () => excalidrawRef,
+
+  /** 更新画布数据（不触发重挂载） */
+  loadScene: (data: { elements: unknown[], appState?: Record<string, unknown> }) => {
+    if (!excalidrawRef)
+      return
+    excalidrawRef.updateScene({ elements: data.elements as any[] })
+  },
 
   /** 将 Mermaid 代码转换为 Excalidraw 元素并插入画布 */
   addMermaidElements: async (mermaidCode: string): Promise<boolean> => {

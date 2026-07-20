@@ -1,13 +1,13 @@
 <!-- @workspace ideaBoard -->
 <script setup lang="ts">
 import { Globe, LayoutGrid, Lightbulb, Moon, Plus, Search, Sparkles, Sun, Trash2 } from '@lucide/vue'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import SyncButton from '@/shared/components/navigation/SyncButton.vue'
-import ViewNav from '@/shared/components/navigation/ViewNav.vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import SyncButton from '@/shared/components/navigation/SyncButton.vue'
+import ViewNav from '@/shared/components/navigation/ViewNav.vue'
 import { useLocaleStore } from '@/shared/stores/locale'
 import { useUIStore } from '@/shared/stores/ui'
 import AIDraftDialog from './AIDraftDialog.vue'
@@ -88,6 +88,13 @@ const activeScene = computed(() => scenes.value.find(s => s.id === activeSceneId
 
 const boardRef = ref<HTMLDivElement | null>(null)
 const excalidrawRef = ref<InstanceType<typeof ExcalidrawWrapper> | null>(null)
+
+// 切换场景时更新画布数据（不重挂载 Excalidraw）
+watch(activeSceneId, (_newId, oldId) => {
+  if (!oldId || !excalidrawRef.value || !activeScene.value)
+    return
+  excalidrawRef.value.loadScene({ elements: activeScene.value.elements })
+})
 const editingId = ref<string | null>(null)
 const editingField = ref<'title' | 'desc' | null>(null)
 const activeGroup = ref<string | null>(null)
@@ -576,7 +583,6 @@ onMounted(() => {
           <ExcalidrawWrapper
             v-if="activeScene"
             ref="excalidrawRef"
-            :key="activeScene.id"
             :initial-data="{ elements: activeScene.elements }"
             @change="handleSceneChange"
           />

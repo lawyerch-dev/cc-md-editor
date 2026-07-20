@@ -2,12 +2,12 @@
 <script setup lang="ts">
 import { Loader2, Send, Settings, X } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
-import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
-import { useImageUploader } from '@/workspaces/editor/composables/useImageUploader'
 import { useAIConfigStore } from '@/shared/stores/aiConfig'
+import { useImageUploader } from '@/workspaces/editor/composables/useImageUploader'
 import { usePostStore } from '@/workspaces/editor/stores/post'
 
 const props = defineProps<{
@@ -29,9 +29,14 @@ const { loading, fetchSSE, abort } = useAIFetch()
 // File → data URL（供 AI 视觉模型和预览使用）
 const screenshotDataUrl = ref('')
 onMounted(() => {
-  const reader = new FileReader()
-  reader.onloadend = () => { screenshotDataUrl.value = reader.result as string }
-  reader.readAsDataURL(props.screenshotFile)
+  try {
+    const reader = new FileReader()
+    reader.onload = () => { screenshotDataUrl.value = reader.result as string }
+    reader.readAsDataURL(props.screenshotFile)
+  }
+  catch (e) {
+    console.error('[AIDraftDialog] Failed to read screenshot file:', e)
+  }
 })
 
 const PROMPT_TEMPLATE = `请根据以下想法和白板截图，帮我写一篇完整的文章初稿。

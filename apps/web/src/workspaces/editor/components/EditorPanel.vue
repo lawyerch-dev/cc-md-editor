@@ -543,14 +543,13 @@ onMounted(() => {
 
   window.addEventListener(MATHJAX_READY_EVENT, handleMathJaxReady)
 
-  renderStore.initRendererInstance({
-    isMacCodeBlock: themeStore.isMacCodeBlock,
-    isShowLineNumber: themeStore.isShowLineNumber,
-  })
-
-  themeStore.applyCurrentTheme()
-
   void nextTick(async () => {
+    await renderStore.initRendererInstance({
+      isMacCodeBlock: themeStore.isMacCodeBlock,
+      isShowLineNumber: themeStore.isShowLineNumber,
+    })
+    themeStore.applyCurrentTheme()
+
     const editorView = createFormTextArea(editorDom)
     editor.value = editorView
     editorStore.registerContentFlush(commitEditorContentToPost)
