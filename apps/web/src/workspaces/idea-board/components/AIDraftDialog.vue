@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
 import { useAI } from '@/shared/composables/ai'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
 import { useAIConfigStore } from '@/shared/stores/aiConfig'
 import { useImageUploader } from '@/workspaces/editor/composables/useImageUploader'
 import { usePostStore } from '@/workspaces/editor/stores/post'
@@ -26,7 +25,7 @@ const aiConfig = useAIConfigStore()
 const postStore = usePostStore()
 const { upload } = useImageUploader()
 const ai = useAI()
-const { loading, fetchSSE, abort } = useAIFetch()
+const { loading, abort } = ai
 
 // File → data URL（供 AI 视觉模型和预览使用）
 const screenshotDataUrl = ref('')
@@ -67,22 +66,16 @@ const inserting = ref(false)
 
 // ── 用视觉模型一步到位 ─────────────────────────────────
 async function tryVisionModel(): Promise<boolean> {
-  const visionModel = aiConfig.visionModel
-  if (!visionModel)
+  if (!aiConfig.visionModel)
     return false
 
   step.value = 'vision'
   stepText.value = '正在用视觉模型理解图片…'
 
   try {
-    const url = resolveEndpointUrl(aiConfig.visionEndpoint || aiConfig.endpoint, 'chat')
-    const headers = buildAIHeaders(aiConfig.visionApiKey || aiConfig.apiKey, aiConfig.visionType || aiConfig.type)
-
-    const payload: Record<string, unknown> = {
-      model: visionModel,
-      temperature: aiConfig.temperature,
-      max_tokens: aiConfig.maxToken,
-      stream: true,
+    result.value = ''
+    await ai.askStream({
+      model: 'vision',
       messages: [
         {
           role: 'user',
@@ -92,11 +85,7 @@ async function tryVisionModel(): Promise<boolean> {
           ],
         },
       ],
-    }
-
-    result.value = ''
-    await fetchSSE(url, headers, payload, {
-      onDelta: (content) => {
+      onToken: (content) => {
         result.value += content
       },
       onDone: () => {
@@ -108,7 +97,6 @@ async function tryVisionModel(): Promise<boolean> {
     return true
   }
   catch {
-    // 视觉模型失败，降级
     result.value = ''
     done.value = false
     return false
@@ -117,44 +105,22 @@ async function tryVisionModel(): Promise<boolean> {
 
 // ── 降级：OCR 提取 + 文本模型生成 ─────────────────────────
 async function fallbackOcrAndWrite() {
-  const visionModel = aiConfig.visionModel
-
   // Step 1: OCR — 用视觉模型提取图片中的文字内容
   let ocrResult = ''
-  if (visionModel) {
+  if (aiConfig.visionModel) {
     step.value = 'ocr'
     stepText.value = '正在用图片理解模型提取内容…'
 
     try {
-      const url = resolveEndpointUrl(aiConfig.visionEndpoint || aiConfig.endpoint, 'chat')
-      const headers = buildAIHeaders(aiConfig.visionApiKey || aiConfig.apiKey, aiConfig.visionType || aiConfig.type)
-
-      const payload: Record<string, unknown> = {
-        model: visionModel,
-        temperature: 0,
-        max_tokens: 4096,
-        stream: false,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: '请仔细阅读这张白板/思维导图截图，将其中所有文字内容、结构关系、层级关系完整提取出来。输出为结构化的纯文本，保留层级缩进和箭头/连线所表达的逻辑关系。不要添加额外分析，只提取截图中的原始内容。' },
-              { type: 'image_url', image_url: { url: screenshotDataUrl.value } },
-            ],
-          },
-        ],
-      }
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        ocrResult = data.choices?.[0]?.message?.content || ''
-      }
+      ocrResult = await ai.askJSON<string>([
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: '请仔细阅读这张白板/思维导图截图，将其中所有文字内容、结构关系、层级关系完整提取出来。输出为结构化的纯文本，保留层级缩进和箭头/连线所表达的逻辑关系。不要添加额外分析，只提取截图中的原始内容。' },
+            { type: 'image_url', image_url: { url: screenshotDataUrl.value } },
+          ],
+        },
+      ], 'vision')
     }
     catch {
       // OCR 也失败了

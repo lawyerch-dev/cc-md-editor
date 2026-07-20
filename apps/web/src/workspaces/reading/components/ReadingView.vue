@@ -7,8 +7,10 @@ import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
+import FloatingAIPanel from '@/shared/components/ai/chat-box/FloatingAIPanel.vue'
 import SyncButton from '@/shared/components/navigation/SyncButton.vue'
 import ViewNav from '@/shared/components/navigation/ViewNav.vue'
+import { useAIContext } from '@/shared/composables/ai'
 import { useLocaleStore } from '@/shared/stores/locale'
 import { useUIStore } from '@/shared/stores/ui'
 import { useReadingStore } from '@/workspaces/reading/stores'
@@ -163,6 +165,13 @@ function openNextPictureArticle() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  // Cmd+J 打开 AI 面板
+  if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+    e.preventDefault()
+    uiStore.toggleAIDialog()
+    return
+  }
+
   const tag = (e.target as HTMLElement)?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA')
     return
@@ -238,8 +247,26 @@ onMounted(async () => {
   void store.fetchAllGradual()
   store.startAutoRefresh()
   window.addEventListener('keydown', handleKeydown)
+
+  // 注册阅读 AI 适配器
+  const { register, setActiveWorkspace } = useAIContext()
+  const { useReadingAdapter } = await import('../composables/useReadingAIAdapter')
+  const adapter = useReadingAdapter({
+    getActiveArticle: () => {
+      const a = store.activeArticle
+      if (!a)
+        return null
+      return { id: a.id, title: a.title, content: a.content, summary: a.summary, author: a.author }
+    },
+  })
+  register(adapter)
+  setActiveWorkspace('reading')
 })
-onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown', handleKeydown) })
+onUnmounted(() => {
+  store.stopAutoRefresh()
+  window.removeEventListener('keydown', handleKeydown)
+  useAIContext().unregister('reading')
+})
 </script>
 
 <template>
@@ -645,6 +672,9 @@ onUnmounted(() => { store.stopAutoRefresh(); window.removeEventListener('keydown
 
     <!-- 全局音频播放器 -->
     <CornerPlayer />
+
+    <!-- AI 浮动面板 -->
+    <FloatingAIPanel />
   </div>
 </template>
 

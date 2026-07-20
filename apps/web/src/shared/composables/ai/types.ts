@@ -108,7 +108,13 @@ export interface WorkspaceAIAdapter {
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant'
-  content: string
+  content: string | AIMessageContent[]
+}
+
+export interface AIMessageContent {
+  type: 'text' | 'image_url'
+  text?: string
+  image_url?: { url: string }
 }
 
 export interface AIAskOptions {
