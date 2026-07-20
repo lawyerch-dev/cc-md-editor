@@ -501,8 +501,8 @@ onUnmounted(() => {
 }
 
 /* ─── Light mode overrides ─── */
-:global(.light) .landing-root,
-:global(html:not(.dark)) .landing-root {
+.light .landing-root,
+html:not(.dark) .landing-root {
   --tb-color: hsl(var(--muted-foreground));
   --tb-bg: hsl(var(--card) / 0.8);
   --tb-border: hsl(var(--border) / 0.4);
@@ -548,7 +548,7 @@ onUnmounted(() => {
 }
 
 /* Hide ethereal background in light mode */
-:global(html:not(.dark)) .ethereal-bg {
+html:not(.dark) .ethereal-bg {
   display: none;
 }
 
