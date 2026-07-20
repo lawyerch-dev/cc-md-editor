@@ -17,31 +17,28 @@ import {
   Undo2,
   X,
 } from '@lucide/vue'
-import { v4 as uuidv4 } from 'uuid'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
 import { copyPlain } from '@/lib/browser/clipboard'
-import { store } from '@/storage'
-import useAIConfigStore from '@/shared/stores/aiConfig'
+import { useAIContext, useAIConversation } from '@/shared/composables/ai'
 import { useAIPanelStore } from '@/shared/stores/aiPanel'
-import { useEditorStore } from '@/workspaces/editor/stores/editor'
-import { usePostStore } from '@/workspaces/editor/stores/post'
 import { useQuickCommandsStore } from '@/shared/stores/quickCommands'
 import AIConfig from './AIConfig.vue'
 
 const FEEDBACK_INDICATOR_TIMEOUT_MS = 1500
 
 const panelStore = useAIPanelStore()
-const editorStore = useEditorStore()
-const { editor } = storeToRefs(editorStore)
-const configStore = useAIConfigStore()
-const { apiKey, endpoint, model, temperature, maxToken, type } = storeToRefs(configStore)
-const postStore = usePostStore()
-const { currentPost } = storeToRefs(postStore)
 const quickCmdStore = useQuickCommandsStore()
+const { collectContext, executeAction } = useAIContext()
 
 const { t } = useI18n()
+
+// ── AI 会话 ─────────────────────────────────────────────
+const conversation = useAIConversation({
+  systemPrompt: computed(() => t(`ai.chat.systemPrompt`)),
+  persistenceKey: `ai_memory_context`,
+})
+const { messages, isStreaming: loading } = conversation
 
 // ── Local position/size refs (decoupled from store for smooth drag/resize) ──
 const x = ref(panelStore.position.x)
@@ -111,8 +108,6 @@ function onResizeStart(e: MouseEvent) {
 
 // ── Chat state ──
 const input = ref(``)
-const inputHistory = ref<string[]>([])
-const historyIndex = ref<number | null>(null)
 const configVisible = ref(false)
 const configTab = ref<`ai` | `presets`>(`ai`)
 const editingMessageId = ref<string | null>(null)
@@ -209,34 +204,13 @@ function cancelEditPreset() {
 }
 const aiConfigRef = ref<InstanceType<typeof AIConfig> | null>(null)
 
-interface ChatMessage {
-  role: `user` | `assistant` | `system`
-  content: string
-  reasoning?: string
-  done?: boolean
-  id?: string
-}
-
-const messages = ref<ChatMessage[]>([])
-const memoryKey = `ai_memory_context`
-const { loading, abort: abortFetch, fetchSSE } = useAIFetch()
-
-// ── Init ──
-onMounted(async () => {
-  const saved = await store.getJSON<ChatMessage[]>(memoryKey, [])
-  messages.value = saved.length > 0
-    ? saved.map((msg: ChatMessage) => ({ ...msg, id: msg.id || uuidv4() }))
-    : getDefaultMessages()
-  await scrollToBottom(true)
-})
-
-function getDefaultMessages(): ChatMessage[] {
-  return [{ role: `assistant`, content: t(`ai.chat.greeting`), id: uuidv4() }]
-}
-
 // ── Focus input when panel opens ──
 watch(() => panelStore.visible, (val) => {
   if (val) {
+    // 确保有问候语
+    if (messages.value.length === 0) {
+      messages.value = [conversation.getGreeting(t(`ai.chat.greeting`))]
+    }
     nextTick(() => {
       const textarea = chatContainerRef.value?.querySelector(`textarea`)
       textarea?.focus()
@@ -257,154 +231,25 @@ async function sendMessage() {
   if (!input.value.trim() || loading.value)
     return
 
-  inputHistory.value.push(input.value.trim())
-  historyIndex.value = null
-  loading.value = true
-
   const userInput = input.value.trim()
-  const contextText = panelStore.selectedText.trim()
+  conversation.pushInputHistory(userInput)
 
   if (editingMessageId.value) {
-    // Editing: replace original user message and remove old AI reply
-    const editIdx = messages.value.findIndex(m => m.id === editingMessageId.value)
-    if (editIdx !== -1) {
-      messages.value[editIdx].content = userInput
-      // Remove the AI reply after the edited message (if exists)
-      if (editIdx + 1 < messages.value.length && messages.value[editIdx + 1].role === `assistant`) {
-        messages.value.splice(editIdx + 1, 1)
-      }
-    }
+    await conversation.editAndResend(editingMessageId.value, userInput)
     editingMessageId.value = null
   }
   else {
-    // New message
-    if (contextText) {
-      messages.value.push({
-        role: `system`,
-        content: `以下是用户选中的参考内容：\n\n${contextText}`,
-        id: uuidv4(),
-      })
-    }
-    messages.value.push({ role: `user`, content: userInput, id: uuidv4() })
+    await conversation.send(userInput)
   }
 
   input.value = ``
   panelStore.selectedText = ``
-
-  const replyMessage: ChatMessage = { role: `assistant`, content: ``, reasoning: ``, done: false, id: uuidv4() }
-  messages.value.push(replyMessage)
   await scrollToBottom(true)
-
-  await streamResponse(replyMessage)
-}
-
-async function streamResponse(replyMessage: ChatMessage) {
-  const allHistory = messages.value
-    .slice(-12)
-    .filter((msg, idx, arr) =>
-      !(idx === arr.length - 1 && msg.role === `assistant` && !msg.done)
-      && !(idx === 0 && msg.role === `assistant`),
-    )
-
-  let contextHistory: ChatMessage[]
-  if (isQuoteAllContent.value) {
-    const latest: ChatMessage[] = []
-    for (let i = allHistory.length - 1; i >= 0 && latest.length < 2; i--) {
-      const m = allHistory[i]
-      if (latest.length === 0 || m.role === `user`)
-        latest.unshift(m)
-      else if (m.role === `assistant`)
-        latest.unshift(m)
-    }
-    contextHistory = latest
-  }
-  else {
-    contextHistory = allHistory.slice(-10)
-  }
-
-  const quoteMessages: ChatMessage[] = isQuoteAllContent.value
-    ? [{ role: `system`, content: t(`ai.chat.systemQuote`, { content: editor.value?.state.doc.toString() ?? `` }) }]
-    : []
-
-  // Build preset context from enabled always-on presets
-  const presetContexts: string[] = []
-  for (const p of presets.value.filter(x => x.type === `always` && x.enabled)) {
-    if (p.id === `date`) {
-      const now = new Date()
-      presetContexts.push(`当前日期时间：${now.toLocaleString(`zh-CN`, { dateStyle: `full`, timeStyle: `short` })}（星期${[`日`, `一`, `二`, `三`, `四`, `五`, `六`][now.getDay()]}）`)
-    }
-    else if (p.id === `editor` && editor.value) {
-      const doc = editor.value.state.doc.toString()
-      if (doc.trim())
-        presetContexts.push(`当前编辑器内容：\n${doc}`)
-    }
-    else if (p.content) {
-      presetContexts.push(p.content)
-    }
-  }
-
-  const systemMessages = [
-    { role: `system` as const, content: t(`ai.chat.systemPrompt`) },
-    ...presetContexts.length ? [{ role: `system` as const, content: `补充上下文信息：\n${presetContexts.join(`\n`)}` }] : [],
-    ...quoteMessages,
-  ]
-
-  const payloadMessages = [
-    ...systemMessages,
-    ...contextHistory,
-  ]
-
-  const payload = {
-    model: model.value,
-    messages: payloadMessages,
-    temperature: temperature.value,
-    max_tokens: maxToken.value,
-    stream: true,
-  }
-  const headers = buildAIHeaders(apiKey.value, type.value)
-  const url = resolveEndpointUrl(endpoint.value, `chat`)
-  console.log(`[AI] Payload:`, JSON.stringify(payloadMessages.map(m => ({ role: m.role, content: (m.content || ``).substring(0, 150) })), null, 2))
-
-  try {
-    await fetchSSE(url, headers, payload, {
-      onDelta(content) {
-        const last = messages.value[messages.value.length - 1]
-        if (last.id !== replyMessage.id)
-          return
-        last.content += content
-        scrollToBottom()
-      },
-      onReasoningDelta(reasoning) {
-        const last = messages.value[messages.value.length - 1]
-        if (last.id !== replyMessage.id)
-          return
-        last.reasoning = (last.reasoning || ``) + reasoning
-        scrollToBottom()
-      },
-      onDone() {
-        const last = messages.value[messages.value.length - 1]
-        if (last.id === replyMessage.id && last.role === `assistant`) {
-          if (!last.content && !last.reasoning)
-            last.content = `(AI 未返回内容)`
-          last.done = true
-          scrollToBottom(true)
-        }
-      },
-    })
-  }
-  catch (e) {
-    messages.value[messages.value.length - 1].content
-      = t(`ai.chat.requestFailed`, { message: (e as Error).message })
-    await scrollToBottom(true)
-  }
-  finally {
-    await store.setJSON(memoryKey, messages.value)
-  }
 }
 
 // ── Actions ──
 function insertToDocument(text: string, index: number) {
-  editorStore.insertAtCursor(text)
+  executeAction({ type: `text-insert`, position: `cursor`, content: text })
   insertedIndex.value = index
   setTimeout(() => (insertedIndex.value = null), FEEDBACK_INDICATOR_TIMEOUT_MS)
   toast.success(t(`ai.chat.insertedToDoc`))
@@ -434,21 +279,14 @@ function recallMessage(msg: ChatMessage, index: number) {
 }
 
 async function resetMessages() {
-  abortFetch()
-  messages.value = getDefaultMessages()
-  await store.setJSON(memoryKey, messages.value)
+  conversation.abort()
+  await conversation.clear()
+  messages.value = [conversation.getGreeting(t(`ai.chat.greeting`))]
 }
 
 async function regenerateLast() {
-  if (loading.value)
-    return
-  const lastAssistant = [...messages.value].reverse().find(m => m.role === `assistant`)
-  if (lastAssistant) {
-    lastAssistant.content = ``
-    lastAssistant.reasoning = ``
-    lastAssistant.done = false
-    await streamResponse(lastAssistant)
-  }
+  await conversation.regenerate()
+  await scrollToBottom(true)
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -460,30 +298,17 @@ function handleKeydown(e: KeyboardEvent) {
   }
   if (e.key === `ArrowUp` && !input.value) {
     e.preventDefault()
-    if (inputHistory.value.length > 0) {
-      historyIndex.value = historyIndex.value === null
-        ? inputHistory.value.length - 1
-        : Math.max(0, historyIndex.value - 1)
-      input.value = inputHistory.value[historyIndex.value]
-    }
+    input.value = conversation.navigateHistory('up', input.value)
   }
-  if (e.key === `ArrowDown` && historyIndex.value !== null) {
+  if (e.key === `ArrowDown`) {
     e.preventDefault()
-    historyIndex.value++
-    if (historyIndex.value >= inputHistory.value.length) {
-      historyIndex.value = null
-      input.value = ``
-    }
-    else {
-      input.value = inputHistory.value[historyIndex.value]
-    }
+    input.value = conversation.navigateHistory('down', input.value)
   }
 }
 
-function applyQuickCommand(cmd: QuickCommandRuntime) {
-  const selected = editorStore.getSelection()
-  input.value = cmd.buildPrompt(selected)
-  historyIndex.value = null
+async function applyQuickCommand(cmd: QuickCommandRuntime) {
+  const ctx = await collectContext()
+  input.value = cmd.buildPrompt(ctx.selectedText ?? ``)
   nextTick(() => {
     const textarea = chatContainerRef.value?.querySelector(`textarea`)
     textarea?.focus()
@@ -796,7 +621,7 @@ function resetToAnchor() {
                   variant="destructive"
                   size="icon"
                   class="h-8 w-8"
-                  @click.stop="abortFetch"
+                  @click.stop="conversation.abort"
                 >
                   <X class="w-3.5 h-3.5" />
                 </Button>
@@ -807,8 +632,8 @@ function resetToAnchor() {
                 <input v-model="isQuoteAllContent" type="checkbox" class="rounded">
                 {{ t('ai.chat.quoteFullText') }}
               </label>
-              <span v-if="currentPost" class="flex-1 min-w-0 mx-2 truncate text-center text-muted-foreground/60">
-                当前:{{ currentPost.title }}
+              <span class="flex-1 min-w-0 mx-2 truncate text-center text-muted-foreground/60">
+                AI 助手
               </span>
               <Button variant="ghost" size="sm" class="h-5 text-xs px-1.5 shrink-0" @click.stop="resetMessages">
                 <Plus class="w-3 h-3 mr-0.5" />

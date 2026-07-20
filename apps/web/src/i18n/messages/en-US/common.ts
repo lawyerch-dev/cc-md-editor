@@ -6,11 +6,11 @@ export default {
     enUS: `English`,
   },
   meta: {
-    title: `WeChat Markdown Editor | Doocs`,
-    description: `Wechat Markdown Editor | A minimalist Markdown editor for WeChat Official Accounts`,
+    title: `New-AI Smart Workspace`,
+    description: `New-AI Smart Workspace | AI-powered writing and creation platform`,
   },
   loader: {
-    tagline: `Making Markdown editing simpler`,
+    tagline: `AI-powered writing and creation`,
     loading: `Loading editor`,
     timeout: `Loading is taking too long. Try refreshing the page or press F12 to check the console for errors.`,
   },

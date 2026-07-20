@@ -3,12 +3,12 @@
 import { Clock, RotateCcw, Settings, Sparkles, Trash2, Wand2, X } from '@lucide/vue'
 import mermaid from 'mermaid'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
+import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
+import { useAI } from '@/shared/composables/ai'
 import useAIConfigStore from '@/shared/stores/aiConfig'
 
 const emit = defineEmits<{
@@ -18,7 +18,8 @@ const emit = defineEmits<{
 }>()
 
 const aiConfig = useAIConfigStore()
-const { loading, fetchSSE, abort } = useAIFetch()
+const ai = useAI()
+const { loading, abort } = ai
 
 const prompt = ref('')
 const mermaidCode = ref('')
@@ -326,21 +327,13 @@ function buildJsonPrompt(direction: string): string {
 }
 
 async function callAI(systemPrompt: string, userContent: string, onDelta: (s: string) => void): Promise<void> {
-  const url = resolveEndpointUrl(aiConfig.textEndpoint || aiConfig.endpoint, 'chat')
-  const headers = buildAIHeaders(aiConfig.textApiKey || aiConfig.apiKey, aiConfig.textType || aiConfig.type)
-
-  const payload: Record<string, unknown> = {
-    model: aiConfig.textModel,
-    temperature: 0.3,
-    max_tokens: 2000,
-    stream: true,
+  await ai.askStream({
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
     ],
-  }
-
-  await fetchSSE(url, headers, payload, { onDelta, onDone() {} })
+    onToken: onDelta,
+  })
 }
 
 async function optimize() {

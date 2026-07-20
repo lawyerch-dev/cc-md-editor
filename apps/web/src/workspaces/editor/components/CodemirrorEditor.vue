@@ -1,21 +1,23 @@
 <!-- @workspace editor -->
 <script setup lang="ts">
-import { defineAsyncComponent, nextTick, onMounted, unref } from 'vue'
-import FloatingAIPanel from '@/shared/components/ai/chat-box/FloatingAIPanel.vue'
-import EditorHeader from '@/workspaces/editor/components/editor-header/index.vue'
-import Footer from '@/workspaces/editor/components/Footer.vue'
-import EditorPanel from '@/workspaces/editor/components/EditorPanel.vue'
-import PreviewPanel from '@/workspaces/editor/components/PreviewPanel.vue'
+import { defineAsyncComponent, nextTick, onMounted, onUnmounted, unref } from 'vue'
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import { useCursorSync } from '@/workspaces/editor/composables/useCursorSync'
-import { useScrollSync } from '@/workspaces/editor/composables/useScrollSync'
+import FloatingAIPanel from '@/shared/components/ai/chat-box/FloatingAIPanel.vue'
+import { useAIContext } from '@/shared/composables/ai'
 import { useAIPanelStore } from '@/shared/stores/aiPanel'
-import { useEditorStore } from '@/workspaces/editor/stores/editor'
 import { useUIStore } from '@/shared/stores/ui'
+import EditorHeader from '@/workspaces/editor/components/editor-header/index.vue'
+import EditorPanel from '@/workspaces/editor/components/EditorPanel.vue'
+import Footer from '@/workspaces/editor/components/Footer.vue'
+import PreviewPanel from '@/workspaces/editor/components/PreviewPanel.vue'
+import { useCursorSync } from '@/workspaces/editor/composables/useCursorSync'
+import { useEditorAdapter } from '@/workspaces/editor/composables/useEditorAIAdapter'
+import { useScrollSync } from '@/workspaces/editor/composables/useScrollSync'
+import { useEditorStore } from '@/workspaces/editor/stores/editor'
 
 const PostSlider = defineAsyncComponent(() => import('@/workspaces/editor/components/post-slider/index.vue'))
 const FolderSourcePanel = defineAsyncComponent(() => import('@/workspaces/editor/components/folder-source-panel/index.vue'))
@@ -128,11 +130,18 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 onMounted(() => {
   document.addEventListener(`keydown`, handleGlobalKeydown)
   document.addEventListener(`selectionchange`, handleSelectionChange)
+
+  // 注册编辑器 AI 适配器
+  const { register, setActiveWorkspace } = useAIContext()
+  const editorAdapter = useEditorAdapter()
+  register(editorAdapter)
+  setActiveWorkspace('editor')
 })
 
 onUnmounted(() => {
   document.removeEventListener(`keydown`, handleGlobalKeydown)
   document.removeEventListener(`selectionchange`, handleSelectionChange)
+  useAIContext().unregister('editor')
 })
 
 // --- 面板尺寸配置 ---

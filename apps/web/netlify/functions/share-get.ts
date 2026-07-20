@@ -89,7 +89,7 @@ ${record.stylesHtml}
   ${record.bodyHtml}
 </div>
 <div class="powered-by">
-  由 <a href="https://github.com/BluerAngala/cc-md-editor" target="_blank">CC Markdown 编辑器</a> 生成
+  由 <a href="https://github.com/BluerAngala/cc-md-editor" target="_blank">New-AI 智能工作台</a> 生成
 </div>
 </body>
 </html>`

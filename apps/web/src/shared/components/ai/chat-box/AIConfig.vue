@@ -1,13 +1,15 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
 import type { ImageServiceOption, ServiceOption } from '@md/shared/types'
-import { Check, ChevronDown, Info, Loader2, RefreshCw, X } from '@lucide/vue'
+import { Check, ChevronDown, Eye, Image as ImageIcon, Info, Key, Loader2, RefreshCw, Type, X } from '@lucide/vue'
 import {
-  AccordionContent,
-  AccordionHeader,
-  AccordionItem,
-  AccordionRoot,
-  AccordionTrigger,
+  CollapsibleContent,
+  CollapsibleRoot,
+  CollapsibleTrigger,
+  TabsContent,
+  TabsList,
+  TabsRoot,
+  TabsTrigger,
 } from 'reka-ui'
 import { PasswordInput } from '@/components/ui/password-input'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
@@ -24,6 +26,7 @@ const localizedAIServices = useLocalizedAIServiceOptions()
 
 // ==================== 供应商级 API Key ====================
 
+const providerKeysOpen = ref(false)
 const allProviders = computed(() => {
   const seen = new Set<string>()
   const result: { value: string, label: string }[] = []
@@ -38,6 +41,12 @@ const allProviders = computed(() => {
 })
 
 const providerKeys = ref<Record<string, string>>({})
+const configuredProviders = computed(() =>
+  allProviders.value.filter(p => providerKeys.value[p.value]),
+)
+const unconfiguredProviders = computed(() =>
+  allProviders.value.filter(p => !providerKeys.value[p.value]),
+)
 
 onMounted(async () => {
   for (const p of allProviders.value) {
@@ -189,58 +198,106 @@ defineExpose({
 
 <template>
   <div class="custom-scroll flex-1 text-xs sm:text-sm">
-    <!-- ========== 供应商 API Key ========== -->
-    <div class="mb-4 rounded-lg border">
-      <div class="px-3 py-2.5 text-sm font-semibold">
-        🔑 {{ t('ai.config.providerKeys') }}
-      </div>
-      <div class="space-y-2 px-3 pb-3">
-        <p class="text-xs text-muted-foreground">
-          {{ t('ai.config.providerKeysHint') }}
-        </p>
-        <div v-for="p in allProviders" :key="p.value" class="flex items-center gap-2">
-          <Label class="w-24 shrink-0 text-xs">{{ p.label }}</Label>
-          <PasswordInput
-            :model-value="providerKeys[p.value]"
-            placeholder="sk-..."
-            class="flex-1"
-            @update:model-value="onProviderKeyChange(p.value, $event as string)"
-          />
-        </div>
-      </div>
-    </div>
+    <!-- 供应商 API Key（默认折叠） -->
+    <CollapsibleRoot v-model:open="providerKeysOpen" class="mb-5 rounded-lg border">
+      <CollapsibleTrigger class="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 hover:bg-muted/30">
+        <Key class="h-4 w-4 text-muted-foreground" />
+        <span class="flex-1 text-left text-sm font-medium">{{ t('ai.config.providerKeys') }}</span>
+        <span v-if="configuredProviders.length > 0" class="text-xs text-green-600 dark:text-green-400">
+          {{ configuredProviders.length }} {{ t('ai.config.configured') }}
+        </span>
+        <ChevronDown class="h-4 w-4 text-muted-foreground transition-transform" :class="{ 'rotate-180': providerKeysOpen }" />
+      </CollapsibleTrigger>
+      <CollapsibleContent class="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+        <div class="border-t p-4">
+          <p class="mb-3 text-xs text-muted-foreground">
+            {{ t('ai.config.providerKeysHint') }}
+          </p>
 
-    <AccordionRoot
-      type="single"
-      collapsible
-      default-value="text"
-      class="space-y-4"
-    >
-      <!-- ========== 文本模型 ========== -->
-      <AccordionItem value="text" class="rounded-lg border overflow-hidden">
-        <AccordionHeader>
-          <AccordionTrigger class="flex w-full cursor-pointer select-none items-center justify-between px-3 py-2.5 text-sm font-semibold hover:bg-muted/50 [&[data-state=open]>svg.chevron]:rotate-180">
-            <div class="flex flex-1 items-center text-left">
-              <span>📝 文本模型</span>
-              <span class="ml-2 text-xs font-normal text-muted-foreground">用于文字生成、AI 助手对话等</span>
+          <!-- 已配置 -->
+          <div v-if="configuredProviders.length > 0" class="mb-3">
+            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div v-for="p in configuredProviders" :key="p.value" class="flex items-center gap-2">
+                <Label class="w-20 shrink-0 text-xs text-green-600 dark:text-green-400">
+                  <span class="inline-flex items-center gap-1">
+                    <Check class="h-3 w-3" />
+                    {{ p.label }}
+                  </span>
+                </Label>
+                <PasswordInput
+                  :model-value="providerKeys[p.value]"
+                  placeholder="sk-..."
+                  class="flex-1"
+                  @update:model-value="onProviderKeyChange(p.value, $event as string)"
+                />
+              </div>
             </div>
-            <div class="flex items-center gap-1.5" @click.stop.prevent @keydown.stop>
-              <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" :disabled="textTesting" @click="testText">
-                {{ t('common.testConnection') }}
-              </Button>
-              <Loader2 v-if="textTesting" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-              <template v-else-if="textTestResult">
-                <Check v-if="textTestResult.ok" class="h-4 w-4 text-green-500" />
-                <X v-else class="h-4 w-4 text-red-500" />
-              </template>
+          </div>
+
+          <!-- 分隔线 -->
+          <div v-if="configuredProviders.length > 0 && unconfiguredProviders.length > 0" class="mb-3 border-t border-dashed" />
+
+          <!-- 未配置 -->
+          <div v-if="unconfiguredProviders.length > 0">
+            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div v-for="p in unconfiguredProviders" :key="p.value" class="flex items-center gap-2">
+                <Label class="w-20 shrink-0 text-xs">{{ p.label }}</Label>
+                <PasswordInput
+                  :model-value="providerKeys[p.value]"
+                  placeholder="sk-..."
+                  class="flex-1"
+                  @update:model-value="onProviderKeyChange(p.value, $event as string)"
+                />
+              </div>
             </div>
-            <ChevronDown class="chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
-          </AccordionTrigger>
-        </AccordionHeader>
-        <AccordionContent class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-          <div class="space-y-3 px-3 pb-3 pt-1">
+          </div>
+        </div>
+      </CollapsibleContent>
+    </CollapsibleRoot>
+
+    <!-- 模型配置 Tabs -->
+    <TabsRoot default-value="text">
+      <TabsList class="inline-flex h-9 w-full rounded-lg border bg-muted/30 p-0.5">
+        <TabsTrigger
+          value="text"
+          class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+        >
+          <Type class="h-3.5 w-3.5" />
+          {{ t('ai.config.tabText') }}
+        </TabsTrigger>
+        <TabsTrigger
+          value="vision"
+          class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+        >
+          <Eye class="h-3.5 w-3.5" />
+          {{ t('ai.config.tabVision') }}
+        </TabsTrigger>
+        <TabsTrigger
+          value="image"
+          class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+        >
+          <ImageIcon class="h-3.5 w-3.5" />
+          {{ t('ai.config.tabImage') }}
+        </TabsTrigger>
+      </TabsList>
+
+      <!-- 文本模型 -->
+      <TabsContent value="text" class="mt-3">
+        <div class="rounded-lg border">
+          <div class="flex items-center justify-between border-b px-4 py-2">
+            <p class="text-xs text-muted-foreground">
+              {{ t('ai.config.tabTextHint') }}
+            </p>
+            <Button size="sm" variant="outline" class="h-7 gap-1.5 px-2.5 text-xs" :disabled="textTesting" @click="testText">
+              <Loader2 v-if="textTesting" class="h-3 w-3 animate-spin" />
+              <Check v-else-if="textTestResult?.ok" class="h-3 w-3 text-green-500" />
+              <X v-else-if="textTestResult && !textTestResult.ok" class="h-3 w-3 text-red-500" />
+              {{ t('common.testConnection') }}
+            </Button>
+          </div>
+          <div class="space-y-3.5 p-4">
             <div>
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.serviceType') }}</Label>
+              <Label class="mb-1.5 block text-xs font-medium">{{ t('ai.config.serviceType') }}</Label>
               <Select v-model="aiConfig.textType">
                 <SelectTrigger class="w-full">
                   <SelectValue>{{ textService.label }}</SelectValue>
@@ -252,19 +309,17 @@ defineExpose({
                 </SelectContent>
               </Select>
             </div>
-
             <div>
-              <div class="mb-1 flex items-center justify-between">
-                <Label class="text-sm font-medium">{{ t('ai.config.modelName') }}</Label>
+              <div class="mb-1.5 flex items-center justify-between">
+                <Label class="text-xs font-medium">{{ t('ai.config.modelName') }}</Label>
                 <button
                   v-if="textService.fetchModels"
                   type="button"
                   class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
                   :disabled="textDynamic.loading.value || !aiConfig.textApiKey"
-                  :title="t('ai.config.refreshModelsHint')"
                   @click="textDynamic.refresh()"
                 >
-                  <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': textDynamic.loading.value }" />
+                  <RefreshCw class="h-3 w-3" :class="{ 'animate-spin': textDynamic.loading.value }" />
                   <span>{{ textDynamic.loading.value ? t('ai.config.refreshModelsLoading') : t('ai.config.refreshModels') }}</span>
                 </button>
               </div>
@@ -280,17 +335,16 @@ defineExpose({
               </Select>
               <Input v-else v-model="aiConfig.textModel" :placeholder="t('ai.config.modelPlaceholder')" />
             </div>
-
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <Label class="mb-1 flex items-center gap-1 text-sm font-medium">
+                <Label class="mb-1.5 flex items-center gap-1 text-xs font-medium">
                   {{ t('ai.config.temperature') }}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger as-child>
-                        <Info class="text-gray-500" :size="14" />
+                        <Info class="text-muted-foreground" :size="13" />
                       </TooltipTrigger>
-                      <TooltipContent side="top" class="z-250">
+                      <TooltipContent side="top">
                         {{ t('ai.config.temperatureHint') }}
                       </TooltipContent>
                     </Tooltip>
@@ -299,39 +353,31 @@ defineExpose({
                 <Input v-model.number="aiConfig.temperature" type="number" step="0.1" min="0" max="2" />
               </div>
               <div>
-                <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.maxTokens') }}</Label>
+                <Label class="mb-1.5 block text-xs font-medium">{{ t('ai.config.maxTokens') }}</Label>
                 <Input v-model.number="aiConfig.maxToken" type="number" min="1" max="32768" />
               </div>
             </div>
           </div>
-        </AccordionContent>
-      </AccordionItem>
+        </div>
+      </TabsContent>
 
-      <!-- ========== 视觉模型 ========== -->
-      <AccordionItem value="vision" class="rounded-lg border overflow-hidden">
-        <AccordionHeader>
-          <AccordionTrigger class="flex w-full cursor-pointer select-none items-center justify-between px-3 py-2.5 text-sm font-semibold hover:bg-muted/50 [&[data-state=open]>svg.chevron]:rotate-180">
-            <div class="flex flex-1 items-center text-left">
-              <span>👁️ 视觉模型（图片理解）</span>
-              <span class="ml-2 text-xs font-normal text-muted-foreground">分析图片内容，白板截图生成文章</span>
-            </div>
-            <div class="flex items-center gap-1.5" @click.stop.prevent @keydown.stop>
-              <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" :disabled="visionTesting" @click="testVision">
-                {{ t('common.testConnection') }}
-              </Button>
-              <Loader2 v-if="visionTesting" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-              <template v-else-if="visionTestResult">
-                <Check v-if="visionTestResult.ok" class="h-4 w-4 text-green-500" />
-                <X v-else class="h-4 w-4 text-red-500" />
-              </template>
-            </div>
-            <ChevronDown class="chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
-          </AccordionTrigger>
-        </AccordionHeader>
-        <AccordionContent class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-          <div class="space-y-3 px-3 pb-3 pt-1">
+      <!-- 视觉模型 -->
+      <TabsContent value="vision" class="mt-3">
+        <div class="rounded-lg border">
+          <div class="flex items-center justify-between border-b px-4 py-2">
+            <p class="text-xs text-muted-foreground">
+              {{ t('ai.config.tabVisionHint') }}
+            </p>
+            <Button size="sm" variant="outline" class="h-7 gap-1.5 px-2.5 text-xs" :disabled="visionTesting" @click="testVision">
+              <Loader2 v-if="visionTesting" class="h-3 w-3 animate-spin" />
+              <Check v-else-if="visionTestResult?.ok" class="h-3 w-3 text-green-500" />
+              <X v-else-if="visionTestResult && !visionTestResult.ok" class="h-3 w-3 text-red-500" />
+              {{ t('common.testConnection') }}
+            </Button>
+          </div>
+          <div class="space-y-3.5 p-4">
             <div>
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.serviceType') }}</Label>
+              <Label class="mb-1.5 block text-xs font-medium">{{ t('ai.config.serviceType') }}</Label>
               <Select v-model="aiConfig.visionType">
                 <SelectTrigger class="w-full">
                   <SelectValue>{{ visionService.label }}</SelectValue>
@@ -343,19 +389,17 @@ defineExpose({
                 </SelectContent>
               </Select>
             </div>
-
             <div>
-              <div class="mb-1 flex items-center justify-between">
-                <Label class="text-sm font-medium">{{ t('ai.config.modelName') }}</Label>
+              <div class="mb-1.5 flex items-center justify-between">
+                <Label class="text-xs font-medium">{{ t('ai.config.modelName') }}</Label>
                 <button
                   v-if="visionService.fetchModels"
                   type="button"
                   class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
                   :disabled="visionDynamic.loading.value || !aiConfig.visionApiKey"
-                  :title="t('ai.config.refreshModelsHint')"
                   @click="visionDynamic.refresh()"
                 >
-                  <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': visionDynamic.loading.value }" />
+                  <RefreshCw class="h-3 w-3" :class="{ 'animate-spin': visionDynamic.loading.value }" />
                   <span>{{ visionDynamic.loading.value ? t('ai.config.refreshModelsLoading') : t('ai.config.refreshModels') }}</span>
                 </button>
               </div>
@@ -372,34 +416,26 @@ defineExpose({
               <Input v-else v-model="aiConfig.visionModel" placeholder="如 gpt-4o" />
             </div>
           </div>
-        </AccordionContent>
-      </AccordionItem>
+        </div>
+      </TabsContent>
 
-      <!-- ========== 图片生成模型 ========== -->
-      <AccordionItem value="image" class="rounded-lg border overflow-hidden">
-        <AccordionHeader>
-          <AccordionTrigger class="flex w-full cursor-pointer select-none items-center justify-between px-3 py-2.5 text-sm font-semibold hover:bg-muted/50 [&[data-state=open]>svg.chevron]:rotate-180">
-            <div class="flex flex-1 items-center text-left">
-              <span>🎨 图片生成模型</span>
-              <span class="ml-2 text-xs font-normal text-muted-foreground">AI 生成封面图、插图等</span>
-            </div>
-            <div class="flex items-center gap-1.5" @click.stop.prevent @keydown.stop>
-              <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" :disabled="imageTesting" @click="testImage">
-                {{ t('common.testConnection') }}
-              </Button>
-              <Loader2 v-if="imageTesting" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-              <template v-else-if="imageTestResult">
-                <Check v-if="imageTestResult.ok" class="h-4 w-4 text-green-500" />
-                <X v-else class="h-4 w-4 text-red-500" />
-              </template>
-            </div>
-            <ChevronDown class="chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
-          </AccordionTrigger>
-        </AccordionHeader>
-        <AccordionContent class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-          <div class="space-y-3 px-3 pb-3 pt-1">
+      <!-- 图片生成模型 -->
+      <TabsContent value="image" class="mt-3">
+        <div class="rounded-lg border">
+          <div class="flex items-center justify-between border-b px-4 py-2">
+            <p class="text-xs text-muted-foreground">
+              {{ t('ai.config.tabImageHint') }}
+            </p>
+            <Button size="sm" variant="outline" class="h-7 gap-1.5 px-2.5 text-xs" :disabled="imageTesting" @click="testImage">
+              <Loader2 v-if="imageTesting" class="h-3 w-3 animate-spin" />
+              <Check v-else-if="imageTestResult?.ok" class="h-3 w-3 text-green-500" />
+              <X v-else-if="imageTestResult && !imageTestResult.ok" class="h-3 w-3 text-red-500" />
+              {{ t('common.testConnection') }}
+            </Button>
+          </div>
+          <div class="space-y-3.5 p-4">
             <div>
-              <Label class="mb-1 block text-sm font-medium">{{ t('ai.config.serviceType') }}</Label>
+              <Label class="mb-1.5 block text-xs font-medium">{{ t('ai.config.serviceType') }}</Label>
               <Select v-model="aiConfig.imageType">
                 <SelectTrigger class="w-full">
                   <SelectValue>{{ imageService.label }}</SelectValue>
@@ -411,19 +447,17 @@ defineExpose({
                 </SelectContent>
               </Select>
             </div>
-
             <div>
-              <div class="mb-1 flex items-center justify-between">
-                <Label class="text-sm font-medium">{{ t('ai.config.modelName') }}</Label>
+              <div class="mb-1.5 flex items-center justify-between">
+                <Label class="text-xs font-medium">{{ t('ai.config.modelName') }}</Label>
                 <button
                   v-if="imageService.fetchModels"
                   type="button"
                   class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
                   :disabled="imageDynamic.loading.value || !aiConfig.imageApiKey"
-                  :title="t('ai.config.refreshModelsHint')"
                   @click="imageDynamic.refresh()"
                 >
-                  <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': imageDynamic.loading.value }" />
+                  <RefreshCw class="h-3 w-3" :class="{ 'animate-spin': imageDynamic.loading.value }" />
                   <span>{{ imageDynamic.loading.value ? t('ai.config.refreshModelsLoading') : t('ai.config.refreshModels') }}</span>
                 </button>
               </div>
@@ -440,9 +474,9 @@ defineExpose({
               <Input v-else v-model="aiConfig.imageModel" placeholder="如 dall-e-3" />
             </div>
           </div>
-        </AccordionContent>
-      </AccordionItem>
-    </AccordionRoot>
+        </div>
+      </TabsContent>
+    </TabsRoot>
   </div>
 </template>
 
