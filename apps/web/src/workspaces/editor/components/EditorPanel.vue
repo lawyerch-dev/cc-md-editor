@@ -738,7 +738,7 @@ defineExpose({
 </template>
 
 <style lang="less" scoped>
-@import url('../../assets/less/app.less');
+@import url('../../../assets/less/app.less');
 </style>
 
 <style lang="less" scoped>

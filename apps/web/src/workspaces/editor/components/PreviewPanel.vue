@@ -153,7 +153,7 @@ defineExpose({
 </template>
 
 <style lang="less" scoped>
-@import url('../../assets/less/app.less');
+@import url('../../../assets/less/app.less');
 </style>
 
 <style lang="less" scoped>
@@ -181,7 +181,7 @@ defineExpose({
     .loading__img {
       width: 75px;
       height: 75px;
-      background: url('../../assets/images/favicon.png') no-repeat;
+      background: url('../../../assets/images/favicon.png') no-repeat;
       margin: 1em auto;
       background-size: cover;
     }

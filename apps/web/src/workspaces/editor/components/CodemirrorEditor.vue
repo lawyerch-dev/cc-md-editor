@@ -359,7 +359,7 @@ const isImgLoading = computed(() => unref(editorPanelCompRef.value?.isImgLoading
 </template>
 
 <style lang="less" scoped>
-@import url('../../assets/less/app.less');
+@import url('../../../assets/less/app.less');
 </style>
 
 <style lang="less" scoped>
