@@ -1,15 +1,13 @@
 // @workspace reading
 import type { CollectorSelectors } from '@/workspaces/reading/stores'
-import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
-import { useAIConfigStore } from '@/shared/stores/aiConfig'
+import { useAI } from '@/shared/composables/ai'
 
 /**
  * 分析网页 HTML，生成 CSS 选择器采集规则。
  * 使用用户配置的文本模型（OpenAI 兼容 API）。
  */
 export function useCollectorAI() {
-  const aiConfig = useAIConfigStore()
-  const { fetchJSON } = useAIFetch()
+  const ai = useAI()
 
   /**
    * 从 HTML 中提取精简的 DOM 结构摘要（去掉属性、脚本、样式，保留标签和文本）。
@@ -86,31 +84,11 @@ export function useCollectorAI() {
 HTML 结构（已精简，保留 class 属性）：
 ${simplified}`
 
-    const endpoint = aiConfig.textEndpoint || aiConfig.endpoint
-    const apiKey = aiConfig.textApiKey || aiConfig.apiKey
-    const model = aiConfig.textModel || aiConfig.model
-    const type = aiConfig.textType || aiConfig.type
+    const content = await ai.askJSON<string>([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ])
 
-    const url_ = resolveEndpointUrl(endpoint, 'chat')
-    const headers = buildAIHeaders(apiKey, type)
-
-    const payload = {
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.1,
-      max_tokens: 1000,
-      stream: false,
-    }
-
-    const res = await fetchJSON<{ choices?: Array<{ message?: { content?: string } }> }>(url_, headers, payload)
-    if (!res.ok || !res.data) {
-      throw new Error(`AI 分析失败: ${res.status} ${res.statusText}`)
-    }
-
-    const content = res.data.choices?.[0]?.message?.content || ''
     // 提取 JSON（AI 可能会包裹在 ```json ``` 中）
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {

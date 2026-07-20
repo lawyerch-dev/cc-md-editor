@@ -5,6 +5,7 @@ import { onMounted, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import AIConfig from '@/shared/components/ai/chat-box/AIConfig.vue'
+import { useAI } from '@/shared/composables/ai'
 import { buildAIHeaders, resolveEndpointUrl, useAIFetch } from '@/shared/composables/useAIFetch'
 import { useAIConfigStore } from '@/shared/stores/aiConfig'
 import { useImageUploader } from '@/workspaces/editor/composables/useImageUploader'
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 const aiConfig = useAIConfigStore()
 const postStore = usePostStore()
 const { upload } = useImageUploader()
+const ai = useAI()
 const { loading, fetchSSE, abort } = useAIFetch()
 
 // File → data URL（供 AI 视觉模型和预览使用）
@@ -116,10 +118,6 @@ async function tryVisionModel(): Promise<boolean> {
 // ── 降级：OCR 提取 + 文本模型生成 ─────────────────────────
 async function fallbackOcrAndWrite() {
   const visionModel = aiConfig.visionModel
-  const textModel = aiConfig.textModel
-  const textEndpoint = aiConfig.endpoint
-  const textApiKey = aiConfig.apiKey
-  const textType = aiConfig.type
 
   // Step 1: OCR — 用视觉模型提取图片中的文字内容
   let ocrResult = ''
@@ -196,22 +194,10 @@ ${ocrResult}
     : prompt.value
 
   try {
-    const url = resolveEndpointUrl(textEndpoint, 'chat')
-    const headers = buildAIHeaders(textApiKey, textType)
-
-    const payload: Record<string, unknown> = {
-      model: textModel,
-      temperature: aiConfig.temperature,
-      max_tokens: aiConfig.maxToken,
-      stream: true,
-      messages: [
-        { role: 'user', content: writePrompt },
-      ],
-    }
-
     result.value = ''
-    await fetchSSE(url, headers, payload, {
-      onDelta: (content) => {
+    await ai.askStream({
+      messages: [{ role: 'user', content: writePrompt }],
+      onToken: (content) => {
         result.value += content
       },
       onDone: () => {
