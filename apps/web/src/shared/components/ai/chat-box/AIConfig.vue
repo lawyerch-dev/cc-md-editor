@@ -1,8 +1,11 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
 import type { ImageServiceOption, ServiceOption } from '@md/shared/types'
-import { Check, Eye, Image as ImageIcon, Info, Key, Loader2, RefreshCw, Type, X } from '@lucide/vue'
+import { Check, ChevronDown, Eye, Image as ImageIcon, Info, Key, Loader2, RefreshCw, Type, X } from '@lucide/vue'
 import {
+  CollapsibleContent,
+  CollapsibleRoot,
+  CollapsibleTrigger,
   TabsContent,
   TabsList,
   TabsRoot,
@@ -23,6 +26,7 @@ const localizedAIServices = useLocalizedAIServiceOptions()
 
 // ==================== 供应商级 API Key ====================
 
+const providerKeysOpen = ref(false)
 const allProviders = computed(() => {
   const seen = new Set<string>()
   const result: { value: string, label: string }[] = []
@@ -188,29 +192,32 @@ defineExpose({
 
 <template>
   <div class="custom-scroll flex-1 text-xs sm:text-sm">
-    <!-- 供应商 API Key -->
-    <div class="mb-5 rounded-lg border">
-      <div class="flex items-center gap-2 border-b px-4 py-2.5">
+    <!-- 供应商 API Key（默认折叠） -->
+    <CollapsibleRoot v-model:open="providerKeysOpen" class="mb-5 rounded-lg border">
+      <CollapsibleTrigger class="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 hover:bg-muted/30">
         <Key class="h-4 w-4 text-muted-foreground" />
-        <span class="text-sm font-medium">{{ t('ai.config.providerKeys') }}</span>
-      </div>
-      <div class="p-4">
-        <p class="mb-3 text-xs text-muted-foreground">
-          {{ t('ai.config.providerKeysHint') }}
-        </p>
-        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <div v-for="p in allProviders" :key="p.value" class="flex items-center gap-2">
-            <Label class="w-20 shrink-0 text-xs">{{ p.label }}</Label>
-            <PasswordInput
-              :model-value="providerKeys[p.value]"
-              placeholder="sk-..."
-              class="flex-1"
-              @update:model-value="onProviderKeyChange(p.value, $event as string)"
-            />
+        <span class="flex-1 text-left text-sm font-medium">{{ t('ai.config.providerKeys') }}</span>
+        <ChevronDown class="h-4 w-4 text-muted-foreground transition-transform" :class="{ 'rotate-180': providerKeysOpen }" />
+      </CollapsibleTrigger>
+      <CollapsibleContent class="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+        <div class="border-t p-4">
+          <p class="mb-3 text-xs text-muted-foreground">
+            {{ t('ai.config.providerKeysHint') }}
+          </p>
+          <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div v-for="p in allProviders" :key="p.value" class="flex items-center gap-2">
+              <Label class="w-20 shrink-0 text-xs">{{ p.label }}</Label>
+              <PasswordInput
+                :model-value="providerKeys[p.value]"
+                placeholder="sk-..."
+                class="flex-1"
+                @update:model-value="onProviderKeyChange(p.value, $event as string)"
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </CollapsibleContent>
+    </CollapsibleRoot>
 
     <!-- 模型配置 Tabs -->
     <TabsRoot default-value="text">
