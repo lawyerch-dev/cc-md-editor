@@ -405,10 +405,23 @@ const pageRef = ref<HTMLElement | null>(null)
 
 /* ─── Toolbar buttons ─── */
 .toolbar-btn {
-  @apply flex h-9 items-center gap-1.5 rounded-full px-3 text-xs text-muted-foreground backdrop-blur-md ring-1 ring-border/40 transition-all duration-500 hover:bg-accent hover:text-foreground;
+  display: flex;
+  height: 2.25rem;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
   background: hsl(var(--card) / 0.8);
   box-shadow: 0 2px 20px rgba(0,0,0,0.06);
-  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  backdrop-filter: blur(12px);
+  outline: 1px solid hsl(var(--border) / 0.4);
+  transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.toolbar-btn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 /* ─── Zone transition ─── */
