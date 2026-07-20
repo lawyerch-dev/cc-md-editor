@@ -205,6 +205,12 @@ export default {
     refreshModelsLoading: `Loading…`,
     refreshModelsHint: `Fetch latest models from the provider API`,
     fetchModelsFailed: `⚠️ Failed to fetch latest models: {message}`,
+    tabText: `Text Model`,
+    tabVision: `Vision Model`,
+    tabImage: `Image Gen`,
+    tabTextHint: `For text generation, AI assistant chat, etc.`,
+    tabVisionHint: `Analyze images, generate articles from whiteboard screenshots`,
+    tabImageHint: `AI-generated cover images, illustrations, etc.`,
   },
   imageConfig: {
     title: `AI Image Settings`,
