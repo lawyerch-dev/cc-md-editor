@@ -5,6 +5,9 @@ import LandingPage from '@/shared/components/landing/LandingPage.vue'
 import { Toaster } from '@/components/ui/sonner'
 import { useCommandPaletteHotkey } from '@/shared/composables/useCommandPaletteHotkey'
 import { usePreferencesHotkey } from '@/shared/composables/usePreferencesHotkey'
+import { usePlatformEnv } from '@/shared/composables/usePlatformEnv'
+import { useAccountSyncBootstrap } from '@/shared/composables/useAccountSyncBootstrap'
+import { useDeepLinkImport } from '@/workspaces/editor/composables/useDeepLinkImport'
 import { useUIStore } from '@/shared/stores/ui'
 
 const CodemirrorEditor = defineAsyncComponent(() => import('@/workspaces/editor/components/CodemirrorEditor.vue'))
