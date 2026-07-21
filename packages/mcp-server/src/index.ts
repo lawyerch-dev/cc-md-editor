@@ -2,9 +2,6 @@
 
 import process from 'node:process'
 import { serviceOptions } from '@md/shared/configs/ai-service-options'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { z } from 'zod'
 import {
   codeBlockThemeOptions,
   colorOptions,
@@ -12,8 +9,11 @@ import {
   fontSizeOptions,
   headingStyleOptions,
   legendOptions,
-  themeOptions,
-} from './config-options'
+} from '@md/shared/configs/style-data'
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { z } from 'zod'
+import { themeOptions } from './config-options'
 
 import { buildRenderedOutput } from './render-article'
 

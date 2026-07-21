@@ -113,7 +113,6 @@ export default defineConfig(({ mode }) => {
         `marked`,
         `juice`,
         `isomorphic-dompurify`,
-        `crypto-js`,
         `jszip`,
         `spark-md5`,
         `es-toolkit`,

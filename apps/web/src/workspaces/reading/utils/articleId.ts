@@ -1,5 +1,3 @@
-import CryptoJS from 'crypto-js'
-
 /**
  * 对 URL 做规范化：移除追踪参数、统一协议、去除尾部斜杠
  */
@@ -25,24 +23,28 @@ export function normalizeUrl(url: string): string {
   }
 }
 
-function sha256Short(input: string, length = 16): string {
-  return CryptoJS.SHA256(input).toString(CryptoJS.enc.Hex).slice(0, length)
+async function sha256Short(input: string, length = 16): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(input)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = new Uint8Array(hashBuffer)
+  return Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, length)
 }
 
 /**
  * 生成稳定文章 ID
  * 基于 sourceId + 规范化 link + publishedAt，碰撞率极低
  */
-export function generateArticleId(sourceId: string, link: string, publishedAt: number): string {
+export async function generateArticleId(sourceId: string, link: string, publishedAt: number): Promise<string> {
   const normalizedLink = normalizeUrl(link)
   const input = `${sourceId}|${normalizedLink}|${publishedAt}`
-  return `art-${sha256Short(input)}`
+  return `art-${await sha256Short(input)}`
 }
 
 /**
  * 生成内容指纹，用于跨源/跨策略去重
  */
-export function generateContentHash(title: string, summary: string): string {
+export async function generateContentHash(title: string, summary: string): Promise<string> {
   const input = `${title.trim().toLowerCase()}|${summary.trim().toLowerCase().slice(0, 200)}`
   return sha256Short(input)
 }

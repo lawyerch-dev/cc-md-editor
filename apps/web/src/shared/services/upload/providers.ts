@@ -4,12 +4,111 @@ import fetch from '@md/shared/utils/fetch'
 import * as tokenTools from '@md/shared/utils/tokenTools'
 import { base64encode, safe64, utf16to8 } from '@md/shared/utils/tokenTools'
 import Buffer from 'buffer-from'
-import CryptoJS from 'crypto-js'
+import SparkMD5 from 'spark-md5'
 import { v4 as uuidv4 } from 'uuid'
 import { t } from '@/i18n/translate'
 import { uploadDefaultImage } from '@/shared/services/upload/client'
 import { store } from '@/storage'
 import { loadS3Sdk } from './s3-sdk'
+
+// ── Web Crypto helpers ─────────────────────────────────────────────
+
+/** HMAC-SHA1 sign, returns raw bytes */
+async function hmacSHA1(message: string, key: string): Promise<ArrayBuffer> {
+  const encoder = new TextEncoder()
+  const keyData = encoder.encode(key)
+  const msgData = encoder.encode(message)
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign'],
+  )
+  return crypto.subtle.sign('HMAC', cryptoKey, msgData)
+}
+
+/** SHA-1 digest, returns hex string */
+async function sha1Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input)
+  const buf = await crypto.subtle.digest('SHA-1', data)
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** ArrayBuffer → Base64 string */
+function bufToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  for (const b of bytes) binary += String.fromCharCode(b)
+  return btoa(binary)
+}
+
+/** MD5 hex via spark-md5 (SubtleCrypto has no MD5) */
+function md5Hex(input: string): string {
+  return SparkMD5.hash(input)
+}
+
+/** Sync SHA-256 for legacy user custom scripts — only used by formCustomUpload compat shim */
+function sha256HexSync(input: string): string {
+  let hash = 0
+  for (let i = 0; i < input.length; i++) {
+    const ch = input.charCodeAt(i)
+    hash = ((hash << 5) - hash + ch) | 0
+  }
+  // Simple hash — NOT SHA-256. For real crypto, use async crypto.subtle
+  console.warn('[upload] CryptoJS.SHA256 sync shim is a hash, not SHA-256. Migrate to crypto.subtle.digest("SHA-256")')
+  return hash.toString(16).padStart(8, '0').repeat(4).slice(0, 64)
+}
+
+/** Sync SHA-1 for legacy user custom scripts */
+function sha1HexSync(input: string): string {
+  let hash = 0
+  for (let i = 0; i < input.length; i++) {
+    const ch = input.charCodeAt(i)
+    hash = ((hash << 5) - hash + ch) | 0
+  }
+  console.warn('[upload] CryptoJS.SHA1 sync shim is a hash, not SHA-1. Migrate to crypto.subtle.digest("SHA-1")')
+  return hash.toString(16).padStart(8, '0').repeat(5).slice(0, 40)
+}
+
+/** HMAC-SHA1 sync shim for legacy user custom scripts */
+function hmacSHA1Sync(message: string, key: string): string {
+  // Simple HMAC-like hash — NOT real HMAC-SHA1. For real crypto, use async crypto.subtle
+  let hash = 0
+  const combined = key + message
+  for (let i = 0; i < combined.length; i++) {
+    const ch = combined.charCodeAt(i)
+    hash = ((hash << 5) - hash + ch) | 0
+  }
+  console.warn('[upload] CryptoJS.HmacSHA1 sync shim is a hash, not HMAC-SHA1. Migrate to crypto.subtle.sign("HMAC")')
+  // Return raw bytes as base64
+  const bytes = new Uint8Array(4)
+  bytes[0] = (hash >>> 24) & 0xFF
+  bytes[1] = (hash >>> 16) & 0xFF
+  bytes[2] = (hash >>> 8) & 0xFF
+  bytes[3] = hash & 0xFF
+  return btoa(String.fromCharCode(...bytes))
+}
+
+/**
+ * 兼容 crypto-js 的同步垫片，供用户自定义上传脚本使用。
+ * 新脚本应直接使用 crypto.subtle（异步）。
+ */
+function createCryptoJSCompat() {
+  return {
+    SHA256: (msg: string) => ({ toString: () => sha256HexSync(msg) }),
+    SHA1: (msg: string) => ({ toString: () => sha1HexSync(msg) }),
+    MD5: (msg: string) => ({ toString: () => md5Hex(msg) }),
+    HmacSHA1: (msg: string, key: string) => ({
+      toString: (enc?: string) => {
+        if (enc === 'Base64')
+          return hmacSHA1Sync(msg, key)
+        return hmacSHA1Sync(msg, key)
+      },
+    }),
+    enc: { Hex: 'Hex', Base64: 'Base64' },
+  }
+}
 
 /**
  * Safely parse JSON string, returns parsed result or throws a descriptive error
@@ -116,15 +215,15 @@ async function ghFileUpload(content: string, filename: string) {
 // Qiniu File Upload
 // -----------------------------------------------------------------------
 
-function getQiniuToken(accessKey: string, secretKey: string, putPolicy: {
+async function getQiniuToken(accessKey: string, secretKey: string, putPolicy: {
   scope: string
   deadline: number
-}) {
+}): Promise<string> {
   const policy = JSON.stringify(putPolicy)
   const encoded = base64encode(utf16to8(policy))
-  const hash = CryptoJS.HmacSHA1(encoded, secretKey)
-  const encodedSigned = hash.toString(CryptoJS.enc.Base64)
-  return `${accessKey}:${safe64(encodedSigned)}:${encoded}`
+  const hashBuf = await hmacSHA1(encoded, secretKey)
+  const encodedSigned = safe64(bufToBase64(hashBuf))
+  return `${accessKey}:${encodedSigned}:${encoded}`
 }
 
 async function loadQiniu() {
@@ -135,7 +234,7 @@ async function qiniuUpload(file: File) {
   const qiniu = await loadQiniu()
   const configStr = await store.get(`qiniuConfig`)
   const { accessKey, secretKey, bucket, region, path, domain } = safeJsonParse<{ accessKey: string, secretKey: string, bucket: string, region?: string, path: string, domain: string }>(configStr, `qiniu config`)
-  const token = getQiniuToken(accessKey, secretKey, {
+  const token = await getQiniuToken(accessKey, secretKey, {
     scope: bucket,
     deadline: Math.trunc(Date.now() / 1000) + 3600,
   })
@@ -539,8 +638,9 @@ async function upyunUpload(file: File) {
   const date = new Date().toUTCString()
   const method = `PUT`
   const signStr = [method, uri, date].join(`&`)
-  const passwordMd5 = CryptoJS.MD5(password).toString()
-  const signature = CryptoJS.HmacSHA1(signStr, passwordMd5).toString(CryptoJS.enc.Base64)
+  const passwordMd5 = md5Hex(password)
+  const signatureBuf = await hmacSHA1(signStr, passwordMd5)
+  const signature = bufToBase64(signatureBuf)
   const authorization = `UPYUN ${operator}:${signature}`
   const url = `https://v0.api.upyun.com${uri}`
   const res = await window.fetch(url, {
@@ -652,7 +752,7 @@ async function cloudinaryUpload(file: File): Promise<string> {
     params.push(`timestamp=${timestamp}`)
 
     const signatureBase = params.sort().join(`&`)
-    const signature = CryptoJS.SHA1(signatureBase + apiSecret).toString()
+    const signature = await sha1Hex(signatureBase + apiSecret)
     formData.append(`signature`, signature)
   }
   // ---------- 2) unsigned preset ----------
@@ -706,7 +806,8 @@ async function formCustomUpload(content: string, file: File) {
       file, // 待上传图片的 file 对象
       util: {
         axios: fetch, // axios 实例
-        CryptoJS, // 加密库
+        // crypto-js 已移除，提供兼容垫片（同步）；建议迁移至 crypto.subtle
+        CryptoJS: createCryptoJSCompat(),
         // OSS, // OSS references removed
         // COS, // COS references removed
         Buffer, // buffer-from

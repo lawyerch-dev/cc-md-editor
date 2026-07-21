@@ -106,7 +106,7 @@ export const useReadingStore = defineStore('reading', () => {
   }
 
   /** 将旧版文章 ID 迁移为新版，并补全 contentHash；返回 ID 映射表 */
-  function migrateArticleIds(articles: Article[]): { articles: Article[], idMap: Map<string, string> } {
+  async function migrateArticleIds(articles: Article[]): Promise<{ articles: Article[], idMap: Map<string, string> }> {
     const idMap = new Map<string, string>()
     const seenNewIds = new Set<string>()
     const migrated: Article[] = []
@@ -114,7 +114,7 @@ export const useReadingStore = defineStore('reading', () => {
     for (const article of articles) {
       if (isNewArticleId(article.id)) {
         if (!article.contentHash)
-          article.contentHash = generateContentHash(article.title, article.summary)
+          article.contentHash = await generateContentHash(article.title, article.summary)
         if (!seenNewIds.has(article.id)) {
           seenNewIds.add(article.id)
           migrated.push(article)
@@ -122,7 +122,7 @@ export const useReadingStore = defineStore('reading', () => {
         continue
       }
 
-      const newId = generateArticleId(article.sourceId, article.link, article.publishedAt)
+      const newId = await generateArticleId(article.sourceId, article.link, article.publishedAt)
       if (seenNewIds.has(newId)) {
         idMap.set(article.id, newId)
         continue
@@ -131,7 +131,7 @@ export const useReadingStore = defineStore('reading', () => {
       idMap.set(article.id, newId)
       article.id = newId
       if (!article.contentHash)
-        article.contentHash = generateContentHash(article.title, article.summary)
+        article.contentHash = await generateContentHash(article.title, article.summary)
       migrated.push(article)
     }
 
@@ -157,7 +157,7 @@ export const useReadingStore = defineStore('reading', () => {
     let finalLists = lsLists.length > 0 ? lsLists : l
 
     // 迁移旧版文章 ID 为新版哈希 ID，并同步更新阅读列表
-    const migrated = migrateArticleIds(finalArticles)
+    const migrated = await migrateArticleIds(finalArticles)
     finalArticles = migrated.articles
     if (migrated.idMap.size > 0) {
       finalLists = finalLists.map(list => ({
