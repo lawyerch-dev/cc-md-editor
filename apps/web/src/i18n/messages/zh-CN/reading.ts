@@ -18,6 +18,7 @@ export default {
     search: '搜索文章...',
     refresh: '刷新',
     refreshSource: '刷新此源',
+    retry: '重试',
     sourceManage: '数据源',
     aiConfig: 'AI 配置',
     // 数据源
@@ -54,7 +55,6 @@ export default {
     ideaCreated: '已提炼到想法库',
     ideaCreateFailed: '提炼失败',
     annotate: '批注',
-    noAnnotations: '暂无批注',
     selectToAnnotate: '选中文字添加批注',
     userProfileTitle: '我的画像',
     userProfileDesc: '描述你的背景、目标和关注领域，AI 将基于此为你筛选和分析内容。',
@@ -102,7 +102,6 @@ export default {
     importFileSelected: '已选择',
     importSelectFile: '请选择 OPML 文件',
     exportSources: '导出源',
-    import: '导入',
     exportSuccess: '已导出 {n} 个数据源',
     exportAll: '全部导出',
     exportFullSuccess: '已导出 {sources} 个数据源，{articles} 篇文章',

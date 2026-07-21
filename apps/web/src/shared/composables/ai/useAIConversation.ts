@@ -1,3 +1,4 @@
+import type { ComputedRef } from 'vue'
 // @workspace shared
 import type { ActionResult, AIMessage } from './types'
 import { useAI } from './useAI'

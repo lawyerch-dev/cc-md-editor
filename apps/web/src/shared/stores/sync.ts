@@ -12,6 +12,7 @@ import { store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
 import { safeGetItem, safeRemoveItem, safeSetItem } from '@/storage/safe-access'
 import { usePostStore } from '@/workspaces/editor/stores/post'
+import { useReadingStore } from '@/workspaces/reading/stores'
 
 export type SyncStatus = 'idle' | 'syncing' | 'error'
 
@@ -40,6 +41,7 @@ function writeSyncedIds(ids: string[]): void {
 export const useSyncStore = defineStore(`sync`, () => {
   const authStore = useAuthStore()
   const postStore = usePostStore()
+  const readingStore = useReadingStore()
 
   const status = ref<SyncStatus>(`idle`)
   const lastError = ref<string>(``)
@@ -186,6 +188,11 @@ export const useSyncStore = defineStore(`sync`, () => {
       () => scheduleAutoSync(),
       { deep: true },
     )
+    // 阅读数据：sources / lists / articles 变化时触发自动同步。
+    // 文章数组较大，采用浅引用观察（saveArticles 会替换引用），已能覆盖新增/删除。
+    watch(() => readingStore.sources, () => scheduleAutoSync(), { deep: true })
+    watch(() => readingStore.lists, () => scheduleAutoSync(), { deep: true })
+    watch(() => readingStore.articles, () => scheduleAutoSync())
     watch(syncDebounceMs, () => {
       if (autoSyncEnabled.value)
         scheduleAutoSync()

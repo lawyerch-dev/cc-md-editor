@@ -35,3 +35,32 @@ interface FileSystemDirectoryHandle {
   values: () => AsyncIterableIterator<FileSystemHandle>
   [Symbol.asyncIterator]: () => AsyncIterableIterator<FileSystemHandle>
 }
+
+declare module 'sql.js' {
+  export interface SqlJsConfig {
+    locateFile?: (file: string) => string
+  }
+
+  export interface Statement {
+    bind: (values: unknown[]) => void
+    step: () => boolean
+    getAsObject: () => Record<string, unknown>
+    free: () => void
+  }
+
+  export interface Database {
+    run: (sql: string) => void
+    exec: (sql: string) => Array<{
+      columns: string[]
+      values: unknown[][]
+    }>
+    prepare: (sql: string) => Statement
+    close: () => void
+  }
+
+  export interface SqlJs {
+    Database: new (data?: Uint8Array | ArrayBuffer | null) => Database
+  }
+
+  export default function initSqlJs(config?: SqlJsConfig): Promise<SqlJs>
+}

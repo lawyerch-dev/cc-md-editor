@@ -15,8 +15,9 @@ export enum FeedViewType {
 export const VIEW_TYPE_OPTIONS: { value: FeedViewType, i18nKey: string }[] = [
   { value: FeedViewType.Articles, i18nKey: 'reading.viewArticles' },
   { value: FeedViewType.Pictures, i18nKey: 'reading.viewPictures' },
-  { value: FeedViewType.Audios, i18nKey: 'reading.viewAudios' },
   { value: FeedViewType.Videos, i18nKey: 'reading.viewVideos' },
+  { value: FeedViewType.Audios, i18nKey: 'reading.viewAudios' },
+  { value: FeedViewType.SocialMedia, i18nKey: 'reading.viewSocialMedia' },
 ]
 
 /** 多媒体条目 */
@@ -68,7 +69,7 @@ export interface Source {
 
 /** 源健康状态 */
 export interface SourceHealth {
-  status: 'ok' | 'error' | 'pending' | 'idle'
+  status: 'ok' | 'error' | 'pending' | 'idle' | 'stale'
   lastFetchAt?: number
   lastError?: string
   articleCount?: number
@@ -104,6 +105,8 @@ export interface Article {
   media: MediaItem[]
   /** 附件 */
   attachments: Attachment[]
+  /** 内容指纹，用于去重 */
+  contentHash?: string
 }
 
 /** 阅读列表 */

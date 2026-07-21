@@ -1,7 +1,7 @@
 <!-- @workspace reading -->
 <script setup lang="ts">
 import type { FetchStrategy, Source } from '@/workspaces/reading/stores'
-import { AlertCircle, CheckCircle2, Loader2, RefreshCcw, Rss, Search, Settings2, Trash2, X } from '@lucide/vue'
+import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, RefreshCcw, Rss, Search, Settings2, Trash2, X } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
@@ -413,10 +413,11 @@ async function importFullDataFromFile(e: Event) {
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5">
                 <!-- 健康状态 / 稳定性 -->
-                <TooltipProvider v-if="src.health?.status === 'error'" :delay-duration="200">
+                <TooltipProvider v-if="src.health?.status === 'error' || src.health?.status === 'stale'" :delay-duration="200">
                   <Tooltip>
                     <TooltipTrigger as-child>
-                      <AlertCircle class="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      <AlertCircle v-if="src.health?.status === 'error'" class="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      <AlertTriangle v-else class="h-3.5 w-3.5 text-orange-500 shrink-0" />
                     </TooltipTrigger>
                     <TooltipContent side="top" class="max-w-xs text-xs">
                       <p>{{ src.health.lastError }}</p>
@@ -466,13 +467,13 @@ async function importFullDataFromFile(e: Event) {
               <p class="text-[10px] text-muted-foreground truncate mt-0.5">
                 {{ src.rsshubPath ? `RSSHub: ${src.rsshubPath}` : (src.description || src.url) }}
               </p>
-              <p v-if="src.health?.lastError" class="text-[9px] text-destructive truncate mt-0.5">
+              <p v-if="src.health?.lastError" class="text-[9px] truncate mt-0.5" :class="src.health.status === 'stale' ? 'text-orange-600 dark:text-orange-400' : 'text-destructive'">
                 {{ src.health.lastError }}
               </p>
             </div>
             <div class="flex items-center gap-2 shrink-0 ml-2">
               <Button
-                v-if="src.health?.status === 'error'"
+                v-if="src.health?.status === 'error' || src.health?.status === 'stale'"
                 variant="outline"
                 size="sm"
                 class="h-6 gap-1 text-[10px]"
@@ -481,7 +482,7 @@ async function importFullDataFromFile(e: Event) {
               >
                 <RefreshCcw v-if="!store.fetchingSourceIds[src.id]" class="h-3 w-3" />
                 <Loader2 v-else class="h-3 w-3 animate-spin" />
-                {{ t('reading.retry') || '重试' }}
+                {{ t('reading.retry') }}
               </Button>
               <Button
                 variant="outline"

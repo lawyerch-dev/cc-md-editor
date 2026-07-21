@@ -1,4 +1,6 @@
 import type { Context } from '@netlify/functions'
+import process from 'node:process'
+import { getStore } from '@netlify/blobs'
 
 // ── 服务端 RSS/Atom 解析器（零依赖）────────────────────
 
@@ -88,7 +90,7 @@ function parseRSS(xml: string): FeedResult {
     const publishedAt = pubDateStr ? new Date(pubDateStr).getTime() || Date.now() : Date.now()
 
     // enclosure
-    const encRe = /<enclosure[^>]*>/g
+    const encRe = /<enclosure[^>]*>/
     const encM = encRe.exec(item)
     let enclosureUrl = ''
     let encType = ''
@@ -111,7 +113,7 @@ function parseRSS(xml: string): FeedResult {
     let mediaType = ''
     let mediaWidth: number | undefined
     let mediaHeight: number | undefined
-    const mcRe = /<media:content[^>]*>/g
+    const mcRe = /<media:content[^>]*>/
     const mcM = mcRe.exec(item)
     if (mcM) {
       mediaUrl = mcM[0].match(/url="([^"]+)"/)?.[1] || ''
@@ -126,7 +128,7 @@ function parseRSS(xml: string): FeedResult {
 
     // media:thumbnail
     let thumbUrl = ''
-    const mtRe = /<media:thumbnail[^>]*>/g
+    const mtRe = /<media:thumbnail[^>]*>/
     const mtM = mtRe.exec(item)
     if (mtM) {
       thumbUrl = mtM[0].match(/url="([^"]+)"/)?.[1] || ''
@@ -293,6 +295,46 @@ function getRandomUA(): string {
 
 const MAX_RETRIES = 2
 const BASE_DELAY_MS = 600
+const FEED_CACHE_TTL_MS = 5 * 60 * 1000
+
+interface FeedCacheEntry {
+  result: FeedResult
+  cachedAt: number
+}
+
+/** 生成 feed 缓存键 */
+function feedCacheKey(url: string): string {
+  return `feed:${url}`
+}
+
+/** 读取缓存 */
+async function getCachedFeed(url: string): Promise<FeedResult | null> {
+  try {
+    const store = getStore('rss-feed-cache')
+    const entry = await store.get(feedCacheKey(url), { type: 'json' }) as FeedCacheEntry | null
+    if (!entry)
+      return null
+    if (Date.now() - entry.cachedAt > FEED_CACHE_TTL_MS) {
+      await store.delete(feedCacheKey(url)).catch(() => {})
+      return null
+    }
+    return entry.result
+  }
+  catch {
+    return null
+  }
+}
+
+/** 写入缓存 */
+async function setCachedFeed(url: string, result: FeedResult): Promise<void> {
+  try {
+    const store = getStore('rss-feed-cache')
+    await store.setJSON(feedCacheKey(url), { result, cachedAt: Date.now() })
+  }
+  catch {
+    // 缓存失败不影响主流程
+  }
+}
 
 /**
  * Sleep helper — no `new Promise` executor form per project convention.
@@ -353,6 +395,37 @@ async function fetchFeed(url: string): Promise<Response> {
   throw new Error('上游服务器持续返回 5xx')
 }
 
+const ADMIN_KEY = process.env.ADMIN_KEY || ''
+const RATE_LIMIT_WINDOW_MS = 30_000
+const RATE_LIMIT_MAX_REQUESTS = 5
+
+interface RateLimitEntry {
+  count: number
+  windowStart: number
+}
+
+/** 简单按 URL 的滑动窗口限流（基于 Netlify Blobs） */
+async function checkRateLimit(url: string): Promise<boolean> {
+  try {
+    const store = getStore('rss-feed-rate-limit')
+    const key = `rl:${url}`
+    const now = Date.now()
+    const raw = await store.get(key, { type: 'json' }) as RateLimitEntry | null
+    if (!raw || now - raw.windowStart > RATE_LIMIT_WINDOW_MS) {
+      await store.setJSON(key, { count: 1, windowStart: now })
+      return true
+    }
+    if (raw.count >= RATE_LIMIT_MAX_REQUESTS)
+      return false
+    raw.count += 1
+    await store.setJSON(key, raw)
+    return true
+  }
+  catch {
+    return true
+  }
+}
+
 // ── Handler ────────────────────────────────────────────
 
 export default async (req: Request, _context: Context) => {
@@ -361,21 +434,47 @@ export default async (req: Request, _context: Context) => {
   }
 
   let url: string
+  let adminKey: string | undefined
   try {
     const body = await req.json() as Record<string, unknown>
     if (typeof body.url !== 'string' || !body.url) {
       return Response.json({ ok: false, error: 'Missing or invalid url' }, { status: 400 })
     }
     url = body.url
+    if (typeof body.adminKey === 'string')
+      adminKey = body.adminKey
   }
   catch {
     return Response.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 })
   }
 
+  const startAt = Date.now()
+
+  // 鉴权：生产环境需要 Admin Key（本地开发由 Vite proxy 控制访问）
+  const isLocalDev = !ADMIN_KEY || (req.headers.get('host') || '').includes('localhost')
+  if (!isLocalDev && adminKey !== ADMIN_KEY) {
+    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // 限流
+  const allowed = await checkRateLimit(url)
+  if (!allowed) {
+    console.log(`[rss-feed-proxy] rate limited url=${url}`)
+    return Response.json({ ok: false, error: 'Rate limited' }, { status: 429 })
+  }
+
   try {
+    // 先读缓存
+    const cached = await getCachedFeed(url)
+    if (cached) {
+      console.log(`[rss-feed-proxy] cache hit url=${url}`)
+      return Response.json({ ok: true, ...cached })
+    }
+
     const res = await fetchFeed(url)
 
     if (!res.ok) {
+      console.log(`[rss-feed-proxy] error url=${url} status=${res.status} duration=${Date.now() - startAt}ms`)
       return Response.json(
         { ok: false, error: `上游返回 ${res.status} ${res.statusText}` },
         { status: 502 },
@@ -390,12 +489,16 @@ export default async (req: Request, _context: Context) => {
     // 服务端解析
     const result = parseFeed(xml)
 
+    await setCachedFeed(url, result)
+    console.log(`[rss-feed-proxy] ok url=${url} items=${result.articles.length} duration=${Date.now() - startAt}ms`)
+
     return Response.json({ ok: true, ...result })
   }
   catch (err) {
     const message = err instanceof Error && err.name === 'TimeoutError'
       ? '获取超时（10s）'
       : err instanceof Error ? err.message : String(err)
+    console.log(`[rss-feed-proxy] exception url=${url} duration=${Date.now() - startAt}ms error=${message}`)
     return Response.json({ ok: false, error: message }, { status: 502 })
   }
 }

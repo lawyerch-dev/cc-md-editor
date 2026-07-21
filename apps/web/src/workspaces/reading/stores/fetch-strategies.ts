@@ -1,17 +1,12 @@
 // @workspace reading
 import type { Article, CollectorSelectors, FeedViewType, MediaItem, Source } from './types'
 
+import { generateArticleId, generateContentHash } from '../utils/articleId'
+import { extractArticle, extractArticleFallback } from '../utils/extractArticle'
+
 /** 清理内容中的视频/音频短代码 */
 function cleanShortcodes(html: string): string {
   return html.replace(/\[!--begin:\w+--\][\s\S]*?\[!--end:\w+--\]/g, '')
-}
-
-/** 基于内容的简易哈希，用于无 guid/link 时生成稳定 ID */
-function hashContent(s: string): string {
-  let h = 0
-  for (let i = 0; i < s.length; i++)
-    h = ((h << 5) - h + s.charCodeAt(i)) | 0
-  return `h${(h >>> 0).toString(36)}`
 }
 
 // ── RSSHub 配置 ────────────────────────────────────
@@ -28,31 +23,44 @@ export function getRsshubBaseUrl(): string {
   return _rsshubBaseUrl
 }
 
+/** RSSHub 镜像回退列表（用户未配置自建时默认使用） */
+const RSSHUB_FALLBACK_BASES = [
+  'https://rsshub.app',
+]
+
+/** 获取所有可用的 RSSHub 基地址（自定义优先） */
+function getRsshubBases(): string[] {
+  const custom = _rsshubBaseUrl ? [_rsshubBaseUrl] : []
+  return [...custom, ...RSSHUB_FALLBACK_BASES]
+}
+
+/** 判断 URL 是否由 RSSHub 提供 */
+function isRsshubUrl(url: string): boolean {
+  return url.includes('rsshub.app') || url.startsWith('rsshub://')
+}
+
+/** 拼接 RSSHub 基地址与路由路径 */
+function buildRsshubUrl(base: string, path: string): string {
+  return base + (path.startsWith('/') ? '' : '/') + path
+}
+
 // ── 服务端代理（Netlify Function，类似 Folo 的 api.folo.is）──────────
 
 /**
  * 判断 Netlify Functions 是否可用
- *  部署环境：basepath=/，函数路径正确
- *  本地 dev 无 Functions：base=/md/，函数路径 404
- *  本地 dev + proxy：base=/（SERVER_ENV=NETLIFY），无 <base> 标签
+ * - 部署环境（Netlify）：自带 Functions
+ * - 本地 dev：Vite server.proxy 将 /api/* 转发到 localhost:9999/.netlify/functions/*
  */
 function netlifyFunctionsAvailable(): boolean {
-  if (typeof window === 'undefined')
-    return false
-  const host = window.location.hostname
-  // 非 localhost → 已部署
-  if (!host.includes('localhost') && !host.includes('127.0.0.1'))
-    return true
-  // localhost：有 <base> 且不是 /md/，或无 <base>（默认 /）= proxy 模式
-  const base = document.querySelector('base')
-  if (!base)
-    return true // 无 base 标签 = path 从根开始
-  const href = base.getAttribute('href')
-  return href !== '/md/'
+  return typeof window !== 'undefined'
 }
 
 /** 获取 Netlify Function 完整 URL（考虑 base path） */
 function netlifyFunctionPath(name: string): string {
+  const host = window.location.hostname
+  // 本地开发统一走 /api/*，由 Vite proxy 转发
+  if (host.includes('localhost') || host.includes('127.0.0.1'))
+    return `${window.location.origin}/api/${name}`
   let base = '/'
   const baseEl = document.querySelector('base')
   if (baseEl?.href) {
@@ -95,7 +103,7 @@ async function fetchViaNetlify(url: string, timeoutMs = 15_000): Promise<Respons
  * 无 CORS 问题，支持编码检测，支持 retry
  * @returns 解析后的文章数组（不含 sourceId / sourceTitle，由调用方补充）
  */
-async function fetchFeedViaProxy(url: string): Promise<{
+interface ProxyFeedResult {
   feedTitle: string
   articles: Array<{
     id: string
@@ -105,25 +113,31 @@ async function fetchFeedViaProxy(url: string): Promise<{
     summary: string
     author: string
     publishedAt: number
-    media: Array<{ url: string, type: string, previewImageUrl?: string, mimeType?: string, width?: number, height?: number }>
+    media: MediaItem[]
   }>
-}> {
+}
+
+async function fetchFeedViaProxy(url: string): Promise<ProxyFeedResult> {
   if (!netlifyFunctionsAvailable())
     throw new Error('本地环境：Netlify Function 不可用')
   const fnUrl = netlifyFunctionPath('rss-feed-proxy')
   const res = await window.fetch(fnUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, adminKey: localStorage.getItem('proxy_admin_key') || undefined }),
     signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) {
     const errBody = await res.text().catch(() => '')
     throw new Error(`Feed 代理返回 ${res.status}: ${errBody.slice(0, 200)}`)
   }
-  const data = await res.json()
+  const data = await res.json() as ProxyFeedResult & { ok?: boolean, error?: string }
   if (!data.ok || !Array.isArray(data.articles)) {
     throw new Error(`Feed 代理返回异常: ${data.error || '数据格式错误'}`)
+  }
+  // 服务端返回的 type 为字符串，运行时值域与 MediaItem 一致
+  for (const a of data.articles) {
+    a.media = a.media.map(m => ({ ...m, type: m.type as MediaItem['type'] }))
   }
   return { feedTitle: data.feedTitle || '', articles: data.articles }
 }
@@ -465,9 +479,11 @@ function parseHTMLWithSelectors(html: string, selectors: CollectorSelectors, sou
     const author = authorEl?.textContent?.trim() || ''
     const dateStr = dateEl?.getAttribute('datetime') || dateEl?.textContent?.trim() || ''
     const publishedAt = dateStr ? new Date(dateStr).getTime() || Date.now() - i * 60000 : Date.now() - i * 60000
+    const id = generateArticleId(sourceId, link, publishedAt)
+    const contentHash = generateContentHash(title, summary)
 
     articles.push({
-      id: `col-${sourceId}-${link || title.replace(/[^\w\u4E00-\u9FFF]/g, '').slice(0, 40) || hashContent(title + dateStr)}`,
+      id,
       sourceId,
       sourceTitle,
       title,
@@ -480,6 +496,7 @@ function parseHTMLWithSelectors(html: string, selectors: CollectorSelectors, sou
       starred: false,
       media: [],
       attachments: [],
+      contentHash,
     })
   })
 
@@ -551,44 +568,91 @@ async function fetchRSSSource(source: Source): Promise<Article[]> {
     summary: string
     author: string
     publishedAt: number
-    media: Array<{ url: string, type: string, previewImageUrl?: string, mimeType?: string, width?: number, height?: number }>
+    media: MediaItem[]
   }
   let items: ProxyArticle[] = []
   let srcTitle = source.title
+  let proxyErr: unknown = null
 
-  // 如果配置了 RSSHub 路由路径，优先使用 RSSHub
-  const rsshubBase = _rsshubBaseUrl || 'https://rsshub.app'
-  const fetchUrl = source.rsshubPath
-    ? rsshubBase + (source.rsshubPath.startsWith('/') ? '' : '/') + source.rsshubPath
-    : source.url
-
-  try {
-    const result = await fetchFeedViaProxy(fetchUrl)
-    items = result.articles
-    if (result.feedTitle)
-      srcTitle = result.feedTitle
+  // 如果配置了 RSSHub 路由路径，优先使用 RSSHub；对 RSSHub URL 尝试多个镜像
+  if (source.rsshubPath) {
+    const rsshubPath = source.rsshubPath
+    for (const base of getRsshubBases()) {
+      try {
+        const result = await fetchFeedViaProxy(buildRsshubUrl(base, rsshubPath))
+        items = result.articles
+        if (result.feedTitle)
+          srcTitle = result.feedTitle
+        proxyErr = null
+        break
+      }
+      catch (e) {
+        proxyErr = e
+      }
+    }
   }
-  catch (proxyErr) {
+  else if (isRsshubUrl(source.url)) {
+    let path = ''
+    try {
+      path = new URL(source.url).pathname
+    }
+    catch {
+      path = source.url.replace(/^https?:\/\/[^/]+/, '')
+    }
+    for (const base of getRsshubBases()) {
+      try {
+        const result = await fetchFeedViaProxy(buildRsshubUrl(base, path))
+        items = result.articles
+        if (result.feedTitle)
+          srcTitle = result.feedTitle
+        proxyErr = null
+        break
+      }
+      catch (e) {
+        proxyErr = e
+      }
+    }
+  }
+  else {
+    try {
+      const result = await fetchFeedViaProxy(source.url)
+      items = result.articles
+      if (result.feedTitle)
+        srcTitle = result.feedTitle
+    }
+    catch (e) {
+      proxyErr = e
+    }
+  }
+
+  if (proxyErr) {
     // 代理失败时降级为浏览器端 RSS 解析（走 CORS fallback 链）
     console.warn(`[RSS] 服务端代理失败，降级为浏览器端解析 ${source.title}:`, proxyErr)
     try {
       const feed = await fetchFeed(source.url)
       srcTitle = feed.title || source.title
-      const mapItem = (item: FeedItem, _i: number) => ({
-        id: `art-${source.id}-${item.guid || item.link || hashContent(item.title || `${item.pubDate || ''}`)}`,
-        sourceId: source.id,
-        sourceTitle: srcTitle,
-        title: item.title || '无标题',
-        link: item.link || '',
-        content: cleanShortcodes(item.content || item.contentSnippet || ''),
-        summary: item.contentSnippet?.slice(0, 200) || item.content?.replace(/<[^>]*>/g, '').slice(0, 200) || '',
-        author: item.creator || item.author || '',
-        publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
-        read: false,
-        starred: false,
-        media: extractMediaFromItem(item),
-        attachments: [],
-      })
+      const mapItem = (item: FeedItem, _i: number) => {
+        const link = item.link || ''
+        const publishedAt = item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
+        const title = item.title || '无标题'
+        const summary = item.contentSnippet?.slice(0, 200) || item.content?.replace(/<[^>]*>/g, '').slice(0, 200) || ''
+        return {
+          id: generateArticleId(source.id, link, publishedAt),
+          sourceId: source.id,
+          sourceTitle: srcTitle,
+          title,
+          link,
+          content: cleanShortcodes(item.content || item.contentSnippet || ''),
+          summary,
+          author: item.creator || item.author || '',
+          publishedAt,
+          read: false,
+          starred: false,
+          media: extractMediaFromItem(item),
+          attachments: [],
+          contentHash: generateContentHash(title, summary),
+        }
+      }
       return feed.items.map(mapItem)
     }
     catch {
@@ -601,7 +665,7 @@ async function fetchRSSSource(source: Source): Promise<Article[]> {
     ...item,
     content: cleanShortcodes(item.content),
     summary: cleanShortcodes(item.summary),
-    id: `art-${source.id}-${item.id.slice(5)}`,
+    id: generateArticleId(source.id, item.link, item.publishedAt),
     sourceId: source.id,
     sourceTitle: srcTitle,
     read: false,
@@ -642,7 +706,7 @@ async function fetchFoloSource(source: Source): Promise<Article[]> {
     const result = await fetchFeedViaProxy(rsshubUrl)
     return result.articles.map(a => ({
       ...a,
-      id: `art-${source.id}-${a.id.replace(/^proxy-/, '').slice(0, 40)}`,
+      id: generateArticleId(source.id, a.link, a.publishedAt),
       sourceId: source.id,
       sourceTitle: source.title,
       read: false,
@@ -676,9 +740,26 @@ async function fetchFoloSource(source: Source): Promise<Article[]> {
 }
 
 /**
+ * 判断错误是否为可重试的网络/超时错误
+ */
+function isRetryableError(err: unknown): boolean {
+  if (!(err instanceof Error))
+    return false
+  const msg = err.message.toLowerCase()
+  return msg.includes('timeout')
+    || msg.includes('network')
+    || msg.includes('fetch')
+    || msg.includes('cors')
+    || msg.includes('proxy')
+    || msg.includes('econnrefused')
+    || msg.includes('etimedout')
+    || msg.includes('abort')
+}
+
+/**
  * 根据源的策略获取文章
  * 注意：fetchRSSSource 内部已有服务端 proxy → 浏览器端 fallback 两级重试
- * 此处只处理最外层超时保护
+ * 此处处理外层超时保护 + 可重试错误指数退避
  */
 export async function fetchSourceArticles(source: Source): Promise<Article[]> {
   const handler = STRATEGIES[source.strategy]
@@ -686,16 +767,36 @@ export async function fetchSourceArticles(source: Source): Promise<Article[]> {
     throw new Error(`未知的获取策略: ${source.strategy}`)
 
   const timeoutMs = source.strategy === 'rss' ? 25_000 : 15_000
+  const maxRetries = 2
+  let lastError: unknown = null
 
-  const { promise: timeoutPromise, reject } = Promise.withResolvers<never>()
-  const timer = window.setTimeout(() => reject(new Error(`获取超时（${timeoutMs}ms）`)), timeoutMs)
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = 1000 * (2 ** (attempt - 1))
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
 
-  try {
-    return await Promise.race([handler(source), timeoutPromise])
+    let timeoutReject: (reason?: unknown) => void
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutReject = reject
+    })
+    const timer = window.setTimeout(() => timeoutReject(new Error(`获取超时（${timeoutMs}ms）`)), timeoutMs)
+
+    try {
+      return await Promise.race([handler(source), timeoutPromise])
+    }
+    catch (err) {
+      lastError = err
+      if (attempt >= maxRetries || !isRetryableError(err))
+        break
+      console.warn(`[Reading] 获取源失败，第 ${attempt + 1} 次重试: ${source.title}`, err)
+    }
+    finally {
+      clearTimeout(timer)
+    }
   }
-  finally {
-    clearTimeout(timer)
-  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
 }
 
 // ── 全文提取 ───────────────────────────────────────────
@@ -703,54 +804,12 @@ export async function fetchSourceArticles(source: Source): Promise<Article[]> {
 /** 从文章链接获取完整正文 */
 export async function fetchFullText(url: string): Promise<string> {
   const html = await fetchPageHTML(url)
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-  // 移除所有噪音元素
-  const noise = ['script', 'style', 'noscript', 'nav', 'footer', 'header', 'aside', 'iframe', '.ad', '.advertisement', '.sidebar', '.comment', '.nav', '.menu', '.header', '.footer', '.sidebar', '.related', '.recommend', '.comment', '.toolbar']
-  doc.querySelectorAll(noise.join(',')).forEach(el => el.remove())
-  // 尝试正文选择器
-  const selectors = [
-    'article',
-    'main',
-    '.post-content',
-    '.article-content',
-    '.entry-content',
-    '.content',
-    '#content',
-    '.post-body',
-    '.article-body',
-    '.rich_media_content', // 微信
-    '.article-detail',
-    '.detail-content',
-    '.detail_txt', // 中国法院网
-    '.detail-text',
-    '.news-content',
-    '.news_txt',
-    '[class*="article"]',
-    '[class*="content"]',
-    '[class*="detail"]',
-    '.main-content',
-    '#main-content',
-    '.page-content',
-    '.text-content',
-  ]
-  for (const sel of selectors) {
-    const el = doc.querySelector(sel)
-    if (el && el.textContent && el.textContent.trim().length > 200) {
-      return el.innerHTML
-    }
-  }
-  // 回退：取 body 内文本最多的子元素
-  let best: Element | null = null
-  let maxLen = 0
-  for (const el of doc.body?.children || []) {
-    const len = el.textContent?.trim().length || 0
-    if (len > maxLen) {
-      maxLen = len
-      best = el
-    }
-  }
-  return best?.innerHTML || doc.body?.innerHTML || ''
+  // 优先使用 Readability 提取
+  const readabilityContent = extractArticle(html, url)
+  if (readabilityContent && readabilityContent.replace(/<[^>]*>/g, '').trim().length > 200)
+    return readabilityContent
+  // 兜底：常见选择器 + body 最长子元素
+  return extractArticleFallback(html)
 }
 
 // ── Folo API（代理 rsshub:// 请求）──────────────────────
@@ -825,32 +884,37 @@ function mapFoloEntry(entry: FoloFeedResponse['data']['entries'][0], sourceId: s
   }))
   const content = cleanShortcodes(entry.content || entry.description || '')
   const summary = entry.summary || content.replace(/<[^>]*>/g, '').slice(0, 200) || ''
+  const title = entry.title || '无标题'
+  const link = entry.url || ''
+  const publishedAt = entry.publishedAt ? new Date(entry.publishedAt).getTime() : Date.now()
   return {
-    id: `folo-${sourceId}-${entry.id}`,
+    id: generateArticleId(sourceId, link, publishedAt),
     sourceId,
     sourceTitle,
-    title: entry.title || '无标题',
-    link: entry.url || '',
+    title,
+    link,
     content,
     summary,
     author: entry.author || '',
-    publishedAt: entry.publishedAt ? new Date(entry.publishedAt).getTime() : Date.now(),
+    publishedAt,
     read: false,
     starred: false,
     media,
     attachments,
+    contentHash: generateContentHash(title, summary),
   }
 }
 
 /** Folo 分页参数 */
-const MAX_PAGES = 3
+const MAX_PAGES = 2
 const BATCH_SIZE = 40
+const FOLO_PAGE_DELAY_MS = 300
 
 /**
  * 通用 Folo entries 分页获取
  * 循环拉取多页，直到没有更多或达到 MAX_PAGES 上限
  */
-async function fetchFoloEntriesPaginated(feedId: string, view: number, publishedAfter: string | null = null): Promise<Article[]> {
+async function fetchFoloEntriesPaginated(feedId: string, _view: number, publishedAfter: string | null = null): Promise<Article[]> {
   const allArticles: Article[] = []
   let cursor = publishedAfter
   for (let page = 0; page < MAX_PAGES; page++) {
@@ -886,6 +950,10 @@ async function fetchFoloEntriesPaginated(feedId: string, view: number, published
     // 返回少于 limit → 没有更多了
     if (batch.length < BATCH_SIZE)
       break
+
+    // 页间延迟，避免触发 Folo rate limit
+    if (page < MAX_PAGES - 1)
+      await new Promise(resolve => setTimeout(resolve, FOLO_PAGE_DELAY_MS))
   }
   return allArticles
 }

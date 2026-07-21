@@ -123,11 +123,11 @@ function layerIndexClass(layerKey: string) {
           >
             <!-- 层标题 -->
             <div class="flex items-center gap-3">
-              <div class="h-px flex-1 bg-gradient-to-r from-transparent via-border to-border" />
+              <div class="h-px flex-1 bg-linear-to-r from-transparent via-border to-border" />
               <h2 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {{ t(`landing.section.${layer.key}`) }}
               </h2>
-              <div class="h-px flex-1 bg-gradient-to-l from-transparent via-border to-border" />
+              <div class="h-px flex-1 bg-linear-to-l from-transparent via-border to-border" />
             </div>
 
             <!-- 卡片列 -->

@@ -67,12 +67,12 @@ function parseOpml(xml: string): Array<{ xmlUrl: string, title: string, view: nu
   // Walk all <outline> tags in document order (handles single-line OPML, any line breaks)
   // Use depth tracking so </outline> only pops a group when it closes a depth-1 (group-level) tag,
   // not depth-2+ (feed-level) tags which use non-self-closing <outline>...</outline> form.
-  const tagRe = /<\/?outline\s*([^>]*?)\/?\s*>/gi
+  const tagRe = /<\/?outline\b([^>]*)>/gi
   const groupStack: string[] = ['Articles']
   let depth = 0
 
-  let match: RegExpExecArray | null
-  while ((match = tagRe.exec(xml)) !== null) {
+  let match: RegExpExecArray | null = tagRe.exec(xml)
+  while (match !== null) {
     const full = match[0]
     const attrs = match[1]
 
@@ -113,6 +113,8 @@ function parseOpml(xml: string): Array<{ xmlUrl: string, title: string, view: nu
         groupStack.pop()
       depth--
     }
+
+    match = tagRe.exec(xml)
   }
 
   return entries
@@ -154,7 +156,7 @@ export default async (req: Request, _context: Context) => {
     }
 
     const dbFile = dbField as unknown as Blob
-    const dbBuffer = Buffer.from(await dbFile.arrayBuffer())
+    const dbBuffer = new Uint8Array(await dbFile.arrayBuffer())
 
     // 1. 解析 OPML
     const opmlEntries = parseOpml(opmlField as string)
@@ -209,7 +211,7 @@ export default async (req: Request, _context: Context) => {
     // 5. 构建 sources
     const srcIdByFeed: Record<string, string> = {}
     const srcTitleByFeed: Record<string, string> = {}
-    const sources: SourceOutput[] = matchedFeeds.map((m, i) => {
+    const sources: SourceOutput[] = matchedFeeds.map((m) => {
       const id = `import-folo-${m.feedId.slice(0, 12)}`
       srcIdByFeed[m.feedId] = id
       srcTitleByFeed[m.feedId] = m.source.title

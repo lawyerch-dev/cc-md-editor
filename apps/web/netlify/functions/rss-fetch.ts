@@ -1,4 +1,5 @@
 import type { Context } from '@netlify/functions'
+import process from 'node:process'
 
 /** 从 HTTP 响应头和 XML 声明中检测字符编码 */
 function detectEncoding(buffer: ArrayBuffer, contentType: string | null): string {
@@ -50,20 +51,35 @@ export default async (req: Request, _context: Context) => {
     return Response.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 })
   }
 
+  const startAt = Date.now()
+
   // 带重试的获取逻辑：优先用国内代理，失败则直连
-  // Netlify 免费版 Function 超时 10s，单次 fetch 用 6s 留余量给编码处理
+  // Netlify 免费版 Function 超时 10s，单次 fetch 用 8s 留余量给编码处理
   const PROXY_URL = 'https://proxy.new-ai.cn'
-  const PROXY_TOKEN = 'ccmd2024proxy'
+  const PROXY_TOKEN = process.env.PROXY_TOKEN || ''
+  const ADMIN_KEY = process.env.ADMIN_KEY || ''
+
+  // 鉴权：生产环境需要 Admin Key（本地开发由 Vite proxy 控制访问）
+  const isLocalDev = !ADMIN_KEY || (req.headers.get('host') || '').includes('localhost')
+  if (!isLocalDev && adminKey !== ADMIN_KEY) {
+    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (!PROXY_TOKEN) {
+    console.warn('[rss-fetch] PROXY_TOKEN not configured')
+  }
 
   async function tryFetch(targetUrl: string, timeoutMs: number): Promise<Response> {
     // 先尝试国内代理
     try {
+      const proxyHeaders: Record<string, string> = {}
+      if (PROXY_TOKEN)
+        proxyHeaders['X-Proxy-Token'] = PROXY_TOKEN
+      if (adminKey)
+        proxyHeaders['X-Admin-Key'] = adminKey
       const proxyRes = await fetch(`${PROXY_URL}/${encodeURIComponent(targetUrl)}`, {
         signal: AbortSignal.timeout(timeoutMs),
-        headers: {
-          'X-Proxy-Token': PROXY_TOKEN,
-          ...(adminKey ? { 'X-Admin-Key': adminKey } : {}),
-        },
+        headers: proxyHeaders,
       })
       if (proxyRes.ok)
         return proxyRes
@@ -84,7 +100,7 @@ export default async (req: Request, _context: Context) => {
   let lastError: Error | null = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await tryFetch(url, attempt === 0 ? 6_000 : 3_000)
+      const res = await tryFetch(url, attempt === 0 ? 8_000 : 4_000)
 
       if (!res.ok) {
         lastError = new Error(`Upstream returned ${res.status}`)
@@ -100,6 +116,7 @@ export default async (req: Request, _context: Context) => {
       const body = new TextDecoder(encoding, { fatal: false }).decode(buffer)
       const contentType = res.headers.get('content-type') ?? 'text/plain'
 
+      console.log(`[rss-fetch] ok url=${url} status=${res.status} duration=${Date.now() - startAt}ms`)
       return Response.json({ ok: true, body, contentType })
     }
     catch (err) {
@@ -110,5 +127,6 @@ export default async (req: Request, _context: Context) => {
     }
   }
 
+  console.log(`[rss-fetch] error url=${url} duration=${Date.now() - startAt}ms error=${lastError?.message}`)
   return Response.json({ ok: false, error: lastError?.message || 'Unknown error' }, { status: 502 })
 }

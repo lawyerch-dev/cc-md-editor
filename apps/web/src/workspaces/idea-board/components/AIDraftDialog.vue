@@ -134,7 +134,7 @@ async function fallbackOcrAndWrite() {
   }
 
   // Step 2: 用文本模型根据 OCR 结果生成文章
-  if (!textModel) {
+  if (!aiConfig.model) {
     error.value = '未配置文本模型，无法生成文章。'
     step.value = 'idle'
     return

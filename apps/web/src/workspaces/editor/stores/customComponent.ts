@@ -49,13 +49,9 @@ export const useCustomComponentStore = defineStore(`customComponent`, () => {
 
   /** 渲染器使用的注册表——懒加载 */
   const registry = computed<ComponentRegistry>(() => {
-    if (!_getBuiltInRegistry)
+    if (!_getBuiltInRegistry || !_builtInComponents)
       return {}
-    const base = _getBuiltInRegistry()
-    for (const c of userComponents.value) {
-      base[c.name] = c
-    }
-    return base
+    return _getBuiltInRegistry(_builtInComponents, userComponents.value)
   })
 
   // ==================== 方法 ====================

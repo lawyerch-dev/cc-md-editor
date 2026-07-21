@@ -10,6 +10,7 @@ interface OpmlEntry {
   xmlUrl: string
   title: string
   view: FeedViewType
+  category: string
 }
 
 /** Follow app 的 view 编号 → 本应用 FeedViewType */

@@ -1,6 +1,7 @@
 <!-- @workspace shared -->
 <script setup lang="ts">
-/* eslint-disable vue/no-unused-refs */ // template refs are used in template
+/* eslint-disable vue/no-unused-refs */ import type { ChatMessage } from '@/shared/composables/ai/useAIConversation'
+// template refs are used in template
 import type { QuickCommandRuntime } from '@/shared/stores/quickCommands'
 import {
   ArrowLeft,

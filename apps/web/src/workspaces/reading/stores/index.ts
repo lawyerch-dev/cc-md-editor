@@ -3,6 +3,7 @@ import type { Article, ReadingList, Source } from './types'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { store } from '@/storage'
+import { generateArticleId, generateContentHash, isNewArticleId } from '../utils/articleId'
 import { detectFeedViewType, discoverRSSHubRoutes, fetchFullText, fetchPageHTML, fetchSourceArticles, previewSelectors, probeRSS, setRsshubBaseUrl } from './fetch-strategies'
 import { clearAll as clearAllIDB } from './indexeddb-persistence'
 import {
@@ -19,7 +20,7 @@ import {
   saveSources,
 } from './persistence'
 
-export type { Article, CollectorSelectors, FeedViewType, FetchStrategy, ReadingList, Source, SourceHealth } from './types'
+export type { Article, CollectorSelectors, FeedViewType, FetchStrategy, MediaItem, ReadingList, Source, SourceHealth } from './types'
 export { VIEW_TYPE_OPTIONS } from './types'
 
 /** 并发获取上限，避免 CORS 代理过载 */
@@ -50,6 +51,8 @@ export const useReadingStore = defineStore('reading', () => {
   const lastFetchMap = ref<Record<string, number>>({})
   const lists = ref<ReadingList[]>(loadLists())
   const hydrated = ref(false)
+  /** CSS 选择器源连续零命中次数（不持久化） */
+  const selectorZeroHitMap = ref<Record<string, number>>({})
   let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
 
   // ── 计算属性 ─────────────────────────────────────────
@@ -102,6 +105,39 @@ export const useReadingStore = defineStore('reading', () => {
     }
   }
 
+  /** 将旧版文章 ID 迁移为新版，并补全 contentHash；返回 ID 映射表 */
+  function migrateArticleIds(articles: Article[]): { articles: Article[], idMap: Map<string, string> } {
+    const idMap = new Map<string, string>()
+    const seenNewIds = new Set<string>()
+    const migrated: Article[] = []
+
+    for (const article of articles) {
+      if (isNewArticleId(article.id)) {
+        if (!article.contentHash)
+          article.contentHash = generateContentHash(article.title, article.summary)
+        if (!seenNewIds.has(article.id)) {
+          seenNewIds.add(article.id)
+          migrated.push(article)
+        }
+        continue
+      }
+
+      const newId = generateArticleId(article.sourceId, article.link, article.publishedAt)
+      if (seenNewIds.has(newId)) {
+        idMap.set(article.id, newId)
+        continue
+      }
+      seenNewIds.add(newId)
+      idMap.set(article.id, newId)
+      article.id = newId
+      if (!article.contentHash)
+        article.contentHash = generateContentHash(article.title, article.summary)
+      migrated.push(article)
+    }
+
+    return { articles: migrated, idMap }
+  }
+
   async function hydrate() {
     const lsSources = loadSources()
     const lsArticles = loadArticles()
@@ -117,8 +153,18 @@ export const useReadingStore = defineStore('reading', () => {
     // localStorage 是同步写入，不会丢失；IndexedDB 异步写入可能丢失。
     // 取两者中更完整的一份，确保用户新增的数据不会被旧的 IndexedDB 数据覆盖。
     const finalSources = lsSources.length > 0 ? lsSources : s
-    const finalArticles = lsArticles.length > 0 ? lsArticles : a
-    const finalLists = lsLists.length > 0 ? lsLists : l
+    let finalArticles = lsArticles.length > 0 ? lsArticles : a
+    let finalLists = lsLists.length > 0 ? lsLists : l
+
+    // 迁移旧版文章 ID 为新版哈希 ID，并同步更新阅读列表
+    const migrated = migrateArticleIds(finalArticles)
+    finalArticles = migrated.articles
+    if (migrated.idMap.size > 0) {
+      finalLists = finalLists.map(list => ({
+        ...list,
+        articleIds: list.articleIds.map(oldId => migrated.idMap.get(oldId) || oldId),
+      }))
+    }
 
     // ── 源去重：按标准化 URL，保留第一个，合并文章到保留的源 ──
     const urlToKeepId = new Map<string, string>()
@@ -157,14 +203,14 @@ export const useReadingStore = defineStore('reading', () => {
       }
     }
 
-    // 按 sourceId+title+publishedAt 去重（比 ID 去重更可靠）
+    // 按 contentHash 或 sourceId+title+publishedAt 去重
     const validSourceIds = new Set(keptSources.map(s => s.id))
     const seenArticleKeys = new Set<string>()
     const keptArticles: Article[] = []
     for (const article of finalArticles) {
       if (!validSourceIds.has(article.sourceId))
         continue
-      const key = `${article.sourceId}|${article.title}|${article.publishedAt}`
+      const key = article.contentHash || `${article.sourceId}|${article.title}|${article.publishedAt}`
       if (seenArticleKeys.has(key))
         continue
       seenArticleKeys.add(key)
@@ -176,10 +222,12 @@ export const useReadingStore = defineStore('reading', () => {
     lastFetchMap.value = fetchMap
     hydrated.value = true
 
-    // 去重后持久化，防止下次启动重复清理
-    if (removeSourceIds.size > 0 || keptArticles.length < finalArticles.length) {
+    // 去重或 ID 迁移后持久化，防止下次启动重复清理
+    if (removeSourceIds.size > 0 || keptArticles.length < finalArticles.length || migrated.idMap.size > 0) {
       saveSources(sources.value)
       saveArticles(articles.value)
+      if (migrated.idMap.size > 0)
+        saveLists(lists.value)
     }
 
     // 监听 Folo feedId 缓存事件（fetchFoloSource 首次获取后触发）
@@ -250,7 +298,11 @@ export const useReadingStore = defineStore('reading', () => {
 
   function mergeNewArticles(newArticles: Article[]) {
     const existingMap = new Map(articles.value.map(a => [a.id, a]))
-    const existingKeys = new Set(articles.value.map(a => `${a.sourceId}|${a.title}|${a.publishedAt}`))
+    const existingContentHashes = new Set(
+      articles.value
+        .filter(a => a.contentHash)
+        .map(a => a.contentHash),
+    )
     const validSourceIds = new Set(sources.value.map(s => s.id))
 
     const toAdd: Article[] = []
@@ -258,7 +310,6 @@ export const useReadingStore = defineStore('reading', () => {
     for (const a of newArticles) {
       if (!validSourceIds.has(a.sourceId))
         continue
-      const key = `${a.sourceId}|${a.title}|${a.publishedAt}`
       const existing = existingMap.get(a.id)
       if (existing) {
         // 如果新文章有更多媒体数据，更新已有文章
@@ -268,9 +319,12 @@ export const useReadingStore = defineStore('reading', () => {
         }
         continue
       }
-      if (existingKeys.has(key))
+      // 内容指纹去重：同一内容 24h 内只保留一篇
+      if (a.contentHash && existingContentHashes.has(a.contentHash))
         continue
       toAdd.push(a)
+      if (a.contentHash)
+        existingContentHashes.add(a.contentHash)
     }
 
     if (toAdd.length || updated) {
@@ -316,6 +370,24 @@ export const useReadingStore = defineStore('reading', () => {
     }, 2000)
   }
 
+  /** 更新 CSS 选择器源的健康状态：连续 3 次零命中则标记 stale */
+  function updateSelectorHealth(src: Source, fetchedCount: number) {
+    if (src.strategy !== 'css-selector')
+      return
+    if (fetchedCount > 0) {
+      selectorZeroHitMap.value[src.id] = 0
+      return
+    }
+    selectorZeroHitMap.value[src.id] = (selectorZeroHitMap.value[src.id] || 0) + 1
+    if (selectorZeroHitMap.value[src.id] >= 3) {
+      src.health = {
+        status: 'stale',
+        lastFetchAt: Date.now(),
+        lastError: '连续 3 次未命中任何文章，站点规则可能已变更',
+      }
+    }
+  }
+
   /** 内部获取逻辑 */
   async function doFetchSourcesParallel(targets: Source[], background: boolean) {
     if (!background)
@@ -337,7 +409,8 @@ export const useReadingStore = defineStore('reading', () => {
             const newArticles = await fetchSourceArticles(src)
             mergeNewArticles(newArticles)
             src.health = { status: 'ok', lastFetchAt: Date.now(), articleCount: newArticles.length }
-            if (newArticles.length > 0)
+            updateSelectorHealth(src, newArticles.length)
+            if (newArticles.length > 0 && src.health?.status !== 'stale')
               lastFetchMap.value[src.id] = Date.now()
           }
           catch (e) {
@@ -415,7 +488,8 @@ export const useReadingStore = defineStore('reading', () => {
       const newArticles = await fetchSourceArticles(src)
       mergeNewArticles(newArticles)
       src.health = { status: 'ok', lastFetchAt: Date.now(), articleCount: newArticles.length }
-      if (newArticles.length > 0)
+      updateSelectorHealth(src, newArticles.length)
+      if (newArticles.length > 0 && src.health?.status !== 'stale')
         lastFetchMap.value[src.id] = Date.now()
       persistFetchMapDebounced()
 
@@ -643,6 +717,7 @@ export const useReadingStore = defineStore('reading', () => {
     searchQuery,
     fetchingSourceIds,
     hydrated,
+    lastFetchMap,
     // 计算属性
     unreadCountMap,
     totalUnread,

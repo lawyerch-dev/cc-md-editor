@@ -58,10 +58,22 @@ function getGalleryClass(media: MediaItem[]) {
   return 'grid-cols-2'
 }
 
-function getImageClass(_media: MediaItem[], _index: number) {
+function getImageClass(media: MediaItem[], _index: number) {
   if (media.length === 1)
     return 'max-h-80 w-full object-contain'
   return 'aspect-square w-full object-cover'
+}
+
+// ── 时长格式化 ──
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  if (mins >= 60) {
+    const hours = Math.floor(mins / 60)
+    const remainingMins = mins % 60
+    return `${hours}:${remainingMins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 // ── 相对时间 ──

@@ -31,15 +31,21 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5180,
       proxy: {
-        '/.netlify/functions': {
-          target: 'http://localhost:9999',
-          changeOrigin: true,
-        },
-        // 本地开发代理 Folo API（绕过 CORS）
+        // 本地开发直接代理 Folo API（绕过 CORS）
         '/api/folo': {
           target: 'https://api.folo.is',
           changeOrigin: true,
           rewrite: (path: string) => path.replace(/^\/api\/folo/, ''),
+        },
+        // 本地开发代理 Netlify Functions（无需单独启动 netlify dev）
+        '/api': {
+          target: 'http://localhost:9999',
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/api/, '/.netlify/functions'),
+        },
+        '/.netlify/functions': {
+          target: 'http://localhost:9999',
+          changeOrigin: true,
         },
       },
     },
@@ -220,7 +226,7 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 5000,
     },
   }
 })

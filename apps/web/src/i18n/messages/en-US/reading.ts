@@ -18,6 +18,7 @@ export default {
     search: 'Search articles...',
     refresh: 'Refresh',
     refreshSource: 'Refresh this source',
+    retry: 'Retry',
     sourceManage: 'Data Sources',
     aiConfig: 'AI Config',
     // Data Sources
@@ -54,7 +55,6 @@ export default {
     ideaCreated: 'Extracted to Idea Board',
     ideaCreateFailed: 'Extract failed',
     annotate: 'Annotate',
-    noAnnotations: 'No annotations yet',
     selectToAnnotate: 'Select text to annotate',
     userProfileTitle: 'My Profile',
     userProfileDesc: 'Describe your background, goals, and areas of interest. AI will use this to filter and analyze content for you.',
@@ -102,7 +102,6 @@ export default {
     importFileSelected: 'Selected',
     importSelectFile: 'Please select an OPML file',
     exportSources: 'Export Src',
-    import: 'Import',
     exportSuccess: 'Exported {n} sources',
     exportAll: 'Export All',
     exportFullSuccess: 'Exported {sources} sources, {articles} articles',

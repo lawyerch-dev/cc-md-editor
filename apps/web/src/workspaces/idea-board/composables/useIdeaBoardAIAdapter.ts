@@ -58,15 +58,15 @@ export function useIdeaBoardAdapter(opts: {
 }
 
 function fileToDataUrl(file: File): Promise<string | null> {
-  const { promise, resolve } = Promise.withResolvers<string | null>()
-  try {
+  return new Promise((resolve) => {
     const reader = new FileReader()
     reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
     reader.onerror = () => resolve(null)
-    reader.readAsDataURL(file)
-  }
-  catch {
-    resolve(null)
-  }
-  return promise
+    try {
+      reader.readAsDataURL(file)
+    }
+    catch {
+      resolve(null)
+    }
+  })
 }
