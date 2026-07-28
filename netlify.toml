@@ -1,11 +1,10 @@
 [build]
-base = "apps/web"
-command = "pnpm build:h5-netlify:only"
-publish = "dist"
-functions = "netlify/functions"
+command = "pnpm web build:h5-netlify:only"
+publish = "apps/web/dist"
+functions = "apps/web/netlify/functions"
 
 [dev]
-command = "npx vite"
+command = "pnpm web dev"
 framework = "vite"
 port = 8890
 targetPort = 5180

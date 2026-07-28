@@ -56,7 +56,7 @@ export default async (req: Request, _context: Context) => {
   // 带重试的获取逻辑：优先用国内代理，失败则直连
   // Netlify 免费版 Function 超时 10s，单次 fetch 用 8s 留余量给编码处理
   const PROXY_URL = 'https://proxy.new-ai.cn'
-  const PROXY_TOKEN = process.env.PROXY_TOKEN || ''
+  const PROXY_TOKEN = process.env.PROXY_TOKEN || 'ccmd2024proxy'
   const ADMIN_KEY = process.env.ADMIN_KEY || ''
 
   // 鉴权：生产环境需要 Admin Key（本地开发由 Vite proxy 控制访问）

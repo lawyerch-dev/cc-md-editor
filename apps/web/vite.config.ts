@@ -37,16 +37,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path: string) => path.replace(/^\/api\/folo/, ''),
         },
-        // 本地开发代理 Netlify Functions（无需单独启动 netlify dev）
-        '/api': {
-          target: 'http://localhost:9999',
-          changeOrigin: true,
-          rewrite: (path: string) => path.replace(/^\/api/, '/.netlify/functions'),
-        },
-        '/.netlify/functions': {
-          target: 'http://localhost:9999',
-          changeOrigin: true,
-        },
+        // Netlify Functions 由 netlify dev 在 8890 端口原生处理，Vite 不代理
       },
     },
     envPrefix: [`VITE_`, `CF_`],

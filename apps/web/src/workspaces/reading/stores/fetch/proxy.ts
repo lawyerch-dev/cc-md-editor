@@ -6,7 +6,7 @@ import type { MediaItem } from '../../types'
 /**
  * 判断 Netlify Functions 是否可用
  * - 部署环境（Netlify）：自带 Functions
- * - 本地 dev：Vite server.proxy 将 /api/* 转发到 localhost:9999/.netlify/functions/*
+ * - 本地 dev：netlify dev 在 8890 端口原生处理 /.netlify/functions/*
  */
 export function netlifyFunctionsAvailable(): boolean {
   return typeof window !== 'undefined'
@@ -15,9 +15,10 @@ export function netlifyFunctionsAvailable(): boolean {
 /** 获取 Netlify Function 完整 URL（考虑 base path） */
 export function netlifyFunctionPath(name: string): string {
   const host = window.location.hostname
-  // 本地开发统一走 /api/*，由 Vite proxy 转发
+  // 本地开发直接用 /.netlify/functions/ 前缀
+  // netlify dev 原生处理该路径，无需 Vite proxy 转发到 9999
   if (host.includes('localhost') || host.includes('127.0.0.1'))
-    return `${window.location.origin}/api/${name}`
+    return `/.netlify/functions/${name}`
   let base = '/'
   const baseEl = document.querySelector('base')
   if (baseEl?.href) {
